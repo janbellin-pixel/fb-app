@@ -1,0 +1,813 @@
+// Echtbetrieb mit Google
+// =====================
+// Gemeinsame Daten werden NUR GELESEN:
+//   Termine            → Google Kalender der Verbindung
+//   Adressen, News     → Google-Tabellen (gepflegt von Admins/Redaktion direkt in Google)
+//   Zeitung, Galerie   → Ordner in Google Drive
+//   Namen, Fotos       → Workspace-Verzeichnis bzw. Google-Konto
+//
+// Geändert werden ausschließlich EIGENE Daten des angemeldeten Mitglieds:
+//   Zu-/Absage         → im eigenen Kalender (Google überträgt sie an den Termin)
+//   Profilangaben      → eigene kleine Datei im eigenen Google Drive, für Mitglieder lesbar
+//   Forenbeiträge      → je Beitrag eine eigene Datei im eigenen Drive, für Mitglieder lesbar
+//   Chat-Nachrichten   → eigene Nachrichten in Google Chat
+//   Einwilligungen     → eigene Datei im eigenen Drive, nur für die Datenschutz-Verantwortlichen lesbar
+//                        (die Sammeltabelle schreibt nur deren eigenes Konto)
+// Der Schreibschutz (google/guard.js) erzwingt das für jede einzelne Anfrage.
+import { config, isAdminEmail } from '../config.js';
+import * as cal from '../google/calendar.js';
+import * as sheets from '../google/sheets.js';
+import * as drive from '../google/drive.js';
+import * as people from '../google/people.js';
+import * as chat from '../google/chat.js';
+import { ApiError } from '../google/client.js';
+import { registerOwnFile, isOwnFile, registerOwnTable } from '../google/guard.js';
+import { hasScope } from '../auth.js';
+import { buildRecord, consentRecipients, isConsentManager, pruefsumme, ja } from '../lib/datenschutz.js';
+import { prepareConsentSheet, syncConsentSheet, TABLE_TYPE } from '../lib/einwilligungsliste.js';
+import {
+  SHEETS, NEWS_SCHEMA, PROFILE_FIELDS, PROFILE_MAX, guessCategory, parseEventMeta, stripAppLink, issueFromFile, sortIssues, addressesFromRows,
+  buildForum, newsFromRows, sortMembers,
+} from './common.js';
+import { htmlToText } from '../lib/text.js';
+
+const SCOPE_DIRECTORY = 'https://www.googleapis.com/auth/directory.readonly';
+const SCOPE_CHAT_READ = 'https://www.googleapis.com/auth/chat.spaces.readonly';
+const SCOPE_CHAT_MSG = 'https://www.googleapis.com/auth/chat.messages';
+const APP_FOLDER = 'Frankonia-Brunonia App – meine Beiträge und Profil';
+const OWN_FIELDS = 'id,name,description,createdTime,modifiedTime,appProperties,ownedByMe,owners(emailAddress,displayName,photoLink)';
+const GALLERY_FIELDS = 'id,name,mimeType,thumbnailLink,webViewLink,createdTime,modifiedTime,imageMediaMetadata(width,height,time),parents';
+const TABLE_FIELDS = 'id,name,ownedByMe,appProperties,owners(emailAddress,displayName,photoLink)';
+const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
+const SPREADSHEET = 'application/vnd.google-apps.spreadsheet';
+export const MAX_POST_LENGTH = 4000;
+
+function notConfigured(what) {
+  return Object.assign(new Error(`${what} ist noch nicht eingerichtet. Ein Admin muss das unter „Einrichtung“ erledigen.`), { code: 'not_configured' });
+}
+
+function notInvited() {
+  return Object.assign(new Error('Du bist zu diesem Termin nicht eingeladen. Zu- und Absagen sind nur bei einer Einladung möglich (normalerweise über die Mitglieder-Gruppe).'), { code: 'not_invited' });
+}
+
+const nowIso = () => new Date().toISOString();
+const clip = (v, n) => String(v ?? '').trim().slice(0, n);
+
+function parseJson(s) {
+  try {
+    const v = JSON.parse(s || '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+export class GoogleBackend {
+  constructor(user) {
+    this.kind = 'google';
+    this.user = user;
+    this.isWorkspace = !!user.hd;
+    this.memo = new Map();
+    this.blobUrls = new Map();
+  }
+
+  get me() {
+    return this.user;
+  }
+
+  get myEmail() {
+    return this.user.email.toLowerCase();
+  }
+
+  isAdmin() {
+    return isAdminEmail(this.user.email);
+  }
+
+  cached(key, ttl, fn) {
+    const hit = this.memo.get(key);
+    if (hit && Date.now() - hit.t < ttl) return hit.p;
+    const p = fn();
+    this.memo.set(key, { t: Date.now(), p });
+    p.catch(() => this.memo.delete(key));
+    return p;
+  }
+
+  invalidate(...keys) {
+    for (const k of keys) this.memo.delete(k);
+  }
+
+  sheetId(which) {
+    const id = (config.tabellen?.[which] || '').trim();
+    if (!id) throw notConfigured(which === 'adressen' ? 'Das Adressverzeichnis' : 'Die News-Tabelle');
+    return id;
+  }
+
+  calendarId() {
+    const id = (config.kalenderId || '').trim();
+    if (!id) throw notConfigured('Der Kalender');
+    return id;
+  }
+
+  /* ================================================================ eigene Dateien */
+
+  /** Ordner im EIGENEN Drive, in dem die App Profil und Beiträge ablegt */
+  async appFolder() {
+    return this.cached('appFolder', 24 * 3600_000, async () => {
+      const found = await drive.listFiles(
+        "appProperties has { key='fbTyp' and value='ordner' } and 'me' in owners and trashed = false",
+        { fields: 'id,ownedByMe', orderBy: 'createdTime' },
+      );
+      const own = found.find((f) => f.ownedByMe);
+      if (own) {
+        registerOwnFile(own.id);
+        return own.id;
+      }
+      const f = await drive.createFile({ name: APP_FOLDER, mimeType: 'application/vnd.google-apps.folder', appProperties: { fbTyp: 'ordner' } });
+      registerOwnFile(f.id);
+      return f.id;
+    });
+  }
+
+  /** Alle für mich sichtbaren App-Dateien eines Typs (eigene und von anderen freigegebene) */
+  async listAppFiles(typ) {
+    const q = `appProperties has { key='fbTyp' and value='${typ}' } and trashed = false`;
+    const lists = await Promise.all([
+      drive.listFiles(q, { fields: OWN_FIELDS, orderBy: 'createdTime' }),
+      this.isWorkspace && config.workspaceDomain
+        ? drive.listFiles(q, { fields: OWN_FIELDS, orderBy: 'createdTime', corpora: 'domain' }).catch(() => [])
+        : Promise.resolve([]),
+    ]);
+    const byId = new Map();
+    for (const f of [...lists[0], ...lists[1]]) byId.set(f.id, f);
+    const files = [...byId.values()];
+    for (const f of files) if (f.ownedByMe) registerOwnFile(f.id);
+    return files;
+  }
+
+  /** Eigene Datei für die Mitglieder lesbar machen (nie bearbeitbar) */
+  async shareOwnFile(fileId) {
+    const perms = [];
+    if (config.mitgliederGruppe) perms.push({ type: 'group', role: 'reader', emailAddress: config.mitgliederGruppe });
+    if (config.workspaceDomain) perms.push({ type: 'domain', role: 'reader', domain: config.workspaceDomain, allowFileDiscovery: true });
+    for (const e of config.testMitglieder || []) perms.push({ type: 'user', role: 'reader', emailAddress: e });
+    for (const p of perms) {
+      try { await drive.addPermission(fileId, p); } catch (e) { console.warn('Freigabe nicht möglich', p, e); }
+    }
+  }
+
+  async createOwnFile(typ, data, props, name) {
+    const folder = await this.appFolder();
+    const f = await drive.createFile({
+      name,
+      mimeType: 'application/json',
+      parents: [folder],
+      appProperties: { fbTyp: typ, ...props },
+      description: JSON.stringify(data),
+    }, 'id,createdTime');
+    registerOwnFile(f.id);
+    await this.shareOwnFile(f.id);
+    return f;
+  }
+
+  ownerOf(f) {
+    const o = f.owners?.[0] || {};
+    return { email: String(o.emailAddress || '').toLowerCase(), name: o.displayName || '', photo: o.photoLink || '' };
+  }
+
+  /* ================================================================ Mitglieder */
+
+  async directory() {
+    if (!this.isWorkspace || !hasScope(SCOPE_DIRECTORY)) return [];
+    return this.cached('directory', 30 * 60_000, () => people.listDirectory());
+  }
+
+  async profileFiles() {
+    return this.cached('profiles', 60_000, () => this.listAppFiles('profil'));
+  }
+
+  async listMembers() {
+    const [dir, files, addr] = await Promise.all([
+      this.directory().catch(() => []),
+      this.profileFiles().catch(() => []),
+      config.tabellen?.adressen ? this.cached('addresses', 10 * 60_000, () => this.loadAddresses()).catch(() => null) : Promise.resolve(null),
+    ]);
+    const hidden = new Set((config.ausgeblendeteKonten || []).map((e) => String(e).toLowerCase()));
+    const map = new Map();
+    const get = (email) => {
+      if (!map.has(email)) map.set(email, { email });
+      return map.get(email);
+    };
+    for (const d of dir) {
+      if (hidden.has(d.email)) continue;
+      Object.assign(get(d.email), { name: d.name, photo: d.photo, directoryId: d.id, organisation: d.organisation });
+    }
+    // Adressverzeichnis (von Admins gepflegt): Kneipname, Status, Rezeption, Beruf, Wohnort
+    for (const a of addr?.items || []) {
+      if (!a.email || hidden.has(a.email)) continue;
+      if (!this.isWorkspace || map.has(a.email)) {
+        const m = get(a.email);
+        m.name = m.name || a.name;
+        if (a.kneipname) m.kneipname = a.kneipname;
+        if (a.status) m.status = a.status;
+        if (a.rezeption) m.rezeption = a.rezeption;
+        if (a.beruf) m.studium = a.beruf;
+        if (a.ort) m.wohnort = a.ort;
+      }
+    }
+    // Selbst gepflegte Profile: Inhaber laut Google Drive (nicht fälschbar); je Mitglied zählt die zuletzt geänderte Datei
+    const newest = new Map();
+    for (const f of files) {
+      const owner = this.ownerOf(f);
+      if (!owner.email || hidden.has(owner.email)) continue;
+      const prev = newest.get(owner.email);
+      if (!prev || String(f.modifiedTime) > String(prev.f.modifiedTime)) newest.set(owner.email, { f, owner });
+    }
+    for (const { f, owner } of newest.values()) {
+      const data = parseJson(f.description);
+      const m = get(owner.email);
+      m.name = m.name || owner.name || owner.email;
+      m.photo = m.photo || owner.photo || '';
+      for (const k of PROFILE_FIELDS) {
+        const v = clip(data[k], 1500);
+        if (!v) continue;
+        if (k === 'status' && m.status) continue; // Status kommt bevorzugt aus dem Adressverzeichnis
+        m[k] = v;
+      }
+      m.profilAktualisiert = f.modifiedTime;
+    }
+    const me = get(this.myEmail);
+    me.name = me.name || this.user.name;
+    me.photo = me.photo || this.user.photo;
+    return sortMembers([...map.values()].map((m) => ({ ...m, name: m.name || m.email })));
+  }
+
+  async getMember(email) {
+    const list = await this.listMembers();
+    return list.find((m) => m.email === String(email).toLowerCase()) || null;
+  }
+
+  /** Eigenes Profil speichern – als eigene Datei im eigenen Drive */
+  async saveMyProfile(fields) {
+    if (config.profilBearbeiten === false) throw new Error('Das Bearbeiten von Profilen ist ausgeschaltet.');
+    const data = {};
+    for (const k of PROFILE_FIELDS) if (fields[k] !== undefined) data[k] = clip(fields[k], PROFILE_MAX[k] || 200);
+    const files = await this.listAppFiles('profil');
+    const own = files.filter((f) => f.ownedByMe).sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)))[0];
+    if (own) {
+      await drive.updateFile(own.id, { description: JSON.stringify(data) });
+    } else {
+      await this.createOwnFile('profil', data, {}, 'Mein Profil (Mitglieder-App).json');
+    }
+    this.invalidate('profiles');
+  }
+
+  /* ================================================================ Datenschutz-Einwilligungen */
+
+  /** Eigene Einwilligungs-Datei (im eigenen Drive) oder null */
+  async consentFile() {
+    const files = await drive.listFiles(
+      "appProperties has { key='fbTyp' and value='einwilligung' } and 'me' in owners and trashed = false",
+      { fields: OWN_FIELDS, orderBy: 'modifiedTime desc' },
+    );
+    const own = files.filter((f) => f.ownedByMe).sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)))[0] || null;
+    if (own) registerOwnFile(own.id);
+    return own;
+  }
+
+  /** Eigene Entscheidung (null = noch nie entschieden) */
+  async getMyConsent() {
+    const f = await this.consentFile();
+    if (!f) return null;
+    // Freigabe an die aktuellen Verantwortlichen anpassen (z. B. nach einem Wechsel im Vorstand)
+    this.ensureConsentSharing(f.id, f.appProperties?.fbEmpf).catch((e) => console.warn('Freigabe der Einwilligung nicht angepasst', e));
+    return { ...parseJson(f.description), fileId: f.id, geaendert: f.modifiedTime };
+  }
+
+  /** Entscheidung speichern – als eigene Datei im eigenen Drive (Inhalt und Beschreibung) */
+  async saveMyConsent(decisions) {
+    const f = await this.consentFile();
+    const rec = buildRecord(f ? parseJson(f.description) : null, decisions, this.user);
+    const meta = {
+      description: JSON.stringify(rec),
+      appProperties: { fbTyp: 'einwilligung', fbVz: ja(rec.vereinszwecke), fbDv: ja(rec.dachverband), fbFassung: rec.fassung },
+      properties: { fbTyp: 'einwilligung' },
+    };
+    const content = new Blob([JSON.stringify(rec, null, 2)], { type: 'application/json' });
+    let id = f?.id;
+    if (f) {
+      await drive.updateWithContent(f.id, meta, content);
+    } else {
+      const folder = await this.appFolder();
+      const created = await drive.upload({ name: CONSENT_FILE, mimeType: 'application/json', parents: [folder], ...meta }, content, 'id,modifiedTime');
+      registerOwnFile(created.id);
+      id = created.id;
+    }
+    await this.ensureConsentSharing(id, f?.appProperties?.fbEmpf).catch((e) => console.warn('Freigabe der Einwilligung nicht möglich', e));
+    this.invalidate('consents');
+    return { ...rec, fileId: id };
+  }
+
+  /**
+   * Einwilligung NUR für die Datenschutz-Verantwortlichen lesbar machen.
+   * Frühere Empfänger und alle anderen Freigaben (Gruppe, Domain, Link) werden entfernt.
+   */
+  async ensureConsentSharing(fileId, currentKey) {
+    const wanted = consentRecipients(this.myEmail);
+    const key = pruefsumme(wanted.slice().sort().join(','));
+    if (currentKey === key) return;
+    const perms = await drive.listPermissions(fileId);
+    const have = new Set(perms.filter((p) => p.type === 'user').map((p) => String(p.emailAddress || '').toLowerCase()));
+    for (const email of wanted) {
+      if (!have.has(email)) await drive.addPermission(fileId, { type: 'user', role: 'reader', emailAddress: email });
+    }
+    for (const p of perms) {
+      const email = String(p.emailAddress || '').toLowerCase();
+      if (p.role === 'owner' || email === this.myEmail) continue;
+      if (p.type !== 'user' || !wanted.includes(email)) {
+        try { await drive.deletePermission(fileId, p.id); } catch (e) { console.warn('Freigabe nicht entfernt', p, e); }
+      }
+    }
+    await drive.updateFile(fileId, { appProperties: { fbEmpf: key } });
+  }
+
+  isConsentManager() {
+    return isConsentManager(this.myEmail);
+  }
+
+  /** Alle Einwilligungen, die ich sehen darf (nur Verantwortliche bekommen fremde Dateien freigegeben) */
+  async listConsents() {
+    return this.cached('consents', 60_000, async () => {
+      const files = await drive.listFiles("appProperties has { key='fbTyp' and value='einwilligung' } and trashed = false", { fields: OWN_FIELDS, orderBy: 'modifiedTime desc' });
+      const newest = new Map();
+      for (const f of files) {
+        const owner = this.ownerOf(f);
+        if (!owner.email) continue;
+        const prev = newest.get(owner.email);
+        if (!prev || String(f.modifiedTime) > String(prev.modifiedTime)) newest.set(owner.email, f);
+      }
+      return [...newest.entries()].map(([email, f]) => {
+        const rec = parseJson(f.description);
+        return {
+          email,
+          name: this.ownerOf(f).name || rec.name || email,
+          vereinszwecke: rec.vereinszwecke,
+          dachverband: rec.dachverband,
+          fassung: String(rec.fassung || ''),
+          pruefsumme: rec.pruefsumme || '',
+          zeitpunkt: rec.zeitpunkt || f.modifiedTime,
+          erstmals: rec.erstmals || f.createdTime,
+          geaendert: f.modifiedTime,
+          verlauf: Array.isArray(rec.verlauf) ? rec.verlauf : [],
+          fileId: f.id,
+          link: `https://drive.google.com/file/d/${f.id}/view`,
+          kontoAbweichend: !!rec.konto && String(rec.konto).toLowerCase() !== email,
+        };
+      });
+    });
+  }
+
+  /** Die Sammeltabelle: eingetragen in config.js oder eine eigene, von der App angelegte */
+  async consentTable() {
+    return this.cached('consentTable', 10 * 60_000, async () => {
+      let id = String(config.tabellen?.einwilligungen || '').trim();
+      let f = null;
+      if (id) {
+        f = await drive.getFile(id, TABLE_FIELDS).catch(() => null);
+      } else {
+        const found = await drive.listFiles(`appProperties has { key='fbTyp' and value='${TABLE_TYPE}' } and 'me' in owners and trashed = false`, { fields: TABLE_FIELDS, orderBy: 'createdTime' });
+        f = found.find((x) => x.ownedByMe) || null;
+        id = f?.id || '';
+      }
+      if (!id) return null;
+      // schreiben darf nur das Konto, dem die von der App angelegte Tabelle gehört
+      const own = !!(f?.ownedByMe && f?.appProperties?.fbTyp === TABLE_TYPE);
+      if (own) registerOwnTable(id);
+      return {
+        id, url: `https://docs.google.com/spreadsheets/d/${id}/edit`, own, owner: f ? this.ownerOf(f) : null,
+        erreichbar: !!f, eingetragen: !!config.tabellen?.einwilligungen, empfKey: f?.appProperties?.fbEmpf || '',
+      };
+    });
+  }
+
+  /** Neue, leere Sammeltabelle im eigenen Drive (nicht in einem freigegebenen Ordner!) */
+  async createConsentTable() {
+    if (!this.isConsentManager()) throw new Error('Nur Admins bzw. Datenschutz-Verantwortliche können die Einwilligungsliste anlegen.');
+    const existing = await this.consentTable();
+    if (existing?.own) return existing;
+    const f = await drive.createFile({ name: `${config.appName} – Einwilligungen (vertraulich)`, mimeType: SPREADSHEET, appProperties: { fbTyp: TABLE_TYPE } }, 'id,name');
+    registerOwnTable(f.id);
+    await prepareConsentSheet(f.id);
+    for (const email of consentRecipients(this.myEmail)) {
+      await drive.addPermission(f.id, { type: 'user', role: 'reader', emailAddress: email }).catch((e) => console.warn('Freigabe nicht möglich', email, e));
+    }
+    this.invalidate('consentTable');
+    return this.consentTable();
+  }
+
+  /** Sammeltabelle auf den aktuellen Stand bringen (nur im Konto, dem sie gehört) */
+  async syncConsentTable() {
+    this.invalidate('consents');
+    const t = await this.consentTable();
+    if (!t) throw new Error('Es ist noch keine Einwilligungsliste eingerichtet.');
+    if (!t.own) throw new Error(`Die Einwilligungsliste führt das Konto ${t.owner?.email || 'der Datenschutz-Verantwortlichen'} – nur dort kann die App sie aktualisieren.`);
+    const [consents, members] = await Promise.all([this.listConsents(), this.listMembers().catch(() => [])]);
+    const result = await syncConsentSheet(t.id, { consents, members });
+    // Lesezugriff für die aktuellen Verantwortlichen (und nur für sie)
+    if (t.empfKey !== pruefsumme(consentRecipients(this.myEmail).sort().join(','))) {
+      await this.ensureConsentSharing(t.id, t.empfKey).catch((e) => console.warn('Freigabe der Einwilligungsliste nicht angepasst', e));
+      this.invalidate('consentTable');
+    }
+    return result;
+  }
+
+  /** Beim Öffnen der App durch die Verantwortlichen: höchstens alle 15 Minuten still abgleichen */
+  async autoSyncConsents() {
+    if (!this.isConsentManager()) return null;
+    const key = `fb.einwilligungSync.${this.myEmail}`;
+    let last = 0;
+    try { last = Number(localStorage.getItem(key) || 0); } catch { /* egal */ }
+    if (Date.now() - last < 15 * 60_000) return null;
+    const t = await this.consentTable();
+    if (!t?.own) return null;
+    try { localStorage.setItem(key, String(Date.now())); } catch { /* egal */ }
+    return this.syncConsentTable();
+  }
+
+  /* ================================================================ Termine (lesen + eigene Antwort) */
+
+  async listEvents({ from, to }) {
+    const res = await cal.listEvents(this.calendarId(), { timeMin: from.toISOString(), timeMax: to.toISOString() });
+    const events = res.items.filter((e) => e.status !== 'cancelled').map((e) => this.mapEvent(e));
+    return { events, canEdit: false, calendarName: res.summary };
+  }
+
+  async getEvent(id) {
+    let raw;
+    try {
+      raw = await cal.getEvent(this.calendarId(), id);
+    } catch (e) {
+      if (e.status !== 404) throw e;
+      raw = await cal.getEvent('primary', id).catch(() => { throw e; });
+    }
+    return this.mapEvent(raw);
+  }
+
+  async canEditEvents() {
+    return false;
+  }
+
+  mapEvent(e) {
+    const me = this.myEmail;
+    const group = String(config.mitgliederGruppe || '').toLowerCase();
+    const calId = String(config.kalenderId || '').toLowerCase();
+    const props = e.extendedProperties?.shared || {};
+    const allDay = !!e.start?.date;
+    const attendees = [];
+    let groupInvited = false;
+    for (const a of e.attendees || []) {
+      const email = String(a.email || '').toLowerCase();
+      if (a.resource) continue;
+      if (group && email === group) { groupInvited = true; continue; }
+      if (email === calId) continue;
+      attendees.push({ email, name: a.displayName || '', status: a.responseStatus || 'needsAction', guests: a.additionalGuests || 0, comment: a.comment || '', source: 'calendar' });
+    }
+    const mine = attendees.find((a) => a.email === me);
+    const invited = !!mine || groupInvited;
+    const meta = parseEventMeta(stripAppLink(htmlToText(e.description || '')));
+    return {
+      id: e.id,
+      title: e.summary || '(ohne Titel)',
+      description: meta.text,
+      location: e.location || '',
+      start: allDay ? e.start.date : e.start.dateTime,
+      end: allDay ? e.end.date : e.end.dateTime,
+      allDay,
+      htmlLink: e.htmlLink || '',
+      iCalUID: e.iCalUID || '',
+      recurring: !!e.recurringEventId,
+      category: props.fbKategorie || meta.kategorie || guessCategory(e.summary),
+      dresscode: props.fbKleidung || meta.kleidung,
+      mandatory: props.fbPflicht === '1' || meta.pflicht,
+      attendees,
+      myStatus: mine?.status || (invited ? 'needsAction' : null),
+      myGuests: mine?.guests || 0,
+      myComment: mine?.comment || '',
+      invited,
+      groupInvited,
+      canEdit: false,
+    };
+  }
+
+  /**
+   * Eigene Zu-/Absage: ausschließlich im EIGENEN Kalender (calendars/primary).
+   * Google überträgt die Antwort an den Termin – genau wie beim Antworten in Google Kalender.
+   */
+  async rsvp(eventId, { status, guests, comment }) {
+    let own;
+    try {
+      own = await cal.getEvent('primary', eventId);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) throw notInvited();
+      throw e;
+    }
+    const me = this.myEmail;
+    const attendees = (own.attendees || []).map((a) => ({ ...a }));
+    let mine = attendees.find((a) => a.self || String(a.email).toLowerCase() === me);
+    if (!mine) {
+      mine = { email: this.user.email };
+      attendees.push(mine);
+    }
+    mine.responseStatus = status;
+    if (guests !== undefined) mine.additionalGuests = Math.max(0, Math.min(9, Number(guests) || 0));
+    if (comment !== undefined) mine.comment = clip(comment, 200);
+    await cal.patchEvent('primary', eventId, { attendees }, 'none');
+    return { via: 'calendar' };
+  }
+
+  calendarInfo() {
+    return { calendarId: config.kalenderId || '', name: config.appName };
+  }
+
+  /* ================================================================ News (nur lesen) */
+
+  async listNews() {
+    const table = await sheets.readTable(this.sheetId('news'), SHEETS.news, NEWS_SCHEMA);
+    return newsFromRows(table.items);
+  }
+
+  async canEditNews() {
+    return false;
+  }
+
+  newsSheetUrl() {
+    return config.tabellen?.news ? `https://docs.google.com/spreadsheets/d/${config.tabellen.news}/edit` : '';
+  }
+
+  async imageUrl(ref) {
+    if (!ref) return '';
+    const driveId = driveIdFrom(ref);
+    if (!driveId) return /^https?:\/\//.test(ref) ? ref : '';
+    if (this.blobUrls.has(driveId)) return this.blobUrls.get(driveId);
+    const blob = await drive.downloadBlob(driveId);
+    const url = URL.createObjectURL(blob);
+    this.blobUrls.set(driveId, url);
+    return url;
+  }
+
+  /* ================================================================ Forum (eigene Beiträge) */
+
+  forumEnabled() {
+    return config.forum?.aktiv !== false;
+  }
+
+  async forumFiles() {
+    return this.cached('forum', 30_000, () => this.listAppFiles('forum'));
+  }
+
+  async listForum() {
+    const files = await this.forumFiles();
+    const threadRows = [];
+    const postRows = [];
+    for (const f of files) {
+      const p = f.appProperties || {};
+      const data = parseJson(f.description);
+      const owner = this.ownerOf(f);
+      const edited = data.bearbeitet || '';
+      if (p.fbRolle === 'thema') {
+        threadRows.push({ id: f.id, kategorie: p.fbKategorie || 'Allgemeines', titel: clip(data.titel, 140) || '(ohne Titel)', autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime });
+        postRows.push({ id: f.id, themaId: f.id, autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime, text: clip(data.text, MAX_POST_LENGTH), bearbeitet: edited });
+      } else if (p.fbRolle === 'antwort' && p.fbThema) {
+        postRows.push({ id: f.id, themaId: p.fbThema, autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime, text: clip(data.text, MAX_POST_LENGTH), bearbeitet: edited });
+      }
+    }
+    const forum = buildForum(threadRows, postRows);
+    const ids = new Set(forum.threads.map((t) => t.id));
+    forum.posts = forum.posts.filter((p) => ids.has(p.threadId));
+    for (const p of forum.posts) p.own = isOwnFile(p.id);
+    for (const t of forum.threads) t.own = isOwnFile(t.id);
+    return forum;
+  }
+
+  checkText(text) {
+    const t = String(text || '').trim();
+    if (!t) throw new Error('Bitte einen Text eingeben.');
+    if (t.length > MAX_POST_LENGTH) throw new Error(`Der Beitrag ist zu lang (höchstens ${MAX_POST_LENGTH} Zeichen).`);
+    return t;
+  }
+
+  async createThread({ category, title, text }) {
+    if (!this.forumEnabled()) throw new Error('Das Forum ist ausgeschaltet.');
+    const f = await this.createOwnFile('forum', { titel: clip(title, 140), text: this.checkText(text) },
+      { fbRolle: 'thema', fbKategorie: clip(category, 60) }, `Forum – ${clip(title, 80)}.json`);
+    this.invalidate('forum');
+    return f.id;
+  }
+
+  async reply(threadId, text) {
+    if (!this.forumEnabled()) throw new Error('Das Forum ist ausgeschaltet.');
+    await this.createOwnFile('forum', { text: this.checkText(text) }, { fbRolle: 'antwort', fbThema: threadId }, 'Forum – Antwort.json');
+    this.invalidate('forum');
+  }
+
+  async editPost(postId, text) {
+    const files = await this.listAppFiles('forum');
+    const f = files.find((x) => x.id === postId);
+    if (!f || !f.ownedByMe) throw new Error('Nur eigene Beiträge können bearbeitet werden.');
+    const data = parseJson(f.description);
+    await drive.updateFile(postId, { description: JSON.stringify({ ...data, text: this.checkText(text), bearbeitet: nowIso() }) });
+    this.invalidate('forum');
+  }
+
+  async deletePost(postId) {
+    const files = await this.listAppFiles('forum');
+    const f = files.find((x) => x.id === postId);
+    if (!f || !f.ownedByMe) throw new Error('Nur eigene Beiträge können gelöscht werden.');
+    await drive.trashFile(postId);
+    this.invalidate('forum');
+  }
+
+  /** Eigenes Thema löschen (= eigenen ersten Beitrag in den Papierkorb) */
+  async deleteThread(threadId) {
+    return this.deletePost(threadId);
+  }
+
+  /* ================================================================ Adressen (nur lesen) */
+
+  async loadAddresses() {
+    const id = this.sheetId('adressen');
+    const meta = await this.cached('addrMeta', 3600_000, () => sheets.getMeta(id));
+    const tabs = (meta.sheets || []).map((s) => s.properties.title);
+    const tab = tabs.includes(SHEETS.addresses) ? SHEETS.addresses : tabs[0];
+    const rows = await sheets.getValues(id, `${sheets.quoteSheet(tab)}!A1:AZ`, { render: 'FORMATTED_VALUE' });
+    const result = addressesFromRows(rows);
+    result.sheetUrl = `https://docs.google.com/spreadsheets/d/${id}/edit`;
+    return result;
+  }
+
+  async listAddresses() {
+    const res = await this.loadAddresses();
+    this.memo.set('addresses', { t: Date.now(), p: Promise.resolve(res) });
+    return res;
+  }
+
+  /* ================================================================ Zeitung (nur lesen) */
+
+  async listIssues() {
+    const folder = (config.zeitungOrdnerId || '').trim();
+    if (!folder) throw notConfigured('Der Zeitungsordner');
+    const files = await drive.listFiles(`'${folder}' in parents and mimeType = 'application/pdf' and trashed = false`);
+    return sortIssues(files.map(issueFromFile));
+  }
+
+  async loadIssue(issue, onProgress) {
+    const key = `https://fb-cache.local/zeitung/${issue.id}?v=${encodeURIComponent(issue.version || '')}`;
+    let cache = null;
+    try {
+      cache = await caches.open('fb-zeitung');
+      const hit = await cache.match(key);
+      if (hit) return await hit.arrayBuffer();
+    } catch { cache = null; }
+    onProgress?.('download');
+    const buf = await drive.download(issue.id);
+    if (cache) {
+      try {
+        for (const req of await cache.keys()) {
+          if (req.url.includes(`/zeitung/${issue.id}?`) && req.url !== key) await cache.delete(req);
+        }
+        await cache.put(key, new Response(buf.slice(0), { headers: { 'Content-Type': 'application/pdf' } }));
+      } catch { /* Speicher voll – egal */ }
+    }
+    return buf;
+  }
+
+  issueOpenUrl(issue) {
+    return issue.webViewLink || `https://drive.google.com/file/d/${issue.id}/view`;
+  }
+
+  /* ================================================================ Galerie (nur lesen) */
+
+  async listGallery() {
+    const folder = (config.galerieOrdnerId || '').trim();
+    if (!folder) throw notConfigured('Der Galerie-Ordner');
+    const children = await drive.listFiles(
+      `'${folder}' in parents and trashed = false and (mimeType = 'application/vnd.google-apps.folder' or mimeType contains 'image/')`,
+      { fields: GALLERY_FIELDS, orderBy: 'name' },
+    );
+    const toPhoto = (f) => ({
+      id: f.id,
+      name: f.name,
+      thumb: f.thumbnailLink || '',
+      width: f.imageMediaMetadata?.width || 0,
+      height: f.imageMediaMetadata?.height || 0,
+      taken: exifToIso(f.imageMediaMetadata?.time) || f.createdTime || '',
+      webViewLink: f.webViewLink || '',
+    });
+    const albums = [];
+    const loose = children.filter((f) => f.mimeType?.startsWith('image/'));
+    if (loose.length) albums.push({ id: folder, title: 'Allgemein', photos: loose.map(toPhoto) });
+    const subfolders = children.filter((f) => f.mimeType === 'application/vnd.google-apps.folder');
+    const lists = await Promise.all(subfolders.map((s) => drive.listFiles(
+      `'${s.id}' in parents and mimeType contains 'image/' and trashed = false`, { fields: GALLERY_FIELDS, orderBy: 'name' },
+    ).catch(() => [])));
+    subfolders.forEach((s, i) => {
+      if (lists[i].length) albums.push({ id: s.id, title: s.name, photos: lists[i].map(toPhoto), modified: s.modifiedTime });
+    });
+    // neueste Alben zuerst (Ordnernamen wie „2026-06 Stiftungsfest“ sortieren sich von selbst)
+    albums.sort((a, b) => String(b.title).localeCompare(String(a.title), 'de', { numeric: true }));
+    return { albums, folderUrl: `https://drive.google.com/drive/folders/${folder}` };
+  }
+
+  photoUrl(photo, size = 600) {
+    if (!photo.thumb) return '';
+    return /=s\d+(-c)?$/.test(photo.thumb) ? photo.thumb.replace(/=s\d+(-c)?$/, `=s${size}`) : `${photo.thumb}=s${size}`;
+  }
+
+  async photoFullUrl(photo) {
+    if (this.blobUrls.has(photo.id)) return this.blobUrls.get(photo.id);
+    const blob = await drive.downloadBlob(photo.id);
+    const url = URL.createObjectURL(blob);
+    this.blobUrls.set(photo.id, url);
+    return url;
+  }
+
+  /* ================================================================ Chat (eigene Nachrichten) */
+
+  chatStatus() {
+    if (config.chat?.aktiv === false) return { available: false, reason: 'disabled' };
+    if (!this.isWorkspace) return { available: false, reason: 'no-workspace' };
+    if (!hasScope(SCOPE_CHAT_MSG) || !hasScope(SCOPE_CHAT_READ)) return { available: false, reason: 'scope' };
+    return { available: true };
+  }
+
+  async dirMap() {
+    const dir = await this.directory().catch(() => []);
+    const map = new Map();
+    for (const p of dir) map.set(p.id, p);
+    return map;
+  }
+
+  async listSpaces() {
+    const spaces = await chat.listSpaces();
+    return spaces
+      .filter((s) => (s.spaceType || s.type) !== 'DIRECT_MESSAGE' && (s.displayName || '').trim())
+      .map((s) => ({
+        id: s.name,
+        name: s.displayName,
+        type: s.spaceType || s.type || '',
+        lastActive: s.lastActiveTime || s.createTime || '',
+        url: chat.spaceUrl(s.name),
+        description: s.spaceDetails?.description || '',
+      }))
+      .sort((a, b) => String(b.lastActive).localeCompare(String(a.lastActive)));
+  }
+
+  async listMessages(spaceId, opts = {}) {
+    const [msgs, dir] = await Promise.all([chat.listMessages(spaceId, opts), this.dirMap()]);
+    const myId = [...dir.values()].find((p) => p.email === this.myEmail)?.id;
+    return msgs.map((m) => this.mapMessage(m, dir, myId));
+  }
+
+  async sendMessage(spaceId, text) {
+    const [m, dir] = await Promise.all([chat.createMessage(spaceId, text), this.dirMap()]);
+    const myId = [...dir.values()].find((p) => p.email === this.myEmail)?.id;
+    const msg = this.mapMessage(m, dir, myId);
+    msg.mine = true;
+    return msg;
+  }
+
+  mapMessage(m, dir, myId) {
+    const uid = String(m.sender?.name || '').replace('users/', '');
+    const person = dir.get(uid);
+    return {
+      id: m.name,
+      text: m.text || (m.attachment?.length ? '📎 Anhang – in Google Chat ansehen' : ''),
+      created: m.createTime,
+      sender: { id: uid, name: person?.name || m.sender?.displayName || 'Mitglied', photo: person?.photo || '', email: person?.email || '' },
+      mine: !!myId && uid === myId,
+    };
+  }
+
+  async findDirectChat(email) {
+    const s = await chat.findDirectMessage(email);
+    return s?.name ? { id: s.name, url: chat.spaceUrl(s.name) } : null;
+  }
+
+  chatOpenUrl(space) {
+    return space?.url || 'https://chat.google.com/';
+  }
+}
+
+/** Aufnahmezeit aus Drive („2026:06:27 18:00:00“, EXIF-Format) → ISO */
+export function exifToIso(t) {
+  const m = String(t || '').match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}` : '';
+}
+
+export function driveIdFrom(ref) {
+  const s = String(ref || '').trim();
+  if (s.startsWith('drive:')) return s.slice(6);
+  let m = s.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([-\w]{20,})/);
+  if (m) return m[1];
+  m = s.match(/^([-\w]{25,})$/);
+  return m ? m[1] : '';
+}

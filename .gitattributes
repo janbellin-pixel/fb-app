@@ -1,0 +1,8 @@
+# Einheitliche Zeilenenden (LF) im Repository – egal, auf welchem System entwickelt wird
+* text=auto
+*.pdf binary
+*.png binary
+*.webp binary
+*.jpg binary
+*.woff2 binary
+*.ttf binary

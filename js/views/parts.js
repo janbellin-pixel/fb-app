@@ -1,0 +1,157 @@
+// Bausteine, die auf mehreren Seiten vorkommen
+import { html, icon, avatarStack, avatar } from '../ui.js';
+import { categoryInfo, config } from '../config.js';
+import { summarizeAttendees } from '../backend/common.js';
+import { toDate, fWeekdayShort, fMonthShort, fEventTime, relTime, fDateShort } from '../lib/dates.js';
+import { plainText } from '../lib/text.js';
+
+export const STATUS_LABEL = {
+  accepted: 'Zugesagt',
+  tentative: 'Vielleicht',
+  declined: 'Abgesagt',
+  needsAction: 'Noch offen',
+};
+
+export function rsvpPill(status) {
+  if (status === 'accepted') return html`<span class="pill pill-yes">${icon('check')}Zugesagt</span>`;
+  if (status === 'tentative') return html`<span class="pill pill-maybe">${icon('question')}Vielleicht</span>`;
+  if (status === 'declined') return html`<span class="pill pill-no">${icon('x')}Abgesagt</span>`;
+  if (status === 'needsAction') return html`<span class="pill pill-open">Antwort offen</span>`;
+  return '';
+}
+
+export function memberMap(members = []) {
+  const m = new Map();
+  for (const p of members) m.set(p.email, p);
+  return m;
+}
+
+/** Person für Anzeige: Profil (Foto, Name) bevorzugen, sonst Angaben aus Kalender/Forum */
+export function personFor(email, members, fallbackName = '') {
+  const p = members?.get(String(email || '').toLowerCase());
+  return p || { email, name: fallbackName || String(email || '').split('@')[0], photo: '' };
+}
+
+export function dateBlock(start) {
+  const s = toDate(start);
+  return html`<div class="date-block" aria-hidden="true"><span class="wd">${fWeekdayShort(s)}</span><span class="d">${s.getDate()}</span><span class="m">${fMonthShort(s)}</span></div>`;
+}
+
+export function eventCard(ev, { members = new Map(), past = false, quick = false } = {}) {
+  const cat = categoryInfo(ev.category);
+  const sum = summarizeAttendees(ev.attendees || []);
+  const yesPeople = sum.groups.accepted.map((a) => personFor(a.email, members, a.name));
+  const inner = html`
+    ${dateBlock(ev.start)}
+    <div class="grow" style="min-width:0">
+      <h3>${ev.title}</h3>
+      <div class="meta">
+        <span>${icon('clock')}${fEventTime(ev)}</span>
+        ${ev.location ? html`<span class="ellipsis" style="max-width:100%">${icon('pin')}${ev.location}</span>` : ''}
+      </div>
+      <div class="event-foot">
+        ${rsvpPill(ev.myStatus)}
+        ${sum.yes ? html`<span class="row wrap" style="gap:.375rem">${avatarStack(yesPeople, 4, 24)}<span class="small muted">${sum.total} ${sum.total === 1 ? 'Zusage' : 'Zusagen'}</span></span>` : ''}
+        ${ev.mandatory ? html`<span class="badge badge-black">Pflicht</span>` : ''}
+        ${ev.dresscode ? html`<span class="badge">${ev.dresscode}</span>` : ''}
+      </div>
+      ${quick && ev.invited && (!ev.myStatus || ev.myStatus === 'needsAction') ? html`
+        <div class="rsvp-quick" style="margin-top:.625rem">
+          <button class="btn btn-sm btn-green" data-rsvp="accepted" data-id="${ev.id}">${icon('check', 'icon-sm')}Zusagen</button>
+          <button class="btn btn-sm" data-rsvp="declined" data-id="${ev.id}">Absagen</button>
+        </div>` : ''}
+    </div>`;
+  if (quick) {
+    return html`<div class="card event clickable ${past ? 'past' : ''}" data-href="#/termin/${encodeURIComponent(ev.id)}" style="--c:${cat.farbe}" title="${ev.category}">${inner}</div>`;
+  }
+  return html`<a class="card event ${past ? 'past' : ''}" href="#/termin/${encodeURIComponent(ev.id)}" style="--c:${cat.farbe}" title="${ev.category}">${inner}</a>`;
+}
+
+/** Klicks auf Karten mit data-href weiterleiten (Karten mit Knöpfen darin) */
+export function bindCardLinks(root, navigate) {
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('button, a, input, select, textarea')) return;
+    const card = e.target.closest('[data-href]');
+    if (card) navigate(card.dataset.href);
+  });
+}
+
+export function issueCover(issue, coverUrl = '') {
+  const label = issue.ausgabe || issue.title;
+  return html`<div class="cover">
+    ${coverUrl ? html`<img src="${coverUrl}" alt="" loading="lazy" referrerpolicy="no-referrer" data-cover-fallback>` : ''}
+    <div class="cover-fallback" ${coverUrl ? html`style="display:none"` : ''}>
+      <div class="t">Verbindungs&shy;zeitung</div>
+      <img src="assets/wappen.webp" alt="">
+      <div class="band">${label}</div>
+    </div>
+  </div>`;
+}
+
+// Fehlgeschlagene Cover-Bilder durch die Ersatzgestaltung ersetzen
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (img?.tagName === 'IMG' && img.hasAttribute('data-cover-fallback')) {
+    img.nextElementSibling?.style.removeProperty('display');
+    img.remove();
+  }
+}, true);
+
+export function newsCard(item, imageUrl = '') {
+  return html`<a class="card news-card" href="#/news/${encodeURIComponent(item.id)}">
+    ${imageUrl ? html`<img class="img" src="${imageUrl}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
+    <div class="body">
+      <div class="row wrap" style="gap:.375rem">
+        ${item.pinned ? html`<span class="badge badge-black">${icon('bookmark', 'icon-sm')}Angeheftet</span>` : ''}
+        ${item.category ? html`<span class="badge badge-green">${item.category}</span>` : ''}
+      </div>
+      <h3>${item.title}</h3>
+      <p>${plainText(item.text, 180)}</p>
+      <div class="meta"><span>${fDateShort(item.date)}</span>${item.authorName ? html`<span>${item.authorName}</span>` : ''}</div>
+    </div>
+  </a>`;
+}
+
+export function threadRow(t, members, unread = false) {
+  const author = personFor(t.authorEmail, members, t.authorName);
+  return html`<a class="card thread-row" href="#/forum/${encodeURIComponent(t.id)}">
+    <div style="min-width:0">
+      <h3>${unread ? html`<span class="dot-unread" title="Neue Beiträge"></span>` : ''}${t.pinned ? icon('bookmark', 'icon-sm') : ''}${t.closed ? icon('lock', 'icon-sm') : ''}<span>${t.title}</span></h3>
+      <div class="meta" style="margin-top:.25rem">
+        <span class="row" style="gap:.375rem">${avatar(author, 20)}${author.name}</span>
+        <span class="badge">${t.category}</span>
+        <span>${relTime(t.lastActivity)}</span>
+      </div>
+    </div>
+    <div class="stats"><strong>${t.replies}</strong>${t.replies === 1 ? 'Antwort' : 'Antworten'}</div>
+  </a>`;
+}
+
+/** Ungelesen-Markierung im Forum (pro Gerät) */
+export function forumSeen() {
+  try { return JSON.parse(localStorage.getItem('fb.forumSeen') || '{}'); } catch { return {}; }
+}
+
+export function markThreadSeen(id, time) {
+  const s = forumSeen();
+  s[id] = time || new Date().toISOString();
+  try { localStorage.setItem('fb.forumSeen', JSON.stringify(s)); } catch { /* egal */ }
+}
+
+export function isUnread(t, seen = forumSeen()) {
+  if (!seen.__init) return false;
+  const last = seen[t.id];
+  return !last || String(t.lastActivity) > String(last);
+}
+
+export function initForumSeen(threads) {
+  const s = forumSeen();
+  if (s.__init) return;
+  s.__init = new Date().toISOString();
+  for (const t of threads) s[t.id] = t.lastActivity;
+  try { localStorage.setItem('fb.forumSeen', JSON.stringify(s)); } catch { /* egal */ }
+}
+
+export function appName() {
+  return config.appName;
+}

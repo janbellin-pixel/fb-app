@@ -1,0 +1,43 @@
+# Veröffentlicht die Mitglieder-App automatisch auf GitHub Pages,
+# sobald etwas auf den Hauptzweig (main) hochgeladen wird.
+# Einmalig einschalten: Repository → Settings → Pages → Source: „GitHub Actions“.
+name: App veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versionsnummer setzen (sorgt für automatische Updates auf den Handys)
+        run: python3 tools/update_sw.py --version "${GITHUB_SHA::10}"
+
+      - name: Nur die App-Dateien zusammenstellen
+        run: |
+          mkdir _site
+          cp index.html manifest.webmanifest sw.js config.js .nojekyll _site/
+          cp -r css js assets vendor _site/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

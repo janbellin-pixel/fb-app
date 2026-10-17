@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Startet die echte App im Google-Modus gegen den API-Nachbau.
+       Am besten über http://127.0.0.1:8080/tests/app-mock.html öffnen (eigener Speicherbereich). -->
+  <base href="../">
+  <title>App mit Google-Nachbau</title>
+  <script src="js/boot.js"></script>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="config.js"></script>
+  <script type="module">
+    import { createFakeGoogle } from './tests/fake-google.js';
+
+    if (!['127.0.0.1', 'localhost'].includes(location.hostname)) {
+      document.body.textContent = 'Diese Testseite läuft nur lokal.';
+      throw new Error('Nur lokal');
+    }
+
+    // Zwischenspeicher früherer Testläufe verwerfen (jeder Lauf erzeugt neue IDs)
+    await new Promise((res) => { const q = indexedDB.deleteDatabase('fb-app'); q.onsuccess = q.onerror = q.onblocked = () => res(); });
+    try { await caches.delete('fb-zeitung'); } catch { /* egal */ }
+
+    const me = { email: 'tester@beispiel.de', name: 'Theo Tester', photo: '', hd: 'beispiel.de', firstName: 'Theo' };
+    const scopes = ['openid', 'email', 'profile', 'calendar.events', 'drive.readonly', 'drive.file', 'directory.readonly', 'chat.spaces.readonly', 'chat.messages', 'calendar']
+      .map((s) => (s.includes('.') || s === 'calendar' ? `https://www.googleapis.com/auth/${s}` : s));
+    localStorage.setItem('fb.token', JSON.stringify({ access_token: 'test', expires_at: Date.now() + 3600_000, scope: scopes.join(' ') }));
+    localStorage.setItem('fb.user', JSON.stringify(me));
+    localStorage.setItem('fb.mode', JSON.stringify('google'));
+
+    const fake = createFakeGoogle({ me, workspace: true });
+    fake.state.myGroup = 'mitglieder@beispiel.de';
+    fake.state.myDirectoryId = '111';
+    fake.state.directory = [
+      { resourceName: 'people/111', names: [{ displayName: me.name }], emailAddresses: [{ value: me.email }], photos: [] },
+      { resourceName: 'people/222', names: [{ displayName: 'Anna Andere' }], emailAddresses: [{ value: 'anna@beispiel.de' }], photos: [] },
+    ];
+    fake.state.spaces = [{ name: 'spaces/AAA', displayName: 'Allgemein', spaceType: 'SPACE', lastActiveTime: new Date().toISOString() }];
+    fake.state.messages['spaces/AAA'] = [{ name: 'spaces/AAA/messages/1', text: 'Willkommen im Testraum!', createTime: new Date(Date.now() - 120_000).toISOString(), sender: { name: 'users/222' } }];
+    window.fetch = fake.fakeFetch;
+    window.__fake = fake;
+
+    Object.assign(window.FB_CONFIG, {
+      googleClientId: 'test.apps.googleusercontent.com', workspaceDomain: 'beispiel.de',
+      mitgliederGruppe: 'mitglieder@beispiel.de', admins: [me.email], appUrl: `${location.origin}/`,
+    });
+    const { config } = await import('./js/config.js');
+    const setup = await import('./js/lib/setup.js');
+    // Einrichtung (darf neue Dateien anlegen) – danach gilt der Schreibschutz
+    fake.state.setupPhase = true;
+    const res = await setup.createEverything({ withSamples: true, withIssues: true, withPhotos: true, group: config.mitgliederGruppe, domain: 'beispiel.de', testUsers: [], me, log: () => {} });
+    fake.state.setupPhase = false;
+    Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
+
+    // Inhalte eines anderen Mitglieds (liegen in SEINEM Drive)
+    const anna = { ownerEmail: 'anna@beispiel.de', ownerName: 'Anna Andere' };
+    fake.addFile({ ...anna, name: 'Mein Profil.json', appProperties: { fbTyp: 'profil' }, description: JSON.stringify({ kneipname: 'Annabella', studium: 'Medizin', ueberMich: 'Ich organisiere die Kanutour.' }) });
+    fake.addFile({ ...anna, name: 'Forum.json', appProperties: { fbTyp: 'forum', fbRolle: 'thema', fbKategorie: 'Allgemeines' }, description: JSON.stringify({ titel: 'Wer kommt mit zur Kanutour?', text: 'Wir brauchen noch **zwei Boote**. Bitte kurz melden!' }), createdTime: new Date(Date.now() - 5 * 3600_000).toISOString() });
+    await import('./js/app.js');
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+</html>

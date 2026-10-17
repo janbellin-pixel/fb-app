@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test: Google-Anbindung</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 980px; background: #f3f3f3; color: #111; }
+    h1 { font-weight: 300; }
+    h2 { font-size: 17px; margin: 22px 0 6px; }
+    .ok { color: #2f5a0b; }
+    .fail { color: #a3341b; font-weight: 600; }
+    #summary { font-size: 20px; padding: 10px 14px; background: #fff; border-radius: 6px; display: inline-block; }
+    code { font-size: 12px; background: #fff; padding: 1px 4px; white-space: pre-wrap; }
+  </style>
+  <script src="../config.js"></script>
+</head>
+<body>
+  <h1>Test der Google-Anbindung (mit API-Nachbau)</h1>
+  <p>Diese Seite spielt Einrichtung und alle Funktionen gegen einen Nachbau der Google-Schnittstellen durch. Es werden keine echten Google-Daten angefasst.</p>
+  <p id="summary">Läuft …</p>
+  <div id="out"></div>
+  <script type="module" src="google-mock.js"></script>
+</body>
+</html>
