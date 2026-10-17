@@ -79,7 +79,7 @@ So bleibt es dabei:
 2. **Google-Zugang:** Client-ID einfügen → Speichern.
 3. **Mit Google anmelden.**
 4. **Optionen:** Für den Prototyp kannst du unter **„Test-Mitglieder“** ein zweites Google-Konto eintragen. Es bekommt dann Lesezugriff und Einladungen. Workspace-Domain und Gruppe bleiben leer. Unter **Datenschutz** Verein, Anschrift und Kontakt-E-Mail eintragen (siehe Teil D).
-5. **Kalender, Tabellen und Ordner → „A) Neu anlegen“.** Die App erstellt in deinem Google Drive den Ordner *„Frankonia-Brunonia – Mitglieder-App“* mit
+5. **Kalender, Tabellen und Ordner → „2. Fehlendes neu anlegen“.** Ist noch nichts verbunden, legt die App alles neu an – in deinem Google Drive den Ordner *„Frankonia-Brunonia – Mitglieder-App“* mit
    - Tabelle **Adressverzeichnis**,
    - Tabelle **News**,
    - Ordner **Verbindungszeitung** (auf Wunsch mit drei Beispielausgaben),
@@ -88,8 +88,8 @@ So bleibt es dabei:
 
    Außerdem entsteht – bewusst **außerhalb** dieses Ordners – die vertrauliche Tabelle **„Einwilligungen (vertraulich)“** (Teil D).
 
-   Alles wird für die Mitglieder **nur lesbar** freigegeben, die Einwilligungsliste gar nicht. Google fragt dafür einmal nach der Berechtigung „Kalender verwalten“; sie wird nur für diesen Schritt gebraucht. Der Knopf erscheint nur, solange noch nichts eingerichtet ist. Vorhandene Daten fasst er nie an.
-6. **„Verbindung prüfen (nur lesend)“** – alles sollte grün sein.
+   Alles wird für die Mitglieder **nur lesbar** freigegeben, die Einwilligungsliste gar nicht. Für den neuen Kalender fragt Google einmal nach der Berechtigung „Kalender verwalten“; sie wird nur für diesen Schritt gebraucht. Die Beispieldaten sind nur beim Start von Grund auf vorausgewählt. Vorhandene Daten fasst der Knopf nie an (siehe B3).
+6. **„Verbindung prüfen (nur lesend)“** – alles sollte grün sein (gelb = Hinweis, rot = Fehler).
 7. **config.js herunterladen** und im GitHub-Repository die Datei `config.js` damit ersetzen (Datei öffnen → Stift-Symbol bzw. „Upload files“). Erst dann gelten die Einstellungen für alle, die die App öffnen, vorher nur in deinem Browser.
 
 ### A5. Testen
@@ -117,22 +117,39 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 
 | Einstellung | Wo | Wozu |
 |---|---|---|
-| **Gruppe „mitglieder@…“** mit allen Mitgliedern anlegen | Verzeichnis → Gruppen | Einladungen zu Terminen, Lesezugriff auf Kalender, Tabellen, Zeitung und Galerie |
+| **Gruppe „mitglieder@…“** mit allen Mitgliedern anlegen (empfohlen) | Verzeichnis → Gruppen | Für die Anmeldung nicht nötig – anmelden kann sich jedes Konto der Domain. Aber zu- und absagen kann man bei Google nur, wenn man zum Termin eingeladen ist; mit der Gruppe genügt eine Einladung für alle. Lesefreigaben gehen ohne Gruppe auch an die ganze Domain |
 | Gruppe: „Wer kann Beiträge posten“ → mindestens **Organisation** | Gruppeneinstellungen | Kalendereinladungen an die Gruppe kommen an |
 | **Kontaktfreigabe / Verzeichnis sichtbar** | Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen | Mitgliederliste mit Fotos in der App |
 | Nutzer dürfen **Profilfoto ändern** | Konto → Kontoeinstellungen → Profil | Jeder pflegt sein Foto selbst |
 | Freigabe von Drive-Dateien **innerhalb der Organisation** erlaubt | Apps → Google Workspace → Drive und Docs → Freigabeeinstellungen | Profile und Forumsbeiträge (kleine Dateien im eigenen Drive) sind für alle Mitglieder lesbar |
 | **App als vertrauenswürdig** markieren (falls Drittanbieter-Apps eingeschränkt sind) | Sicherheit → API-Steuerung → App-Zugriff verwalten | Mitglieder können sich ohne Rückfrage anmelden |
+| Freigabe **außerhalb der Organisation** einschränken (empfohlen, falls ihr nichts nach außen teilt) | Apps → Google Workspace → Drive und Docs → Freigabeeinstellungen | „Jeder mit dem Link“ ist dann nicht mehr möglich. Wichtig, weil die IDs in der öffentlichen `config.js` stehen |
 | Google Chat aktiviert, Räume angelegt (z. B. „Allgemein“, „Aktivitas“, „Altherrenschaft“) | Apps → Google Workspace → Google Chat | Chat in der App |
 | **Postfach `adressaenderung@…`** (Gruppe oder Alias, z. B. für den Schriftwart) | Verzeichnis → Gruppen bzw. Nutzer → Alternative E-Mail-Adressen | Empfänger der vorbereiteten Adressänderungen aus „Mein Profil“ (ohne Umlaut, siehe `adressaenderung` in config.js) |
 
 ### B3. Daten einrichten
 
-In der App unter **Einrichtung**:
+In der App unter **Einrichtung** (als Admin angemeldet):
 
-- **Workspace-Domain** (z. B. `frankonia-brunonia.de`) und **Mitglieder-Gruppe** (`mitglieder@…`) eintragen.
-- **Admins** eintragen. Nur sie sehen die Einrichtungsseite und Hinweise zur Datenpflege.
-- Entweder **„A) Neu anlegen“** (Freigaben werden automatisch gesetzt) oder unter **„B) Vorhandene verbinden“** die Links zu bestehendem Kalender, Tabellen und Ordnern eintragen.
+1. **Optionen:** Workspace-Domain (z. B. `frankonia-brunonia.de`), Mitglieder-Gruppe (`mitglieder@…`, falls vorhanden), **Admins** (nur sie sehen die Einrichtung) und die Angaben zum **Datenschutz** eintragen → „Optionen speichern“.
+2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit der Zeitung und mit den Fotos → „Übernehmen“. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
+3. **„Verbindung prüfen (nur lesend)“** und die Hinweise abarbeiten (siehe unten). Die Prüfung ändert nichts.
+4. **„2. Fehlendes neu anlegen“:** legt nur noch an, was nicht verbunden ist – typischerweise die **News-Tabelle** und die **Einwilligungsliste**. Was verbunden ist, wird dabei weder verändert noch neu freigegeben; Beispieldaten sind hier nicht vorausgewählt.
+5. Noch einmal prüfen, dann **config.js** herunterladen (siehe unten).
+
+Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browser – so kannst du alles in Ruhe prüfen, bevor die IDs öffentlich werden.
+
+**Was die Prüfung meldet** (gelb = bitte ansehen, rot = Fehler):
+
+| Meldung | Bedeutung | Abhilfe |
+|---|---|---|
+| „Jeder mit dem Link“ hat Zugriff | Die ID steht in der öffentlichen `config.js` – damit könnte jeder im Internet mitlesen | In Google Drive „Teilen → Allgemeiner Zugriff“ auf „Eingeschränkt“ oder die Domain stellen |
+| Bearbeiten dürfen Gruppe/Domain | Mitglieder könnten Daten ändern | Gruppe bzw. Domain auf „Betrachter“ stellen; Bearbeiten nur für einzelne Verantwortliche |
+| Keine Lesefreigabe für Gruppe/Domain | Die Mitglieder sehen die Daten in der App nicht | Gruppe bzw. Domain als „Betrachter“ hinzufügen |
+| Gehört einem Konto außerhalb der Domain | Die Datei liegt z. B. in einem privaten Google-Konto | Eigentum an ein Konto der Verbindung übertragen (oder in eine geteilte Ablage verschieben) |
+| Spalten sehen vertraulich aus | z. B. IBAN, Beitrag, Bemerkung – wer die Tabelle lesen darf, sieht sie | Eigene Tabelle nur mit den freigebbaren Spalten anlegen (siehe unten) und diese verbinden |
+| Termine ohne Einladung an die Mitglieder-Gruppe | Dort ist keine Zu-/Absage möglich | Gruppe als Gast hinzufügen, automatisch mit B4 |
+| Freigaben nicht einsehbar | Nur Inhaber und Bearbeiter sehen Freigaben | Als Inhaber/Bearbeiter prüfen oder in Google Drive selbst nachsehen |
 
 Die Rechte sehen danach so aus:
 
@@ -147,9 +164,11 @@ Die Rechte sehen danach so aus:
 | Einwilligung (je Mitglied) | **kein Zugriff** – nur das Mitglied selbst und die Datenschutz-Verantwortlichen | jedes Mitglied seine eigene, in der App |
 | Einwilligungsliste (vertraulich) | **kein Zugriff** – nur die Datenschutz-Verantwortlichen (lesen) | nur das Konto, dem sie gehört – automatisch durch App bzw. Skript |
 
-Eine **bestehende Adressliste** kann weiterverwendet werden. Die App erkennt übliche Spaltennamen (Vorname, Nachname, Straße, PLZ, Ort, Telefon, Mobil, E-Mail, Geburtstag, Status, Kneipname …) selbst; unbekannte Spalten zeigt sie zusätzlich an. Gelesen wird das erste Tabellenblatt bzw. das Blatt „Adressen“.
+Eine **bestehende Adressliste** kann weiterverwendet werden. Die App erkennt übliche Spaltennamen (Vorname, Nachname oder „Name“ – auch als „Nachname, Vorname“ –, Straße und Hausnummer, PLZ und Ort – auch zusammen in einer Spalte –, Telefon, Mobil, E-Mail, Geburtstag, Status, Kneipname bzw. „v/o“ …) selbst, auch wenn über den Spaltennamen noch eine Titelzeile steht. Unbekannte Spalten zeigt sie zusätzlich an. Gelesen wird nur ein Tabellenblatt: das unter „Tabellenblatt“ eingetragene, sonst „Adressen“, sonst das erste. Die Prüfung zeigt, welche Spalten erkannt wurden. Steht in der Spalte *E-Mail* eine private Adresse, ordnet die App den Eintrag über den Namen dem Google-Konto zu (nur bei eindeutigem Namen).
 
-> Wichtig bei vorhandenen Dateien: Gib der Mitglieder-Gruppe dort **nur Leserechte** („Betrachter“). Die App schreibt nie hinein, Bearbeitungsrechte braucht also kein Mitglied.
+> **Vertrauliche Spalten:** Wer eine Tabelle lesen darf, sieht alle ihre Spalten – in der App und direkt in Google Tabellen. Enthält die Mitgliederliste auch Interna (Bankverbindung, Beiträge, Bemerkungen …), dafür eine eigene Tabelle anlegen, die nur die freigebbaren Spalten übernimmt, z. B. mit `=IMPORTRANGE("<Link der Mitgliederliste>"; "Aktive!A:H")`, und **diese** verbinden und freigeben. Die Originalliste bleibt dann nur für den Schriftwart sichtbar.
+
+> Wichtig bei vorhandenen Dateien: Gib der Mitglieder-Gruppe bzw. der Domain dort **nur Leserechte** („Betrachter“) und nie „Jeder mit dem Link“. Die App schreibt nie hinein, Bearbeitungsrechte braucht also kein Mitglied.
 
 Danach **config.js herunterladen** und im GitHub-Repository ersetzen.
 
@@ -185,8 +204,8 @@ Alles Gemeinsame wird direkt bei Google gepflegt. Die App zeigt Änderungen nach
 | **Termine** | Google Kalender „Frankonia-Brunonia“ | Termin wie gewohnt anlegen, Mitglieder-Gruppe als Gast hinzufügen (oder Automatik, B4). Die Kategorie errät die App aus dem Titel (Kneipe, Convent, Vortrag, Stammtisch …). Optional je eine eigene Zeile in die Beschreibung: `Kategorie: Kneipe`, `Kleidung: Vollcouleur`, `Pflichttermin` |
 | **News** | Tabelle „News“ | Neue Zeile: *Titel*, *Text* (Absätze, `**fett**`, Links möglich), *Datum*, *Kategorie*; *Bild* = Link zu einem Bild in Google Drive; *Angeheftet* = `ja` hält die Meldung oben; *Gelöscht* = `ja` blendet sie aus. Die *ID* ist ein beliebiges eindeutiges Kürzel (z. B. `n12`) |
 | **Adressen, Geburtstage** | Tabelle „Adressverzeichnis“ | Zeilen ergänzen oder korrigieren; Geburtstag als Datum (z. B. `03.04.1970`). Die nächsten drei Geburtstage erscheinen auf der Startseite. Mitglieder prüfen ihre Angaben unter „Mein Profil“; Abweichungen kommen als vorbereitete E-Mail an das Postfach für Adressänderungen, der Schriftwart übernimmt sie hier. Damit die App jemanden zuordnet, sollte die Spalte *E-Mail* das Google-Konto der Verbindung enthalten (sonst wird über den Namen gesucht) |
-| **Verbindungszeitung** | Drive-Ordner „Verbindungszeitung“ | PDF hochladen, Dateiname `JJJJ-N Titel.pdf`, z. B. `2026-2 Verbindungszeitung SoSe 2026.pdf` (Jahr, Nummer der Ausgabe im Jahr). Neueste Ausgabe steht oben |
-| **Fotos** | Drive-Ordner „Galerie“ | Pro Anlass einen **Unterordner** anlegen, Name `JJJJ-MM Name`, z. B. `2026-06 Stiftungsfest`, und die Fotos hineinladen. Fotos direkt im Galerie-Ordner erscheinen als Album „Allgemein“. Neueste Alben stehen oben; Kameranamen wie `IMG_2041` blendet die App aus |
+| **Verbindungszeitung** | Drive-Ordner „Verbindungszeitung“ | PDF hochladen, am besten mit Dateiname `JJJJ-N Titel.pdf`, z. B. `2026-2 Verbindungszeitung SoSe 2026.pdf` (Jahr, Nummer der Ausgabe im Jahr). Jahresordner (`2019/…`, auch `Archiv/2003/…`, bis zwei Ebenen tief) sind möglich; fehlt das Jahr im Dateinamen, zählt der Ordner, „Nr. 3“ oder „Heft 3“ im Namen gilt als Nummer. Neueste Ausgabe steht oben |
+| **Fotos** | Drive-Ordner „Galerie“ | Pro Anlass einen **Unterordner** anlegen, Name `JJJJ-MM Name`, z. B. `2026-06 Stiftungsfest`, und die Fotos hineinladen. Auch Jahresordner mit Alben darin gehen (`2023/Stiftungsfest`, bis zwei Ebenen tief). Fotos direkt im Galerie-Ordner erscheinen als Album „Allgemein“. Neueste Alben stehen oben; Kameranamen wie `IMG_2041` blendet die App aus |
 | **Chat-Räume** | Google Chat | Räume anlegen und Mitglieder hinzufügen; die App zeigt alle Räume, in denen man Mitglied ist |
 | **Profile** | jedes Mitglied selbst | In der App unter Mehr → Mein Profil (u. a. Tätigkeit und „Das kann ich jüngeren Bundesbrüdern anbieten“). Foto und Name im eigenen Google-Konto. Profile sind bewusst getrennt vom Adressverzeichnis (siehe ENTSCHEIDUNGEN.md, E7) |
 
@@ -201,7 +220,7 @@ Alles Gemeinsame wird direkt bei Google gepflegt. Die App zeigt Änderungen nach
 - Dateien ansehen (`drive.readonly`) und nur von der App selbst angelegte Dateien bearbeiten (`drive.file`),
 - das Verzeichnis lesen (`directory.readonly`) sowie Chat-Räume lesen und eigene Nachrichten schreiben (`chat.*`).
 
-Zugriff auf E-Mails, fremde Dateien oder Einstellungen gibt es nicht. Zusätzlich sperrt der Schreibschutz im Code alles, was nicht eigene Daten betrifft. Nur wer „Neu anlegen“ in der Einrichtung nutzt (Admins), erteilt einmalig zusätzlich „Kalender verwalten“.
+Zugriff auf E-Mails, fremde Dateien oder Einstellungen gibt es nicht. Zusätzlich sperrt der Schreibschutz im Code alles, was nicht eigene Daten betrifft. Nur wer in der Einrichtung einen neuen Kalender anlegen lässt (Admins), erteilt einmalig zusätzlich „Kalender verwalten“.
 
 **Kann man die Freigabe zurücknehmen?** Ja, jederzeit:
 - **jedes Mitglied für sich:** in der App unter Einstellungen → „Zugriff widerrufen“ oder unter <https://myaccount.google.com/connections>;
@@ -293,7 +312,7 @@ Die App ist so gebaut, dass Mitglieder damit **nichts außer ihren eigenen Daten
    Alles andere wird blockiert. Die Meldung beginnt dann mit „Schreibschutz:“.
 4. **Wer etwas geschrieben hat**, liest die App aus dem Dateieigentümer bei Google. Das kann niemand fälschen; fremde Beiträge und Einwilligungen erscheinen deshalb nie als eigene.
 
-Ausnahme ist **„Neu anlegen“** in der Einrichtung: nur für Admins, nur solange noch nichts eingerichtet ist, und nur neue Dateien im eigenen Drive. Die Einrichtungsseite prüft die Verbindung ausschließlich lesend; sie warnt auch, falls die Einwilligungsliste versehentlich für eine Gruppe oder Domain freigegeben ist.
+Ausnahme ist **„Fehlendes neu anlegen“** in der Einrichtung: nur für Admins, nur auf ausdrücklichen Klick, nur für das, was noch nicht eingetragen ist, und nur neue Dateien im eigenen Drive. Verbundene (vorhandene) Dateien werden dabei weder verändert noch neu freigegeben. Die Einrichtungsseite prüft die Verbindung ausschließlich lesend; sie warnt u. a. vor „Jeder mit dem Link“, vor Bearbeitungsrechten für Gruppe oder Domain und davor, dass die Einwilligungsliste versehentlich für eine Gruppe oder Domain freigegeben ist.
 
 Der automatische Test `tests/google-mock.html` spielt alle Funktionen gegen einen Nachbau der Google-Schnittstellen durch. Er versucht dabei gezielt, gemeinsame und fremde Daten zu ändern, und prüft, dass jeder dieser Versuche blockiert wird, bevor etwas an Google gesendet wird.
 

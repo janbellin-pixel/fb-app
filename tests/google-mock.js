@@ -47,6 +47,8 @@ function restore() {
   for (const k of Object.keys(localStorage)) if (k.startsWith('fb.')) localStorage.removeItem(k);
   for (const [k, v] of Object.entries(backup)) localStorage.setItem(k, v);
 }
+// eigene Einstellungen aus der Einrichtung (fb.configOverride) dürfen den Test nicht beeinflussen
+for (const k of Object.keys(backup)) localStorage.removeItem(k);
 
 const me = { email: 'tester@beispiel.de', name: 'Theo Tester', photo: 'https://lh3.googleusercontent.com/a/theo=s96-c', hd: 'beispiel.de', firstName: 'Theo' };
 const ANNA = 'anna@beispiel.de';
@@ -416,6 +418,144 @@ async function run() {
   check(found?.id === tId && found.own, 'ohne Eintrag in config.js findet die App die eigene Tabelle selbst');
   config.tabellen.einwilligungen = tId;
   b.invalidate('consentTable');
+
+  /* ---------------------------------------------------------------- Vorhandenes verbinden */
+  section('Einrichtung mit vorhandenen Daten: nur Fehlendes anlegen');
+  const calIdT = 'c_abc123@group.calendar.google.com';
+  check(setup.idFromUrl(`https://calendar.google.com/calendar/u/0?cid=${btoa(calIdT).replace(/=+$/, '')}`) === calIdT, 'Kalender-Link mit Base64-„cid“ (so kopiert ihn Google Kalender)');
+  check(setup.idFromUrl(`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(calIdT)}&ctz=Europe%2FBerlin`) === calIdT, 'Einbettungslink mit „src=“');
+  check(setup.idFromUrl(`https://calendar.google.com/calendar/ical/${encodeURIComponent(calIdT)}/public/basic.ics`) === calIdT, 'iCal-Adresse');
+  check(setup.idFromUrl(calIdT) === calIdT, 'reine Kalender-ID bleibt, wie sie ist');
+  check(setup.idFromUrl('https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-xy/edit?usp=drive_link') === '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-xy', 'Tabellen-Link mit „?usp=drive_link“');
+  check(setup.idFromUrl('https://drive.google.com/drive/folders/1ZyXwVuTsRqPoNmLkJiHgFeDcBa98765?usp=drive_link') === '1ZyXwVuTsRqPoNmLkJiHgFeDcBa98765', 'Ordner-Link');
+
+  const OTHER = { ownerEmail: 'schriftwart@beispiel.de', ownerName: 'Schriftwart' };
+  const SHEET_MIME = 'application/vnd.google-apps.spreadsheet';
+  const FOLDER_MIME = 'application/vnd.google-apps.folder';
+  const soon = (d, h = 0) => new Date(Date.now() + d * 86400_000 + h * 3600_000).toISOString();
+  // vorhandener Kalender (gehört dem Vorstand): ein Termin mit, einer ohne Einladung der Gruppe
+  const extCal = 'c_vorhanden0000@group.calendar.google.com';
+  fake.state.calendars[extCal] = { accessRole: 'reader', events: new Map(), summary: 'Semesterprogramm', owner: 'vorstand@beispiel.de', aclReadable: true };
+  fake.state.calendars[extCal].events.set('ext1', { id: 'ext1', summary: 'Stiftungsfest', start: { dateTime: soon(3) }, end: { dateTime: soon(3, 5) }, attendees: [{ email: 'mitglieder@beispiel.de' }] });
+  fake.state.calendars[extCal].events.set('ext2', { id: 'ext2', summary: 'Stammtisch', start: { dateTime: soon(6) }, end: { dateTime: soon(6, 2) } });
+  fake.state.acls.push({ calendar: extCal, role: 'reader', scope: { type: 'domain', value: 'beispiel.de' } });
+  // vorhandene Mitgliederliste: Titelzeile, „Nachname, Vorname“, Hausnummer und PLZ/Ort, vertrauliche Spalten, zweites Blatt
+  const extSheet = fake.addFile({ ...OTHER, name: 'Mitgliederliste', mimeType: SHEET_MIME });
+  fake.state.sheets[extSheet.id].tabs = [
+    { sheetId: 0, title: 'Verstorbene', rows: [['Name'], ['Alt, Albert']] },
+    { sheetId: 1, title: 'Aktive', rows: [
+      ['Mitgliederliste – Stand Oktober 2026'],
+      [],
+      ['Name', 'v/o', 'Straße', 'Hausnr.', 'PLZ/Ort', 'E-Mail', 'IBAN', 'Bemerkung'],
+      ['Andere, Anna', 'Ännchen', 'Lindenweg', '3', '38106 Braunschweig', 'anna.privat@example.org', 'DE00 1234', ''],
+      ['Tester, Theo', '', 'Am Ring', '12a', '38100 Braunschweig', 'theo.privat@example.org', '', 'Kassenwart'],
+    ] },
+  ];
+  fake.state.permissions.push({ file: extSheet.id, id: 'p-any', type: 'anyone', role: 'reader' });
+  fake.state.permissions.push({ file: extSheet.id, id: 'p-vs', type: 'user', role: 'writer', emailAddress: 'vorstand@beispiel.de' });
+  // vorhandene Zeitung in einer geteilten Ablage: Jahresordner, ein Archiv zwei Ebenen tief
+  const SD = { driveId: 'geteilteablage01' };
+  const extZ = fake.addFile({ ...OTHER, ...SD, name: 'Zeitung', mimeType: FOLDER_MIME });
+  const z2025 = fake.addFile({ ...OTHER, ...SD, name: '2025', mimeType: FOLDER_MIME, parents: [extZ.id] });
+  const z2026 = fake.addFile({ ...OTHER, ...SD, name: '2026', mimeType: FOLDER_MIME, parents: [extZ.id] });
+  const zArch = fake.addFile({ ...OTHER, ...SD, name: 'Archiv', mimeType: FOLDER_MIME, parents: [extZ.id] });
+  const z2003 = fake.addFile({ ...OTHER, ...SD, name: '2003', mimeType: FOLDER_MIME, parents: [zArch.id] });
+  fake.addFile({ ...OTHER, ...SD, name: 'Zeitung Nr. 2.pdf', mimeType: 'application/pdf', parents: [z2025.id] });
+  fake.addFile({ ...OTHER, ...SD, name: '2026-1 Frühjahr.pdf', mimeType: 'application/pdf', parents: [z2026.id] });
+  fake.addFile({ ...OTHER, ...SD, name: 'Heft 1.pdf', mimeType: 'application/pdf', parents: [z2003.id] });
+  fake.state.permissions.push({ file: extZ.id, id: 'p-dom', type: 'domain', role: 'reader', domain: 'beispiel.de' });
+  // vorhandene Fotos: lose Bilder, ein Album, ein Jahresordner mit Album; die Gruppe darf (zu Unrecht) bearbeiten
+  const extG = fake.addFile({ ...OTHER, name: 'Fotos', mimeType: FOLDER_MIME });
+  const gK = fake.addFile({ ...OTHER, name: 'Kneipe', mimeType: FOLDER_MIME, parents: [extG.id] });
+  const g2023 = fake.addFile({ ...OTHER, name: '2023', mimeType: FOLDER_MIME, parents: [extG.id] });
+  const gSF = fake.addFile({ ...OTHER, name: 'Stiftungsfest', mimeType: FOLDER_MIME, parents: [g2023.id] });
+  for (const [n, p] of [['lose.jpg', extG.id], ['k1.jpg', gK.id], ['sf1.jpg', gSF.id], ['sf2.jpg', gSF.id]]) fake.addFile({ ...OTHER, name: n, mimeType: 'image/jpeg', parents: [p] });
+  fake.state.permissions.push({ file: extG.id, id: 'p-grp', type: 'group', role: 'writer', emailAddress: 'mitglieder@beispiel.de' });
+
+  const existing = new Set([...fake.state.files.values()].filter((f) => f.ownerEmail === OTHER.ownerEmail).map((f) => f.id));
+  const extNames = new Set([...fake.state.files.values()].filter((f) => existing.has(f.id)).map((f) => f.name));
+  const snap = () => JSON.stringify({
+    sheet: fake.state.sheets[extSheet.id],
+    files: [...fake.state.files.values()].filter((f) => existing.has(f.id)),
+    perms: fake.state.permissions.filter((p) => existing.has(p.file)),
+    events: [...fake.state.calendars[extCal].events.values()],
+    acl: fake.state.acls.filter((a) => a.calendar === extCal),
+  });
+  const savedCfg = { kalenderId: config.kalenderId, tabellen: { ...config.tabellen }, adressenBlatt: config.adressenBlatt, zeitungOrdnerId: config.zeitungOrdnerId, galerieOrdnerId: config.galerieOrdnerId };
+  Object.assign(config, { kalenderId: extCal, tabellen: { adressen: extSheet.id, news: '', einwilligungen: '' }, adressenBlatt: 'Aktive', zeitungOrdnerId: extZ.id, galerieOrdnerId: extG.id });
+  check(setup.missingResources().join() === 'news,einwilligungen', 'es fehlen nur News-Tabelle und Einwilligungsliste', setup.missingResources().join());
+  const snapBefore = snap();
+  const w0 = fake.state.writes.length;
+  const logs2 = [];
+  fake.state.setupPhase = true;
+  const res2 = await step('createMissing', () => setup.createMissing({
+    withSamples: true, withIssues: true, withPhotos: true, group: config.mitgliederGruppe, domain: 'beispiel.de', testUsers: [], me,
+    log: (t, k) => logs2.push(`${k || '·'} ${t}`),
+  }));
+  fake.state.setupPhase = false;
+  check(res2?.created.join() === 'news,einwilligungen', 'angelegt: nur News-Tabelle und Einwilligungsliste', res2?.created.join());
+  check(res2 && !res2.kalenderId && !res2.zeitungOrdnerId && !res2.galerieOrdnerId && !res2.tabellen.adressen, 'kein neuer Kalender, keine neue Adressliste, keine neuen Zeitungs- oder Fotoordner');
+  check(snap() === snapBefore, 'vorhandene Dateien, Freigaben, Termine und Kalenderfreigaben unverändert');
+  const newWrites = fake.state.writes.slice(w0);
+  const touched = newWrites.filter((w) => existing.has(w.target) || extNames.has(w.target) || w.target === extCal || String(w.target).startsWith(extCal));
+  check(newWrites.length > 0 && touched.length === 0, 'keine einzige Schreibanfrage an Vorhandenes', JSON.stringify(touched));
+  const newsFile = fake.state.files.get(res2?.tabellen?.news);
+  check(newsFile && newsFile.parents.includes(res2.rootFolderId), 'News-Tabelle im neuen App-Ordner');
+  check(fake.state.sheets[res2?.tabellen?.news]?.tabs[0].rows.length === 5, 'Beispiel-News nur in der neuen Tabelle (Kopfzeile + 4)');
+  check(!logs2.some((l) => /Zeitung hochladen|Galerie hochladen|Beispieltermine|Adressen eingetragen/.test(l)), 'keine Beispielausgaben, -fotos, -termine oder -adressen bei Vorhandenem', logs2.join(' | '));
+  check(!logs2.some((l) => l.startsWith('err')), 'keine Fehler im Protokoll', logs2.filter((l) => l.startsWith('err')).join(' | '));
+  const newPerms = fake.state.permissions.filter((p) => p.file === res2?.tabellen?.news || p.file === res2?.rootFolderId);
+  check(newPerms.length > 0 && newPerms.every((p) => p.role === 'reader'), 'neue News-Tabelle für Mitglieder nur lesbar', JSON.stringify(newPerms));
+  check(!fake.state.permissions.some((p) => p.file === res2?.tabellen?.einwilligungen && ['group', 'domain', 'anyone'].includes(p.type)), 'neue Einwilligungsliste nicht für Gruppe oder Domain');
+  Object.assign(config, { tabellen: { ...config.tabellen, ...(res2?.tabellen || {}) } });
+  check(setup.missingResources().length === 0, 'danach fehlt nichts mehr');
+  const again = await setup.createMissing({ me, log: () => {} });
+  check(again.created.length === 0, 'erneuter Klick legt nichts doppelt an');
+
+  const c2 = await step('checkSetup (vorhandene Daten)', () => setup.checkSetup());
+  const by = (l) => c2?.find((c) => c.label === l);
+  const ck = by('Kalender');
+  check(ck?.ok && ck.detail.includes('2 Termine') && ck.warn.some((w) => w.startsWith('1 Termin ohne Einladung')), 'Kalender: Termin ohne Einladung der Gruppe gemeldet', JSON.stringify(ck));
+  check(ck?.lines.some((l) => l.includes('lesbar für alle in beispiel.de')), 'Kalender-Freigaben gelesen (nur lesend)', JSON.stringify(ck?.lines));
+  const ca = by('Adressverzeichnis');
+  check(ca?.ok && ca.detail.includes('Blatt „Aktive“') && ca.detail.includes('2 Einträge'), 'Adressen: eingetragenes Blatt, 2 Einträge', JSON.stringify(ca));
+  check(ca?.lines.some((l) => l.includes('Zeile 3')) && ca.lines.some((l) => l.includes('Verstorbene')), 'Kopfzeile unter einer Titelzeile gefunden, weiteres Blatt genannt', JSON.stringify(ca?.lines));
+  check(ca?.warn.some((w) => w.includes('Jeder mit dem Link') && w.includes('öffentlichen config.js')), 'Warnung: „Jeder mit dem Link“ (die IDs sind öffentlich)', JSON.stringify(ca?.warn));
+  check(ca?.warn.some((w) => w.includes('IBAN') && w.includes('Bemerkung')), 'Warnung: vertraulich wirkende Spalten');
+  const cz = by('Ordner Verbindungszeitung');
+  check(cz?.ok && cz.detail.includes('3 Ausgaben') && !cz.warn.length, 'Zeitung: 3 PDFs in Jahresordnern, Freigabe in Ordnung', JSON.stringify(cz));
+  check(fake.state.queries.some((q) => q.driveId === SD.driveId && q.corpora === 'drive'), 'geteilte Ablage gezielt durchsucht');
+  const cg = by('Ordner Galerie');
+  check(cg?.ok && cg.detail.includes('3 Alben') && cg.detail.includes('4 Fotos'), 'Galerie: auch verschachtelte Alben', JSON.stringify(cg));
+  check(cg?.warn.length === 1 && cg.warn[0].includes('Bearbeiten dürfen mitglieder@beispiel.de'), 'Warnung: Gruppe darf bearbeiten (und nur diese)', JSON.stringify(cg?.warn));
+  check(by('News-Tabelle')?.ok && !by('News-Tabelle').warn.length && by('Einwilligungsliste (vertraulich)')?.ok, 'neue News-Tabelle und Einwilligungsliste in Ordnung', JSON.stringify([by('News-Tabelle'), by('Einwilligungsliste (vertraulich)')]));
+  const j1 = setup.judgeCalendarAcl([{ role: 'reader', scope: { type: 'default' } }, { role: 'writer', scope: { type: 'group', value: 'mitglieder@beispiel.de' } }]);
+  check(j1.warn.length === 2, 'Kalender: „öffentlich“ und „Gruppe darf ändern“ werden angemahnt', JSON.stringify(j1));
+  const j2 = setup.judgeCalendarAcl([{ role: 'freeBusyReader', scope: { type: 'domain', value: 'beispiel.de' } }]);
+  check(j2.warn.some((w) => w.includes('frei/belegt')), 'Kalender: nur „frei/belegt“ reicht nicht');
+  config.adressenBlatt = 'Gibtsnicht';
+  const cWrongTab = await setup.checkSetup();
+  check(cWrongTab.find((c) => c.label === 'Adressverzeichnis')?.ok === false, 'falsch eingetragenes Blatt: Fehler statt eines anderen Blattes');
+  config.adressenBlatt = 'Aktive';
+
+  section('Vorhandene Daten in der App (nur lesen)');
+  const b2 = new GoogleBackend(me);
+  const iss = await step('listIssues (Jahresordner)', () => b2.listIssues());
+  check(iss?.map((i) => i.year).join() === '2026,2025,2003', 'Ausgaben aus Jahresordnern, neueste zuerst', JSON.stringify(iss?.map((i) => [i.name, i.year, i.nr])));
+  check(iss?.[1]?.ausgabe === 'Ausgabe 2/2025' && iss?.[2]?.ausgabe === 'Ausgabe 1/2003', 'Nummer aus „Nr. 2“ bzw. „Heft 1“, Jahr aus dem Ordner', JSON.stringify(iss?.map((i) => i.ausgabe)));
+  const gal2 = await step('listGallery (verschachtelt)', () => b2.listGallery());
+  const sfAlbum = gal2?.albums.find((x) => x.title === 'Stiftungsfest');
+  check(gal2?.albums.length === 3 && sfAlbum?.path.join() === '2023' && sfAlbum.photos.length === 2, 'Album im Jahresordner mit Pfad „2023“', JSON.stringify(gal2?.albums.map((x) => [x.title, x.path, x.photos.length])));
+  const adr = await step('listAddresses (vorhandene Liste)', () => b2.listAddresses());
+  const annaA = adr?.items.find((x) => x.nachname === 'Andere');
+  check(annaA?.vorname === 'Anna' && annaA?.name === 'Anna Andere' && annaA?.strasse === 'Lindenweg 3' && annaA?.plz === '38106' && annaA?.ort === 'Braunschweig' && annaA?.kneipname === 'Ännchen',
+    '„Andere, Anna“, Hausnummer und PLZ/Ort richtig gelesen', JSON.stringify(annaA));
+  check(adr?.items.length === 2 && !adr.items.some((x) => x.nachname === 'Alt'), 'nur das eingetragene Blatt (nicht „Verstorbene“)');
+  check(annaA?.extras.some((x) => x.label === 'IBAN'), 'nicht zugeordnete Spalten bleiben sichtbar (darum die Warnung in der Prüfung)');
+  const mem2 = await step('listMembers (Zuordnung über den Namen)', () => b2.listMembers());
+  const annaM = mem2?.find((m) => m.email === ANNA);
+  check(annaM?.wohnort === 'Braunschweig' && annaM?.kneipname === 'Annabella', 'private E-Mail im Verzeichnis: Zuordnung über den eindeutigen Namen (eigenes Profil hat Vorrang)', JSON.stringify(annaM));
+  Object.assign(config, savedCfg);
 
   /* ---------------------------------------------------------------- Gesamtbilanz */
   section('Gesamtbilanz');

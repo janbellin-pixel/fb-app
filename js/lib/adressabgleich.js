@@ -37,7 +37,8 @@ export function adressaenderungEmail() {
 /* ------------------------------------------------------------------ eigenen Eintrag finden */
 
 const TITEL = /\b(prof|dr|dipl|ing|med|jur|rer|nat|phil|habil|mult|h\.?\s?c)\b\.?/gi;
-const nameKey = (s) => norm(String(s || '').replace(TITEL, ' ')).replace(/[^a-z]/g, '');
+/** Vergleichsschlüssel für Namen: ohne Titel, Leer- und Sonderzeichen */
+export const nameKey = (s) => norm(String(s || '').replace(TITEL, ' ')).replace(/[^a-z]/g, '');
 
 /**
  * Eintrag des Mitglieds im Adressverzeichnis: zuerst über die E-Mail-Adresse des Google-Kontos,

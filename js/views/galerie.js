@@ -8,7 +8,8 @@ const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'A
 export function albumInfo(album) {
   const m = String(album.title).match(/^(\d{4})[-_.](\d{1,2})\s+(.+)$/);
   const name = m ? m[3] : album.title;
-  const when = m ? `${MONATE[(+m[2] - 1 + 12) % 12]} ${m[1]}` : '';
+  // verschachtelte Alben („2023/Stiftungsfest“): übergeordnete Ordner als Zusatz
+  const when = m ? `${MONATE[(+m[2] - 1 + 12) % 12]} ${m[1]}` : (album.path || []).join(' › ');
   const n = album.photos.length;
   return { name, when, count: `${n} ${n === 1 ? 'Foto' : 'Fotos'}` };
 }

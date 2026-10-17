@@ -37,7 +37,7 @@ Die App ändert **keine** gemeinsamen Daten, weder Termine noch News, Adressen, 
 3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Einwilligung) und eigene Chat-Nachrichten. Alles andere wird blockiert.
 
 Ausnahmen gibt es zwei, beide betreffen nur eigene Dateien:
-- Der Knopf **„Neu anlegen“** in der Einrichtung ist nur für Admins sichtbar und nur vor der ersten Einrichtung aktiv. Er legt ausschließlich neue Dateien im eigenen Drive an; Vorhandenes wird nie verändert.
+- Der Knopf **„Fehlendes neu anlegen“** in der Einrichtung ist nur für Admins sichtbar und legt nur an, was noch nicht verbunden ist – ausschließlich neue Dateien im eigenen Drive. Verbundenes (vorhandener Kalender, Mitgliederliste, Ordner) wird nie verändert oder neu freigegeben.
 - Die **vertrauliche Einwilligungsliste** darf nur das Konto aktualisieren, dem sie gehört und das sie mit der App angelegt hat (die Datenschutz-Verantwortlichen).
 
 Gepflegt werden die gemeinsamen Daten direkt bei Google: Termine im Google Kalender, News und Adressen in Google Tabellen, Zeitungen und Fotos in Google Drive.
@@ -56,7 +56,7 @@ python tools/serve.py
 
 1. In der Google Cloud Console eine **OAuth-Client-ID** (Webanwendung) anlegen.
 2. Projekt auf **GitHub** hochladen und GitHub Pages einschalten (veröffentlicht automatisch). Kostenlos geht das mit einem öffentlichen Repository; mit einem privaten nur mit kostenpflichtigem GitHub-Tarif.
-3. In der App unter **Einrichtung**: Client-ID eintragen, anmelden, Datenschutz-Angaben (Verein, Anschrift, Kontakt) ergänzen, **„Neu anlegen“**. Kalender, Tabellen, die Ordner für Zeitung und Galerie und die vertrauliche Einwilligungsliste entstehen automatisch. Alternativ vorhandene verbinden.
+3. In der App unter **Einrichtung**: Client-ID eintragen, anmelden, Datenschutz-Angaben (Verein, Anschrift, Kontakt) ergänzen. Was es schon gibt (Kalender, Mitgliederliste, Ordner), unter **„1. Vorhandenes verbinden“** eintragen, **„Verbindung prüfen“** (warnt u. a. vor „Jeder mit dem Link“), dann **„2. Fehlendes neu anlegen“** – z. B. News-Tabelle und vertrauliche Einwilligungsliste. Ohne Vorhandenes entsteht alles neu.
 4. `config.js` herunterladen und im Repository ersetzen.
 5. Für die Mitglieder: QR-Code und Anleitung mit `python tools/make_anleitung.py https://…` erzeugen (siehe unten).
 

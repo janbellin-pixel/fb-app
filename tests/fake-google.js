@@ -15,6 +15,7 @@ const calId = () => `fb${Date.now().toString(32)}${(counter++).toString(32)}`.re
 export function createFakeGoogle({ me, workspace = true }) {
   const state = {
     log: [],
+    queries: [],
     writes: [],
     violations: [],
     setupPhase: false,
@@ -136,6 +137,13 @@ export function createFakeGoogle({ me, workspace = true }) {
       return json({ id, summary: body.summary });
     }
     if ((m = path.match(/^calendars\/([^/]+)\/acl$/))) {
+      if (method === 'GET') {
+        // Freigaben sehen nur Inhaber (bzw. wer sie verwalten darf)
+        const c = state.calendars[m[1]];
+        if (!c) return error(404, 'Not Found', 'notFound');
+        if (c.owner !== me.email && !c.aclReadable) return error(403, 'Forbidden', 'forbidden');
+        return json({ items: state.acls.filter((a) => a.calendar === m[1]).map(({ calendar, ...r }) => ({ id: `${r.scope.type}:${r.scope.value || ''}`, ...r })) });
+      }
       write('Kalender freigeben', m[1], state.calendars[m[1]]?.owner === me.email);
       state.acls.push({ calendar: m[1], ...body });
       return json({ id: uid('acl'), ...body });
@@ -196,6 +204,7 @@ export function createFakeGoogle({ me, workspace = true }) {
       id, name: f.name || 'Datei', mimeType: f.mimeType || 'application/json', parents: f.parents || [], appProperties: f.appProperties || {}, properties: f.properties || {},
       description: f.description || '', createdTime: f.createdTime || new Date().toISOString(), modifiedTime: f.modifiedTime || new Date().toISOString(),
       ownerEmail: f.ownerEmail || me.email, ownerName: f.ownerName || me.name, trashed: false, content: f.content || null,
+      ...(f.driveId ? { driveId: f.driveId } : {}), // liegt in einer geteilten Ablage
     };
     if (file.mimeType.startsWith('image/')) {
       // lokale Adresse ohne Bild (404) – so wird auch der Ersatzweg über das Original geprüft
@@ -210,26 +219,82 @@ export function createFakeGoogle({ me, workspace = true }) {
     const { content, ownerEmail, ownerName, ...rest } = f;
     return { ...rest, ownedByMe: ownerEmail === me.email, owners: [{ emailAddress: ownerEmail, displayName: ownerName, photoLink: '' }], size: content ? content.byteLength : 0 };
   };
-  function matches(f, q) {
-    if (/trashed = false/.test(q) && f.trashed) return false;
-    const parent = q.match(/'([^']+)' in parents/);
-    if (parent && !f.parents.includes(parent[1])) return false;
-    if (/'me' in owners/.test(q) && f.ownerEmail !== me.email) return false;
-    const either = q.match(/\(mimeType = '([^']+)' or mimeType contains '([^']+)'\)/);
-    if (either) {
-      if (!(f.mimeType === either[1] || f.mimeType.includes(either[2]))) return false;
-    } else {
-      const eq = q.match(/mimeType = '([^']+)'/);
-      if (eq && f.mimeType !== eq[1]) return false;
-      const contains = q.match(/mimeType contains '([^']+)'/);
-      if (contains && !f.mimeType.includes(contains[1])) return false;
+  /* Drive-Suchsprache (die Teilmenge, die die App benutzt): Bedingungen mit and/or/not und Klammern,
+     z. B. "('a' in parents or 'b' in parents) and trashed = false and (mimeType = '…' or (mimeType contains 'image/'))" */
+  function tokenize(q) {
+    const tokens = [];
+    const re = /\s*(?:'((?:[^'\\]|\\.)*)'|(\(|\)|\{|\}|!=|=|<=|>=|<|>)|([A-Za-z_][\w.]*))/y;
+    while (re.lastIndex < q.length) {
+      const start = re.lastIndex;
+      const m = re.exec(q);
+      if (!m) {
+        if (/^\s*$/.test(q.slice(start))) break;
+        throw new Error(`Drive-Abfrage nicht verstanden ab: ${q.slice(start)}`);
+      }
+      if (m[1] !== undefined) tokens.push({ t: 'str', v: m[1].replace(/\\(.)/g, '$1') });
+      else if (m[2]) tokens.push({ t: 'op', v: m[2] });
+      else tokens.push({ t: 'word', v: m[3] });
     }
-    const prop = q.match(/appProperties has \{ key='([^']+)' and value='([^']+)' \}/);
-    if (prop && f.appProperties?.[prop[1]] !== prop[2]) return false;
-    const name = q.match(/name = '([^']+)'/);
-    if (name && f.name !== name[1]) return false;
-    return true;
+    return tokens;
   }
+  const compiled = new Map();
+  function compile(q) {
+    if (compiled.has(q)) return compiled.get(q);
+    const tk = tokenize(q);
+    let i = 0;
+    const peek = () => tk[i];
+    const next = (want) => {
+      const tok = tk[i++];
+      if (!tok || (want && tok.v !== want)) throw new Error(`Drive-Abfrage: „${want}“ erwartet in ${q}`);
+      return tok;
+    };
+    const isWord = (w) => peek()?.t === 'word' && peek().v.toLowerCase() === w;
+    const orExpr = () => {
+      let left = andExpr();
+      while (isWord('or')) { next(); const l = left; const r = andExpr(); left = (f) => l(f) || r(f); }
+      return left;
+    };
+    const andExpr = () => {
+      let left = notExpr();
+      while (isWord('and')) { next(); const l = left; const r = notExpr(); left = (f) => l(f) && r(f); }
+      return left;
+    };
+    const notExpr = () => {
+      if (isWord('not')) { next(); const e = notExpr(); return (f) => !e(f); }
+      return primary();
+    };
+    const primary = () => {
+      const tok = peek();
+      if (tok?.t === 'op' && tok.v === '(') { next(); const e = orExpr(); next(')'); return e; }
+      if (tok?.t === 'str') { // 'x' in parents · 'me' in owners
+        next();
+        next('in');
+        const field = next().v;
+        if (field === 'parents') return (f) => f.parents.includes(tok.v);
+        if (field === 'owners') return (f) => f.ownerEmail === (tok.v === 'me' ? me.email : tok.v);
+        throw new Error(`Drive-Abfrage: „in ${field}“ nicht nachgebaut`);
+      }
+      const field = next().v;
+      const op = next().v;
+      if (op === 'has') { // appProperties has { key='k' and value='v' }
+        next('{'); next('key'); next('='); const key = next().v; next('and'); next('value'); next('='); const val = next().v; next('}');
+        return (f) => (f[field] || {})[key] === val;
+      }
+      const vt = next();
+      const val = vt.t === 'str' ? vt.v : vt.v === 'true' ? true : vt.v === 'false' ? false : vt.v;
+      if (op === '=') return (f) => f[field] === val;
+      if (op === '!=') return (f) => f[field] !== val;
+      if (op === 'contains') return (f) => String(f[field] ?? '').includes(val);
+      if (op === '>') return (f) => String(f[field] ?? '') > val;
+      if (op === '<') return (f) => String(f[field] ?? '') < val;
+      throw new Error(`Drive-Abfrage: Vergleich „${op}“ nicht nachgebaut`);
+    };
+    const fn = orExpr();
+    if (i < tk.length) throw new Error(`Drive-Abfrage: unerwartetes „${tk[i].v}“ in ${q}`);
+    compiled.set(q, fn);
+    return fn;
+  }
+  const matches = (f, q) => (q ? compile(q)(f) : true);
 
   async function parseMultipart(rawBody) {
     const bytes = new Uint8Array(await rawBody.arrayBuffer());
@@ -259,7 +324,12 @@ export function createFakeGoogle({ me, workspace = true }) {
     }
     if (path === 'files' && method === 'GET') {
       const q = url.searchParams.get('q') || '';
-      return json({ files: [...state.files.values()].filter((f) => matches(f, q)).map(view) });
+      const driveId = url.searchParams.get('driveId') || '';
+      const allDrives = url.searchParams.get('includeItemsFromAllDrives') === 'true';
+      state.queries.push({ q, driveId, corpora: url.searchParams.get('corpora') || '' });
+      // Dateien aus geteilten Ablagen nur mit includeItemsFromAllDrives (wie bei Google)
+      const files = [...state.files.values()].filter((f) => (!f.driveId || allDrives) && (!driveId || f.driveId === driveId) && matches(f, q));
+      return json({ files: files.map(view) });
     }
     if ((m = path.match(/^files\/([^/]+)\/permissions(?:\/([^/]+))?$/))) {
       const f = state.files.get(m[1]);

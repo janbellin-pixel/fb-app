@@ -28,5 +28,11 @@ export const createCalendar = (summary, description = '', timeZone = 'Europe/Ber
 
 export const getCalendar = (calendarId) => api(`${BASE}/calendars/${enc(calendarId)}`);
 
+/** Freigaben eines Kalenders lesen (braucht die Einrichtungs-Berechtigung „Kalender verwalten“) */
+export async function listAcl(calendarId) {
+  const { items } = await apiAll(`${BASE}/calendars/${enc(calendarId)}/acl`, { query: { maxResults: 250 } }, 'items', 5);
+  return items;
+}
+
 export const insertAcl = (calendarId, rule) =>
   api(`${BASE}/calendars/${enc(calendarId)}/acl`, { method: 'POST', query: { sendNotifications: false }, body: rule });

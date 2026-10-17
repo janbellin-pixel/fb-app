@@ -9,6 +9,8 @@ const DEFAULTS = {
   appUrl: '',
   kalenderId: '',
   tabellen: { adressen: '', news: '', einwilligungen: '' },
+  // Tabellenblatt des Adressverzeichnisses; leer = „Adressen“, sonst das erste Blatt
+  adressenBlatt: '',
   zeitungOrdnerId: '',
   galerieOrdnerId: '',
   chat: { aktiv: true },
@@ -147,7 +149,7 @@ export function statusGroup(status) {
 export function configFileContent(values) {
   const c = merge(deployedConfig, values);
   const keep = ['appName', 'googleClientId', 'workspaceDomain', 'mitgliederGruppe', 'admins', 'appUrl',
-    'kalenderId', 'tabellen', 'zeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'adressaenderung', 'datenschutz',
+    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'adressaenderung', 'datenschutz',
     'demoErlaubt', 'testMitglieder'];
   // eigene Zusatzeinstellungen aus der bisherigen config.js behalten
   const obj = { ...(window.FB_CONFIG || {}) };

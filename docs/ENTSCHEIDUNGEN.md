@@ -85,12 +85,14 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 
 - **Entscheidung:** PDFs liegen in einem Drive-Ordner (Dateiname `JJJJ-N Titel.pdf`). PDF.js rendert die Seiten, StPageFlip blättert sie (hochkant Einzelseite, quer Doppelseite). Geöffnete Ausgaben werden offline zwischengespeichert.
 - **Folgen:** Die Redaktion lädt nur PDFs hoch. Große PDFs brauchen beim ersten Öffnen etwas Ladezeit.
+- **Ergänzt durch E25** (Jahresordner, andere Dateinamen).
 
 ## E12 · Fotogalerie aus einem festen Drive-Ordner
 *2026-10-17*
 
 - **Entscheidung:** Unterordner = Alben (`JJJJ-MM Name`, neueste zuerst), lose Bilder = Album „Allgemein“. Vorschaubilder über `thumbnailLink`; schlägt das fehl, wird das Original über die Anmeldung geladen. Kameranamen wie `IMG_2041` werden nicht als Bildunterschrift gezeigt.
 - **Folgen:** Pflege komplett in Google Drive.
+- **Ergänzt durch E25** (Alben in Jahresordnern).
 
 ## E13 · Forum ohne gemeinsame Tabelle
 *2026-10-17*
@@ -160,3 +162,28 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Entscheidung:** Veröffentlichung über GitHub Actions (`.github/workflows/pages.yml`). Der Workflow kopiert nur die App-Dateien und setzt die Versionskennung des Service Workers.
 - **Folgen:** Kostenlos mit **öffentlichem** Repository. Pages aus einem **privaten** Repository geht nur mit einem kostenpflichtigen GitHub-Tarif (Pro, Team, Enterprise); die veröffentlichte Seite ist auch dann öffentlich erreichbar. Im Code stehen keine Geheimnisse, die Daten schützt Google. Wer das Repository verwaltet, bestimmt den ausgelieferten Code. Das Konto deshalb mit Zwei-Faktor-Anmeldung schützen.
 - **Umsetzung (2026-10-17):** öffentliches Repository <https://github.com/janbellin-pixel/fb-app> im **persönlichen GitHub-Konto** des Auftraggebers; Adresse der App <https://janbellin-pixel.github.io/fb-app/> (auch `appUrl` in `config.js`). GitHub und Google Workspace sind voneinander unabhängig; verbunden sind sie nur dadurch, dass die Adresse der App beim OAuth-Client als erlaubte Quelle und Weiterleitung eingetragen ist. Die Adresse lautet `https://<github-name>.github.io/<repository>/`; eine eigene Subdomain der Verbindung ist später per CNAME möglich (dann die Adresse beim OAuth-Client und in `config.js` ändern). Damit die App nicht an einer Person hängt: einen zweiten Verwalter mit Schreibrecht eintragen oder das Repository später in eine kostenlose GitHub-Organisation der Verbindung übertragen.
+
+## E23 · Einrichtung: Vorhandenes verbinden, nur Fehlendes neu anlegen
+*2026-10-17 – Anlass: Einrichtung im echten Workspace*
+
+- **Kontext:** Im Workspace gibt es schon den Kalender, die Mitgliederliste und die Ordner mit Zeitung und Fotos. „Neu anlegen“ ging bisher nur vor jeder Einrichtung und legte dann alles neu an – auch das, was es schon gibt.
+- **Entscheidung:** Die Einrichtung trennt **verbinden** (nur die ID eintragen; die App liest) und **„Fehlendes neu anlegen“** (`createMissing`, nur Datenquellen ohne Eintrag). Verbundenes wird dabei weder gelesen noch verändert noch neu freigegeben. Beispieldaten kommen nur in Neues und sind nur beim Start von Grund auf vorausgewählt. Die Berechtigung „Kalender verwalten“ wird nur angefragt, wenn ein neuer Kalender nötig ist. Der Schreibschutz bleibt unverändert: Während des Klicks sind nur die gerade angelegten Ressourcen beschreibbar.
+- **Folgen:** Ein erneuter Klick legt nichts doppelt an. Freigaben vorhandener Dateien richten die Verantwortlichen selbst in Google ein; die Prüfung (E24) zeigt, was fehlt.
+
+## E24 · Freigaben vor dem Veröffentlichen prüfen
+*2026-10-17*
+
+- **Kontext:** `config.js` ist öffentlich lesbar (GitHub Pages), also auch alle IDs. Geschützt sind die Daten allein durch die Google-Freigaben. Eine Datei mit „Jeder mit dem Link“ wäre damit für jeden lesbar. Außerdem sollen Mitglieder nur lesen dürfen.
+- **Entscheidung:** „Verbindung prüfen“ liest (nur lesend) Inhaber, Freigaben und Kalender-Freigaben und meldet: „Jeder mit dem Link“, Bearbeitungsrechte für Gruppe/Domain, fehlenden Lesezugriff der Mitglieder, Inhaber außerhalb der Domain, vertraulich wirkende Spalten und Termine ohne Einladung an die Mitglieder-Gruppe. Kalender-Freigaben nur mit schon erteilter Berechtigung „Kalender verwalten“ (kein neuer Scope). Ablauf: erst lokal verbinden und prüfen (Werte stehen nur im eigenen Browser), dann `config.js` veröffentlichen. Bei der Einrichtung im Workspace der Frankonia-Brunonia wurden deshalb zunächst nur Client-ID, Domain, Admins und Datenschutzangaben veröffentlicht; die IDs von Kalender, Liste und Ordnern folgen nach der Prüfung.
+- **Folgen:** Probleme fallen vor dem Start auf. Die Spaltenprüfung ist eine Heuristik. Der Testlauf lädt die echte `config.js` nicht.
+
+## E25 · Vorhandene Strukturen tolerant lesen
+*2026-10-17*
+
+- **Kontext:** Vorhandene Listen und Ordner sind über Jahre gewachsen und folgen nicht den Namensregeln der App.
+- **Entscheidung:**
+  - **Adressverzeichnis:** Kopfzeile in den ersten zehn Zeilen suchen (Titelzeilen darüber erlaubt), „Nachname, Vorname“ in einer Spalte, Hausnummer und „PLZ/Ort“ als eigene Spalten. Das Tabellenblatt ist einstellbar (`adressenBlatt`); fehlt das eingetragene Blatt, gibt es einen Fehler statt eines anderen Blattes. Mitglieder werden über die E-Mail-Adresse zugeordnet, sonst über den Namen, aber nur, wenn der Name auf beiden Seiten eindeutig ist.
+  - **Zeitung:** PDFs bis zwei Ordnerebenen tief. Das Jahr kommt aus dem Namen oder aus dem Ordner, die Nummer aus „Nr.“, „Heft“ oder „Ausgabe“.
+  - **Galerie:** Alben sind Ordner mit Fotos bis zwei Ebenen tief; übergeordnete Ordner erscheinen als Zusatz („Stiftungsfest · 2023“).
+  - **Abruf:** gebündelt je Ebene, geteilte Ablagen gezielt mit `corpora=drive&driveId`.
+- **Folgen:** Vorhandenes muss nicht umgebaut werden. Grenze: Sehr große Fotoarchive laden alle Angaben auf einmal (ENTWICKLUNG.md, Offene Punkte).

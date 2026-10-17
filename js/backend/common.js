@@ -124,7 +124,11 @@ export function appLinkBlock(link) {
 }
 
 /* ---------------------------------------------------------- Zeitung */
-/** "2026-2 Verbindungszeitung SoSe 2026.pdf" → Jahr, Nummer, Titel */
+/**
+ * "2026-2 Verbindungszeitung SoSe 2026.pdf" → Jahr, Nummer, Titel.
+ * Andere Namen („Zeitung Nr. 3 2019.pdf“) werden so gut wie möglich gelesen; fehlt das Jahr im Namen,
+ * zählt ein Jahresordner („2019/…“, siehe f.path aus drive.listTree).
+ */
 export function issueFromFile(f) {
   const base = String(f.name || '').replace(/\.pdf$/i, '');
   const m = base.match(/^(\d{4})[-_ .](\d{1,2})\s*[-_ ]?\s*(.*)$/);
@@ -135,13 +139,19 @@ export function issueFromFile(f) {
     year = +m[1];
     nr = +m[2];
     title = m[3] || base;
+  } else {
+    const y = base.match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/);
+    const n = base.match(/(?:nr\.?|nummer|ausgabe|heft)\s*(\d{1,2})(?!\d)/i);
+    const fromPath = [...(f.path || [])].reverse().map((p) => String(p).match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/)?.[1]).find(Boolean);
+    year = y ? +y[1] : fromPath ? +fromPath : null;
+    nr = n ? +n[1] : null;
   }
   title = title.replace(/[_]+/g, ' ').trim();
   return {
     id: f.id,
     name: f.name,
     title: f.description?.trim() || title,
-    ausgabe: year ? `Ausgabe ${nr}/${year}` : '',
+    ausgabe: year && nr ? `Ausgabe ${nr}/${year}` : year ? String(year) : '',
     year,
     nr,
     date: f.createdTime || f.modifiedTime || '',
@@ -166,7 +176,9 @@ const ADDRESS_FIELDS = [
   { key: 'titel', names: ['Titel', 'Akad. Titel', 'Anrede'] },
   { key: 'kneipname', names: ['Kneipname', 'Vulgo', 'v/o', 'Biername', 'Couleurname'] },
   { key: 'status', names: ['Status', 'Mitgliedsstatus', 'Stand'] },
-  { key: 'strasse', names: ['Straße', 'Strasse', 'Adresse', 'Anschrift', 'Straße und Hausnummer'] },
+  { key: 'strasse', names: ['Straße', 'Strasse', 'Adresse', 'Anschrift', 'Straße und Hausnummer', 'Straße/Nr.', 'Straße Nr.'] },
+  { key: 'hausnummer', names: ['Hausnummer', 'Hausnr', 'Hausnr.', 'Haus-Nr.'] },
+  { key: 'plzOrt', names: ['PLZ Ort', 'PLZ/Ort', 'PLZ und Ort', 'PLZ, Ort'] },
   { key: 'plz', names: ['PLZ', 'Postleitzahl'] },
   { key: 'ort', names: ['Ort', 'Wohnort', 'Stadt'] },
   { key: 'land', names: ['Land', 'Staat'] },
@@ -180,9 +192,7 @@ const ADDRESS_FIELDS = [
 
 const keyOf = (s) => norm(s).replace(/[^a-z0-9]/g, '');
 
-/** Freie Tabellenstruktur auf bekannte Felder abbilden; Unbekanntes landet in extras */
-export function addressesFromRows(rows) {
-  const header = (rows[0] || []).map((h) => String(h ?? '').trim());
+function mapHeader(header) {
   const map = {};
   const used = new Set();
   for (const f of ADDRESS_FIELDS) {
@@ -190,20 +200,72 @@ export function addressesFromRows(rows) {
     const idx = header.findIndex((h, i) => !used.has(i) && wanted.includes(keyOf(h)));
     if (idx >= 0) { map[f.key] = idx; used.add(idx); }
   }
-  // Nur „Name“ ohne Vor-/Nachname: als vollständigen Namen behandeln
+  return { map, used };
+}
+
+/** Kopfzeile finden: die erste der ersten zehn Zeilen mit mindestens zwei bekannten Spaltennamen (sonst Zeile 1) */
+function findHeaderRow(rows) {
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const header = (rows[i] || []).map((h) => String(h ?? '').trim());
+    if (Object.keys(mapHeader(header).map).length >= 2) return i;
+  }
+  return 0;
+}
+
+/**
+ * Welches Tabellenblatt ist das Adressverzeichnis? config.adressenBlatt (falls eingetragen),
+ * sonst „Adressen“, sonst das erste Blatt. Ein eingetragenes, aber fehlendes Blatt ist ein Fehler –
+ * die App zeigt dann lieber nichts als womöglich ein falsches Blatt.
+ */
+export function addressTab(meta) {
+  const tabs = (meta.sheets || []).map((s) => s.properties.title);
+  const wanted = String(config.adressenBlatt || '').trim();
+  if (wanted) {
+    if (!tabs.includes(wanted)) throw Object.assign(new Error(`Tabellenblatt „${wanted}“ gibt es im Adressverzeichnis nicht (vorhanden: ${tabs.join(', ')})`), { code: 'not_configured' });
+    return wanted;
+  }
+  return tabs.includes(SHEETS.addresses) ? SHEETS.addresses : tabs[0];
+}
+
+/** Spaltennamen, die auf vertrauliche Inhalte hindeuten (Hinweis in der Einrichtung) */
+const SENSITIVE = /iban|\bbic\b|bank|konto|beitrag|zahlung|lastschrift|sepa|mandat|schulden|mahnung|passwort|kennwort|steuer|versicherung|gesundheit|krank|religion|konfession|austritt|ausschluss|bemerkung|notiz|\bintern(e|es|er)?\b|vertraulich/;
+
+/** Freie Tabellenstruktur auf bekannte Felder abbilden; Unbekanntes landet in extras */
+export function addressesFromRows(rows) {
+  const headerRow = findHeaderRow(rows);
+  const header = (rows[headerRow] || []).map((h) => String(h ?? '').trim());
+  const { map, used } = mapHeader(header);
   const items = [];
-  rows.slice(1).forEach((r, i) => {
+  rows.slice(headerRow + 1).forEach((r, i) => {
     const get = (k) => (map[k] >= 0 ? String(r[map[k]] ?? '').trim() : '');
     if (!r.some((v) => String(v ?? '').trim())) return;
     let vorname = get('vorname');
     let nachname = get('nachname');
     let name = get('name');
+    // Nur „Name“ ohne Vor-/Nachname: „Müller, Hans“ oder „Hans Müller“
     if (!vorname && !nachname && name) {
-      const parts = name.split(/\s+/);
-      nachname = parts.pop();
-      vorname = parts.join(' ');
+      const comma = name.match(/^([^,]+),\s*(.+)$/);
+      if (comma) {
+        nachname = comma[1].trim();
+        vorname = comma[2].trim();
+        name = `${vorname} ${nachname}`;
+      } else {
+        const parts = name.split(/\s+/);
+        nachname = parts.pop();
+        vorname = parts.join(' ');
+      }
     }
     if (!name) name = [get('titel'), vorname, nachname].filter(Boolean).join(' ');
+    let plz = get('plz');
+    let ort = get('ort');
+    const plzOrt = get('plzOrt').match(/^(?:D-)?(\d{4,5})\s+(.+)$/i);
+    if (plzOrt && !plz && !ort) {
+      plz = plzOrt[1];
+      ort = plzOrt[2].trim();
+    } else if (!ort && get('plzOrt')) {
+      ort = get('plzOrt');
+    }
+    const strasse = [get('strasse'), get('hausnummer')].filter(Boolean).join(' ');
     const bday = parseFlexibleDate(map.geburtstag >= 0 ? r[map.geburtstag] : '');
     const extras = [];
     header.forEach((h, idx) => {
@@ -212,15 +274,15 @@ export function addressesFromRows(rows) {
       if (v) extras.push({ label: h, value: v });
     });
     items.push({
-      id: `r${i + 2}`,
+      id: `r${headerRow + i + 2}`,
       name,
       vorname,
       nachname,
       kneipname: get('kneipname'),
       status: get('status'),
-      strasse: get('strasse'),
-      plz: get('plz'),
-      ort: get('ort'),
+      strasse,
+      plz,
+      ort,
       land: get('land'),
       telefon: get('telefon'),
       mobil: get('mobil'),
@@ -233,7 +295,15 @@ export function addressesFromRows(rows) {
     });
   });
   items.sort((a, b) => norm(a.nachname || a.name).localeCompare(norm(b.nachname || b.name)) || norm(a.vorname).localeCompare(norm(b.vorname)));
-  return { items, header, hasBirthdays: map.geburtstag >= 0, hasStatus: map.status >= 0 };
+  // für die Prüfung in der Einrichtung: welche Spalten erkannt wurden und was zusätzlich angezeigt wird
+  const mapped = Object.entries(map).sort((a, b) => a[1] - b[1]).map(([key, idx]) => ({ key, label: header[idx] }));
+  const unmapped = header.filter((h, idx) => h && !used.has(idx));
+  return {
+    items, header, headerRow, mapped, unmapped,
+    sensitive: unmapped.filter((h) => SENSITIVE.test(norm(h))),
+    hasBirthdays: map.geburtstag >= 0, hasStatus: map.status >= 0,
+    hasName: map.name >= 0 || map.nachname >= 0 || map.vorname >= 0,
+  };
 }
 
 /* ---------------------------------------------------------- Forum */

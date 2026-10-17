@@ -48,6 +48,7 @@ const app = {
   },
 
   async clearCache() {
+    this.backend?.memo?.clear();
     await kv.clear();
     try { await caches.delete('fb-zeitung'); } catch { /* egal */ }
   },

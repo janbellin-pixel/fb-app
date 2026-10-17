@@ -1028,6 +1028,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .log { max-height: 17.5rem; overflow-y: auto; font-size: .875rem; display: grid; gap: .25rem; padding: .625rem .75rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
 .log .ok { color: var(--green-ink); }
 .log .err { color: var(--red); }
+/* Einrichtung: Stand der Datenquellen und Ergebnis der Prüfung */
+.res-status { list-style: none; padding: 0; margin: .625rem 0 1rem; display: grid; gap: .25rem; font-size: .9375rem; }
+.res-status li { display: flex; gap: .5rem; align-items: flex-start; min-width: 0; }
+.res-status li > span { min-width: 0; overflow-wrap: anywhere; }
+.res-status .icon { flex: none; margin-top: .1875rem; color: var(--ink-3); }
+.res-status li.is-set .icon { color: var(--green-ink); }
+.check-warn { margin: .5rem 0 0; padding-left: 1.125rem; }
+.check-warn li { margin: .25rem 0; font-weight: 600; overflow-wrap: anywhere; }
+.check-lines { margin: .375rem 0 0; padding-left: 1.125rem; color: var(--ink-2); }
+.check-lines li { margin: .125rem 0; overflow-wrap: anywhere; }
 
 /* ---------- Installieren ---------- */
 .install-steps { display: grid; gap: .75rem; counter-reset: is; padding: 0; margin: 0; list-style: none; }

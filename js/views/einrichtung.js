@@ -3,6 +3,7 @@ import { html, setHtml, icon, hero, notice, toast, showError, copyText, setBusy,
 import { config, saveOverride, currentBaseUrl, appBaseUrl, configFileContent, isGoogleConfigured, isConfigured } from '../config.js';
 import * as auth from '../auth.js';
 import { downloadFile } from '../lib/export.js';
+import { RESOURCES, missingResources, idFromUrl } from '../lib/setup.js';
 import { GOOGLE_G } from '../icons.js';
 
 const CLOUD = 'https://console.cloud.google.com';
@@ -22,12 +23,47 @@ function logLine(text, kind = '') {
   return html`<div class="${kind}">${kind === 'ok' ? '✓ ' : kind === 'err' ? '✗ ' : '… '}${text}</div>`;
 }
 
+const labelsOf = (keys) => RESOURCES.filter((r) => keys.includes(r.key)).map((r) => r.label);
+
+/** Welche Datenquellen sind eingetragen, welche fehlen? (ohne Google-Abfrage) */
+function resourceStatus() {
+  return html`${RESOURCES.map((r) => {
+    const set = !!String(r.id(config) || '').trim();
+    return html`<li class="${set ? 'is-set' : ''}">${icon(set ? 'check' : 'minus', 'icon-sm')}<span><strong>${r.label}</strong> – ${set ? 'eingetragen' : 'fehlt'}</span></li>`;
+  })}`;
+}
+
+/** Inhalt von „2. Fehlendes neu anlegen“ – passend zu dem, was noch fehlt */
+function createBox(google) {
+  const missing = missingResources();
+  if (!missing.length) return html`<p class="small muted">Es fehlt nichts – alle Datenquellen sind eingetragen. Unten kannst du sie prüfen.</p>`;
+  // Beispieldaten nur beim Test von Grund auf vorschlagen, nie neben echten Daten
+  const fresh = missing.length === RESOURCES.length;
+  const sampleKinds = [missing.includes('kalender') && 'Termine', missing.includes('news') && 'News', missing.includes('adressen') && 'Adressen'].filter(Boolean);
+  return html`
+    <p class="small">Neu angelegt wird: <strong>${labelsOf(missing).join(', ')}</strong>.</p>
+    <p class="small muted">Alles entsteht neu in deinem eigenen Google-Konto. Mitglieder bekommen nur Leserechte; die Einwilligungsliste sehen nur die Datenschutz-Verantwortlichen. Bereits verbundene Dateien werden <strong>nicht verändert und nicht neu freigegeben</strong>.</p>
+    ${sampleKinds.length ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-samples" ${fresh ? 'checked' : ''}> Beispieldaten in die neuen Dateien eintragen (${sampleKinds.join(', ')})</label>` : ''}
+    ${missing.includes('zeitung') ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-issues" ${fresh ? 'checked' : ''}> Drei Beispielausgaben der Zeitung hochladen</label>` : ''}
+    ${missing.includes('galerie') ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-photos" ${fresh ? 'checked' : ''}> Beispielbilder für die Galerie hochladen</label>` : ''}
+    <p style="margin:.75rem 0 0"><button class="btn btn-primary" data-action="create" ${google ? '' : 'disabled'}>${icon('sparkle', 'icon-sm')}Fehlendes neu anlegen</button></p>
+    ${google && missing.includes('kalender') && !auth.hasScope(auth.SCOPES.setup[0]) ? html`<p class="tiny muted">Für den neuen Kalender fragt Google einmal nach der zusätzlichen Berechtigung „Kalender verwalten“.</p>` : ''}`;
+}
+
+function checkCard(c) {
+  const kind = !c.ok ? 'red' : c.warn?.length ? 'gold' : 'green';
+  return html`<div class="notice notice-${kind}">${icon(kind === 'green' ? 'check' : 'alert')}<div class="grow" style="min-width:0">
+    <h3>${c.label}</h3>${c.detail ? html`<p class="small">${c.detail}</p>` : ''}
+    ${c.warn?.length ? html`<ul class="check-warn small">${c.warn.map((w) => html`<li>${w}</li>`)}</ul>` : ''}
+    ${c.lines?.length ? html`<ul class="check-lines small">${c.lines.map((l) => html`<li>${l}</li>`)}</ul>` : ''}
+  </div></div>`;
+}
+
 export default async function einrichtung(ctx) {
   const { el, app, query } = ctx;
   const google = app.mode === 'google';
   const demo = app.mode === 'demo';
   const me = app.user;
-  const hasSetupScope = auth.hasScope(auth.SCOPES.setup[0]);
   const resourcesDone = isConfigured();
   const origin = location.origin;
   const redirect = currentBaseUrl();
@@ -78,15 +114,15 @@ export default async function einrichtung(ctx) {
             <div class="field"><label for="o-domain">Workspace-Domain (optional)</label>
               <input class="input" id="o-domain" name="workspaceDomain" placeholder="z. B. frankonia-brunonia.de" value="${config.workspaceDomain}">
               <span class="hint">Nur Konten dieser Domain dürfen sich anmelden. Für den Test mit privatem Konto leer lassen.</span></div>
-            <div class="field"><label for="o-group">Mitglieder-Gruppe (optional)</label>
+            <div class="field"><label for="o-group">Mitglieder-Gruppe (empfohlen)</label>
               <input class="input" id="o-group" name="mitgliederGruppe" placeholder="z. B. mitglieder@frankonia-brunonia.de" value="${config.mitgliederGruppe}">
-              <span class="hint">Google-Gruppe aller Mitglieder: wird zu Terminen eingeladen und bekommt die Freigaben.</span></div>
+              <span class="hint">Google-Gruppe aller Mitglieder. Für die Anmeldung nicht nötig, aber für Zu- und Absagen: Google lässt nur Eingeladene antworten, und über die Gruppe sind alle mit einer Einladung erreicht.</span></div>
             <div class="field"><label for="o-test">Test-Mitglieder (optional)</label>
               <input class="input" id="o-test" name="testMitglieder" placeholder="freund@gmail.com, zweitkonto@gmail.com" value="${(config.testMitglieder || []).join(', ')}">
               <span class="hint">Für den Prototyp ohne Gruppe: diese Konten bekommen Zugriff und Einladungen.</span></div>
             <div class="field"><label for="o-admins">Admins</label>
               <input class="input" id="o-admins" name="admins" placeholder="deine@adresse.de" value="${(config.admins || []).join(', ') || me?.email || ''}">
-              <span class="hint">Nur Admins sehen diese Einrichtungsseite.</span></div>
+              <span class="hint">Nur Admins sehen diese Einrichtungsseite. Solange unter „Wer darf die Einwilligungen sehen?“ niemand steht, sind sie auch die Datenschutz-Verantwortlichen.</span></div>
           </div>
           <div class="field"><label for="o-url">Adresse der App</label>
             <input class="input" id="o-url" name="appUrl" value="${config.appUrl || currentBaseUrl()}">
@@ -118,30 +154,27 @@ export default async function einrichtung(ctx) {
 
       <section class="card step ${resourcesDone ? 'done' : ''}">
         <h3>Kalender, Tabellen und Ordner</h3>
-        ${resourcesDone ? html`<p class="small">Alles ist eingetragen. Unten kannst du die Verbindung prüfen.</p>` : ''}
+        <p class="small">Was es schon gibt – etwa euren Kalender, die Mitgliederliste und die Ordner mit Zeitung und Fotos –, unter <strong>1.</strong> verbinden. <strong>2.</strong> legt danach nur noch an, was dann fehlt. Vorhandenes liest die App nur.</p>
+        <ul class="res-status" id="res-status">${resourceStatus()}</ul>
         <div class="grid-2">
-          <div>
-            <h4 style="margin:.25rem 0 .375rem">A) Neu anlegen <span class="badge badge-green">für den Start</span></h4>
-            ${resourcesDone ? html`<p class="small muted">Schon eingerichtet. Aus Sicherheitsgründen legt die App nur dann etwas an, solange noch keine Daten eingetragen sind.</p>` : html`
-            <p class="small muted">Legt <strong>neue</strong> Dateien in deinem eigenen Google Drive an: einen Ordner mit den Tabellen „Adressverzeichnis“ und „News“, die Ordner „Verbindungszeitung“ und „Galerie“, einen neuen Google-Kalender und – außerhalb davon – die vertrauliche Einwilligungsliste. Mitglieder bekommen überall <strong>nur Leserechte</strong>, die Einwilligungsliste sehen nur die Verantwortlichen. Vorhandene Daten werden nicht angefasst.</p>
-            <label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-samples" checked> Beispieldaten eintragen (Termine, News, Adressen)</label>
-            <label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-issues" checked> Drei Beispielausgaben der Zeitung hochladen</label>
-            <label class="checkbox small" style="margin-bottom:.75rem"><input type="checkbox" id="c-photos" checked> Beispielbilder für die Galerie hochladen</label>
-            <button class="btn btn-primary" data-action="create" ${google ? '' : 'disabled'}>${icon('sparkle', 'icon-sm')}Neu anlegen</button>
-            ${google && !hasSetupScope ? html`<p class="tiny muted">Google fragt dafür einmal nach der zusätzlichen Berechtigung „Kalender verwalten“.</p>` : ''}`}
-          </div>
           <form id="manual-form" novalidate>
-            <h4 style="margin:.25rem 0 .375rem">B) Vorhandene verbinden</h4>
-            <p class="small muted">Links oder IDs bestehender Dateien einfügen.</p>
-            <div class="field"><label for="m-cal">Kalender-ID</label><input class="input" id="m-cal" name="kalenderId" value="${config.kalenderId}" placeholder="…@group.calendar.google.com"></div>
+            <h4 style="margin:.25rem 0 .375rem">1. Vorhandenes verbinden</h4>
+            <p class="small muted">Links oder IDs bestehender Dateien einfügen (Link aus der Adresszeile oder „Link kopieren“).</p>
+            <div class="field"><label for="m-cal">Kalender (Link oder Kalender-ID)</label><input class="input" id="m-cal" name="kalenderId" value="${config.kalenderId}" placeholder="…@group.calendar.google.com"></div>
             <div class="field"><label for="m-adr">Tabelle Adressverzeichnis</label><input class="input" id="m-adr" name="adressen" value="${config.tabellen?.adressen}" placeholder="https://docs.google.com/spreadsheets/d/…"></div>
-            <div class="field"><label for="m-news">Tabelle News</label><input class="input" id="m-news" name="news" value="${config.tabellen?.news}"></div>
-            <div class="field"><label for="m-z">Ordner Verbindungszeitung</label><input class="input" id="m-z" name="zeitung" value="${config.zeitungOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
-            <div class="field"><label for="m-g">Ordner Galerie (Fotos, Unterordner = Alben)</label><input class="input" id="m-g" name="galerie" value="${config.galerieOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
-            <div class="field"><label for="m-ew">Tabelle Einwilligungen (vertraulich, optional)</label><input class="input" id="m-ew" name="einwilligungen" value="${config.tabellen?.einwilligungen}" placeholder="wird unter Datenschutz angelegt">
-              <span class="hint">Nur eine Tabelle, die die App selbst angelegt hat (Mehr → Datenschutz → Einwilligungen aller Mitglieder).</span></div>
+            <div class="field"><label for="m-tab">Tabellenblatt des Adressverzeichnisses (optional)</label><input class="input" id="m-tab" name="adressenBlatt" value="${config.adressenBlatt}" placeholder="leer = „Adressen“ bzw. das erste Blatt">
+              <span class="hint">Nur nötig, wenn die Tabelle mehrere Blätter hat. Andere Blätter liest die App nicht.</span></div>
+            <div class="field"><label for="m-news">Tabelle News</label><input class="input" id="m-news" name="news" value="${config.tabellen?.news}" placeholder="leer lassen – wird unter 2. neu angelegt"></div>
+            <div class="field"><label for="m-z">Ordner Verbindungszeitung (PDFs, auch in Jahresordnern)</label><input class="input" id="m-z" name="zeitung" value="${config.zeitungOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
+            <div class="field"><label for="m-g">Ordner Galerie (Unterordner = Alben)</label><input class="input" id="m-g" name="galerie" value="${config.galerieOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
+            <div class="field"><label for="m-ew">Tabelle Einwilligungen (vertraulich)</label><input class="input" id="m-ew" name="einwilligungen" value="${config.tabellen?.einwilligungen}" placeholder="leer lassen – wird unter 2. neu angelegt">
+              <span class="hint">Nur eine Tabelle, die die App selbst angelegt hat.</span></div>
             <button class="btn" type="submit">Übernehmen</button>
           </form>
+          <div>
+            <h4 style="margin:.25rem 0 .375rem">2. Fehlendes neu anlegen</h4>
+            <div id="create-box">${createBox(google)}</div>
+          </div>
         </div>
         <div class="log hidden" id="log" style="margin-top:.875rem" aria-live="polite"></div>
       </section>
@@ -177,6 +210,7 @@ export default async function einrichtung(ctx) {
     appUrl: config.appUrl,
     kalenderId: config.kalenderId,
     tabellen: config.tabellen,
+    adressenBlatt: config.adressenBlatt,
     zeitungOrdnerId: config.zeitungOrdnerId,
     galerieOrdnerId: config.galerieOrdnerId,
     testMitglieder: config.testMitglieder,
@@ -185,6 +219,10 @@ export default async function einrichtung(ctx) {
   });
   const showCfg = () => { el.querySelector('#cfg').textContent = cfgText(); };
   showCfg();
+  const renderResources = () => {
+    setHtml(el.querySelector('#res-status'), resourceStatus());
+    setHtml(el.querySelector('#create-box'), createBox(google));
+  };
 
   const list = (s) => String(s || '').split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
 
@@ -232,17 +270,29 @@ export default async function einrichtung(ctx) {
     toast('Optionen gespeichert');
   });
 
-  el.querySelector('#manual-form').addEventListener('submit', async (e) => {
+  el.querySelector('#manual-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const { idFromUrl } = await import('../lib/setup.js');
     const d = formData(e.target);
-    saveOverride({
+    const values = {
       kalenderId: idFromUrl(d.kalenderId),
       tabellen: { adressen: idFromUrl(d.adressen), news: idFromUrl(d.news), einwilligungen: idFromUrl(d.einwilligungen) },
+      adressenBlatt: d.adressenBlatt.trim(),
       zeitungOrdnerId: idFromUrl(d.zeitung),
       galerieOrdnerId: idFromUrl(d.galerie),
-    });
+    };
+    saveOverride(values);
+    // geleerte Felder bewusst übernehmen (saveOverride lässt leere Werte sonst aus)
+    Object.assign(config, { ...values, tabellen: { ...config.tabellen, ...values.tabellen } });
+    // erkannte IDs anzeigen (z. B. die Kalender-ID statt des Links)
+    el.querySelector('#m-cal').value = values.kalenderId;
+    el.querySelector('#m-adr').value = values.tabellen.adressen;
+    el.querySelector('#m-news').value = values.tabellen.news;
+    el.querySelector('#m-z').value = values.zeitungOrdnerId;
+    el.querySelector('#m-g').value = values.galerieOrdnerId;
+    el.querySelector('#m-ew').value = values.tabellen.einwilligungen;
+    app.clearCache().catch(() => {});
     showCfg();
+    renderResources();
     toast('Übernommen – jetzt „Verbindung prüfen“');
   });
 
@@ -251,12 +301,13 @@ export default async function einrichtung(ctx) {
     setBusy(btn, true, 'Wird angelegt …');
     logEl.innerHTML = '';
     try {
-      const { createEverything } = await import('../lib/setup.js');
+      const { createMissing } = await import('../lib/setup.js');
       saveOverride({ appUrl: config.appUrl || currentBaseUrl() });
-      const res = await createEverything({
-        withSamples: el.querySelector('#c-samples').checked,
-        withIssues: el.querySelector('#c-issues').checked,
-        withPhotos: el.querySelector('#c-photos').checked,
+      const res = await createMissing({
+        only: missingResources(),
+        withSamples: !!el.querySelector('#c-samples')?.checked,
+        withIssues: !!el.querySelector('#c-issues')?.checked,
+        withPhotos: !!el.querySelector('#c-photos')?.checked,
         group: config.mitgliederGruppe,
         domain: config.workspaceDomain,
         testUsers: config.testMitglieder || [],
@@ -272,9 +323,11 @@ export default async function einrichtung(ctx) {
       });
       await app.clearCache();
       showCfg();
-      log(`Alles liegt in Google Drive im Ordner „${config.appName} – Mitglieder-App“.`, 'ok');
-      toast('Einrichtung abgeschlossen 🎉');
-      setBusy(btn, false);
+      renderResources();
+      if (res.rootFolderId) log(`Neue Tabellen und Ordner liegen in Google Drive im Ordner „${config.appName} – Mitglieder-App“.`, 'ok');
+      if (res.created.includes('einwilligungen')) log('Die Einwilligungsliste liegt bewusst außerhalb davon in „Meine Ablage“ (keine vererbten Freigaben).', 'ok');
+      log('Nächster Schritt: „Verbindung prüfen“ und danach die config.js veröffentlichen.');
+      toast('Angelegt 🎉');
     } catch (err) {
       setBusy(btn, false);
       log(err.message || String(err), 'err');
@@ -301,23 +354,29 @@ export default async function einrichtung(ctx) {
           auth.login({ returnTo: '#/einrichtung', selectAccount: true });
         } catch (err) { showError(err); }
         break;
-      case 'create':
-        if (resourcesDone) return;
-        if (!(await confirmDialog('Jetzt neue Dateien und einen neuen Kalender in deinem Google-Konto anlegen? Vorhandene Daten werden nicht verändert.', { title: 'Neu anlegen', ok: 'Anlegen' }))) return;
-        if (!auth.hasScope(auth.SCOPES.setup[0])) {
+      case 'create': {
+        const missing = missingResources();
+        if (!missing.length) return;
+        if (!(await confirmDialog(`Jetzt neu in deinem Google-Konto anlegen: ${labelsOf(missing).join(', ')}? Bereits verbundene Dateien werden nicht verändert.`, { title: 'Fehlendes neu anlegen', ok: 'Anlegen' }))) return;
+        // die zusätzliche Berechtigung „Kalender verwalten“ nur, wenn ein Kalender neu angelegt wird
+        if (missing.includes('kalender') && !auth.hasScope(auth.SCOPES.setup[0])) {
           auth.login({ extraScopes: auth.SCOPES.setup, returnTo: '#/einrichtung?anlegen=1' });
           return;
         }
         runCreate();
         break;
+      }
       case 'check': {
         const box = el.querySelector('#check');
         setHtml(box, html`<div class="center-load"><span class="spinner"></span></div>`);
         try {
           const { checkSetup } = await import('../lib/setup.js');
           const checks = await checkSetup();
-          setHtml(box, html`<div class="list">${checks.map((c) => html`
-            <div class="notice ${c.ok ? 'notice-green' : 'notice-red'}">${icon(c.ok ? 'check' : 'alert')}<div><h3>${c.label}</h3><p class="small">${c.detail}</p></div></div>`)}</div>`);
+          const bad = checks.filter((c) => !c.ok).length;
+          const warn = checks.filter((c) => c.ok && c.warn?.length).length;
+          setHtml(box, html`
+            <p class="small" style="margin:0 0 .625rem"><strong>${bad ? `${bad} Fehler` : 'Keine Fehler'}${warn ? ` · ${warn} mit Hinweisen (gelb)` : ''}.</strong> Die Prüfung liest nur – sie ändert nichts.</p>
+            <div class="list">${checks.map(checkCard)}</div>`);
         } catch (err) {
           setHtml(box, notice('red', 'Prüfung fehlgeschlagen', err.message));
         }
@@ -334,7 +393,7 @@ export default async function einrichtung(ctx) {
   });
 
   // Nach der zusätzlichen Berechtigung automatisch weitermachen
-  if (query.anlegen && google && auth.hasScope(auth.SCOPES.setup[0]) && !resourcesDone && app.isAdmin()) {
+  if (query.anlegen && google && auth.hasScope(auth.SCOPES.setup[0]) && missingResources().length && app.isAdmin()) {
     history.replaceState(null, '', '#/einrichtung');
     runCreate();
   }

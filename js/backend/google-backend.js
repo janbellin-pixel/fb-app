@@ -26,10 +26,11 @@ import { hasScope } from '../auth.js';
 import { buildRecord, consentRecipients, isConsentManager, pruefsumme, ja } from '../lib/datenschutz.js';
 import { prepareConsentSheet, syncConsentSheet, TABLE_TYPE } from '../lib/einwilligungsliste.js';
 import {
-  SHEETS, NEWS_SCHEMA, PROFILE_FIELDS, PROFILE_MAX, guessCategory, parseEventMeta, stripAppLink, issueFromFile, sortIssues, addressesFromRows,
+  SHEETS, NEWS_SCHEMA, PROFILE_FIELDS, PROFILE_MAX, guessCategory, parseEventMeta, stripAppLink, issueFromFile, sortIssues, addressesFromRows, addressTab,
   buildForum, newsFromRows, sortMembers,
 } from './common.js';
 import { htmlToText } from '../lib/text.js';
+import { findOwnAddress, nameKey } from '../lib/adressabgleich.js';
 
 const SCOPE_DIRECTORY = 'https://www.googleapis.com/auth/directory.readonly';
 const SCOPE_CHAT_READ = 'https://www.googleapis.com/auth/chat.spaces.readonly';
@@ -94,6 +95,11 @@ export class GoogleBackend {
 
   invalidate(...keys) {
     for (const k of keys) this.memo.delete(k);
+  }
+
+  /** Zwischenspeicher-Schlüssel des Adressverzeichnisses – ändert sich mit Tabelle und Blatt */
+  addressKey() {
+    return `addresses:${config.tabellen?.adressen || ''}:${config.adressenBlatt || ''}`;
   }
 
   sheetId(which) {
@@ -189,7 +195,7 @@ export class GoogleBackend {
     const [dir, files, addr] = await Promise.all([
       this.directory().catch(() => []),
       this.profileFiles().catch(() => []),
-      config.tabellen?.adressen ? this.cached('addresses', 10 * 60_000, () => this.loadAddresses()).catch(() => null) : Promise.resolve(null),
+      config.tabellen?.adressen ? this.cached(this.addressKey(), 10 * 60_000, () => this.loadAddresses()).catch(() => null) : Promise.resolve(null),
     ]);
     const hidden = new Set((config.ausgeblendeteKonten || []).map((e) => String(e).toLowerCase()));
     const map = new Map();
@@ -202,16 +208,38 @@ export class GoogleBackend {
       Object.assign(get(d.email), { name: d.name, photo: d.photo, directoryId: d.id, organisation: d.organisation });
     }
     // Adressverzeichnis (von Admins gepflegt): Kneipname, Status, Rezeption, Beruf, Wohnort
-    for (const a of addr?.items || []) {
+    const addrItems = addr?.items || [];
+    const usedEntries = new Set();
+    const matched = new Set();
+    const enrich = (m, a) => {
+      usedEntries.add(a);
+      matched.add(m.email);
+      m.name = m.name || a.name;
+      if (a.kneipname) m.kneipname = a.kneipname;
+      if (a.status) m.status = a.status;
+      if (a.rezeption) m.rezeption = a.rezeption;
+      if (a.beruf) m.studium = a.beruf;
+      if (a.ort) m.wohnort = a.ort;
+    };
+    for (const a of addrItems) {
       if (!a.email || hidden.has(a.email)) continue;
-      if (!this.isWorkspace || map.has(a.email)) {
-        const m = get(a.email);
-        m.name = m.name || a.name;
-        if (a.kneipname) m.kneipname = a.kneipname;
-        if (a.status) m.status = a.status;
-        if (a.rezeption) m.rezeption = a.rezeption;
-        if (a.beruf) m.studium = a.beruf;
-        if (a.ort) m.wohnort = a.ort;
+      if (!this.isWorkspace || map.has(a.email)) enrich(get(a.email), a);
+    }
+    // Steht im Verzeichnis eine andere (z. B. private) E-Mail-Adresse: über den Namen zuordnen –
+    // nur bei genau einem Treffer, lieber keiner als der falsche
+    if (this.isWorkspace) {
+      const free = addrItems.filter((a) => !usedEntries.has(a) && !(a.email && map.has(a.email)));
+      const sameName = new Map();
+      for (const m of map.values()) {
+        const k = nameKey(m.name);
+        if (k) sameName.set(k, (sameName.get(k) || 0) + 1);
+      }
+      for (const m of map.values()) {
+        if (matched.has(m.email) || !m.name || sameName.get(nameKey(m.name)) > 1) continue;
+        const { entry } = findOwnAddress(free, { name: m.name });
+        if (!entry) continue;
+        enrich(m, entry);
+        free.splice(free.indexOf(entry), 1);
       }
     }
     // Selbst gepflegte Profile: Inhaber laut Google Drive (nicht fälschbar); je Mitglied zählt die zuletzt geänderte Datei
@@ -635,27 +663,39 @@ export class GoogleBackend {
 
   async loadAddresses() {
     const id = this.sheetId('adressen');
-    const meta = await this.cached('addrMeta', 3600_000, () => sheets.getMeta(id));
-    const tabs = (meta.sheets || []).map((s) => s.properties.title);
-    const tab = tabs.includes(SHEETS.addresses) ? SHEETS.addresses : tabs[0];
+    const meta = await this.cached(`addrMeta:${id}`, 3600_000, () => sheets.getMeta(id));
+    const tab = addressTab(meta);
     const rows = await sheets.getValues(id, `${sheets.quoteSheet(tab)}!A1:AZ`, { render: 'FORMATTED_VALUE' });
     const result = addressesFromRows(rows);
     result.sheetUrl = `https://docs.google.com/spreadsheets/d/${id}/edit`;
+    result.title = meta.properties?.title || '';
+    result.tab = tab;
     return result;
   }
 
   async listAddresses() {
     const res = await this.loadAddresses();
-    this.memo.set('addresses', { t: Date.now(), p: Promise.resolve(res) });
+    this.memo.set(this.addressKey(), { t: Date.now(), p: Promise.resolve(res) });
     return res;
   }
 
   /* ================================================================ Zeitung (nur lesen) */
 
+  /** Liegt ein Ordner in einer geteilten Ablage, gezielt dort suchen (so empfiehlt es Google) */
+  folderScope(folderId) {
+    return this.cached(`scope:${folderId}`, 24 * 3600_000, async () => {
+      const f = await drive.getFile(folderId, 'id,driveId').catch(() => null);
+      return f?.driveId ? { corpora: 'drive', driveId: f.driveId } : {};
+    });
+  }
+
   async listIssues() {
     const folder = (config.zeitungOrdnerId || '').trim();
     if (!folder) throw notConfigured('Der Zeitungsordner');
-    const files = await drive.listFiles(`'${folder}' in parents and mimeType = 'application/pdf' and trashed = false`);
+    // auch Jahresordner („2019“, „Archiv/2003“): bis zwei Ebenen tief
+    const { files } = await drive.listTree(folder, {
+      depth: 2, filter: "mimeType = 'application/pdf'", fields: drive.FILE_FIELDS, orderBy: 'name desc', ...(await this.folderScope(folder)),
+    });
     return sortIssues(files.map(issueFromFile));
   }
 
@@ -689,10 +729,10 @@ export class GoogleBackend {
   async listGallery() {
     const folder = (config.galerieOrdnerId || '').trim();
     if (!folder) throw notConfigured('Der Galerie-Ordner');
-    const children = await drive.listFiles(
-      `'${folder}' in parents and trashed = false and (mimeType = 'application/vnd.google-apps.folder' or mimeType contains 'image/')`,
-      { fields: GALLERY_FIELDS, orderBy: 'name' },
-    );
+    // Alben = Ordner mit Fotos, auch verschachtelt („2023/Stiftungsfest“): bis zwei Ebenen tief
+    const { files, folders } = await drive.listTree(folder, {
+      depth: 2, filter: "mimeType contains 'image/'", fields: GALLERY_FIELDS, orderBy: 'name', ...(await this.folderScope(folder)),
+    });
     const toPhoto = (f) => ({
       id: f.id,
       name: f.name,
@@ -702,18 +742,22 @@ export class GoogleBackend {
       taken: exifToIso(f.imageMediaMetadata?.time) || f.createdTime || '',
       webViewLink: f.webViewLink || '',
     });
+    const byFolder = new Map();
+    for (const f of files) {
+      if (!byFolder.has(f.parentId)) byFolder.set(f.parentId, []);
+      byFolder.get(f.parentId).push(f);
+    }
     const albums = [];
-    const loose = children.filter((f) => f.mimeType?.startsWith('image/'));
-    if (loose.length) albums.push({ id: folder, title: 'Allgemein', photos: loose.map(toPhoto) });
-    const subfolders = children.filter((f) => f.mimeType === 'application/vnd.google-apps.folder');
-    const lists = await Promise.all(subfolders.map((s) => drive.listFiles(
-      `'${s.id}' in parents and mimeType contains 'image/' and trashed = false`, { fields: GALLERY_FIELDS, orderBy: 'name' },
-    ).catch(() => [])));
-    subfolders.forEach((s, i) => {
-      if (lists[i].length) albums.push({ id: s.id, title: s.name, photos: lists[i].map(toPhoto), modified: s.modifiedTime });
-    });
-    // neueste Alben zuerst (Ordnernamen wie „2026-06 Stiftungsfest“ sortieren sich von selbst)
-    albums.sort((a, b) => String(b.title).localeCompare(String(a.title), 'de', { numeric: true }));
+    const loose = byFolder.get(folder) || [];
+    if (loose.length) albums.push({ id: folder, title: 'Allgemein', path: [], photos: loose.map(toPhoto) });
+    for (const s of folders) {
+      const list = byFolder.get(s.id) || [];
+      // path = übergeordnete Ordner (z. B. ["2023"]), title = Name des Albums selbst
+      if (list.length) albums.push({ id: s.id, title: s.name, path: s.path.slice(0, -1), photos: list.map(toPhoto), modified: s.modifiedTime });
+    }
+    // neueste Alben zuerst (Ordnernamen wie „2026-06 Stiftungsfest“ oder Jahresordner sortieren sich von selbst)
+    const sortKey = (a) => [...(a.path || []), a.title].join(' ');
+    albums.sort((a, b) => sortKey(b).localeCompare(sortKey(a), 'de', { numeric: true }));
     return { albums, folderUrl: `https://drive.google.com/drive/folders/${folder}` };
   }
 

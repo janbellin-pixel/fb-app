@@ -94,7 +94,7 @@ Drei unabhängige Ebenen sorgen dafür, dass mit der App nur eigene Daten geänd
 
    Alles andere wirft `WriteBlockedError`, bevor eine Anfrage gesendet wird.
 
-**Einrichtung:** Nur während eines ausdrücklichen Klicks auf „Neu anlegen“ (nur Admins, nur solange nichts eingerichtet ist) erlaubt der Schutz zusätzlich das Befüllen der **in genau diesem Lauf neu angelegten** Dateien und des neuen Kalenders. Danach ist die Ausnahme sofort wieder aus. Die Prüfung „Verbindung prüfen“ liest nur.
+**Einrichtung:** Vorhandene Daten werden nur verbunden (ID eintragen) und gelesen. Nur während eines ausdrücklichen Klicks auf „Fehlendes neu anlegen“ (nur Admins, nur für Datenquellen ohne Eintrag) erlaubt der Schutz zusätzlich das Befüllen der **in genau diesem Lauf neu angelegten** Dateien und des neuen Kalenders. Danach ist die Ausnahme sofort wieder aus. Die Prüfung „Verbindung prüfen“ liest nur – auch Freigaben und Inhaber (E24).
 
 ## Anmeldung
 
