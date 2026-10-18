@@ -116,7 +116,7 @@ Jeder Termin enthält den Link `…/#/termin/<ID>`. Auf **Android** öffnet ein 
 - **Navigation:** Auf allen Touch-Geräten die Tab-Leiste unten (ab 700 px mittig zusammengefasst). Die Textleiste oben gibt es nur mit Maus ab 1280 px Breite (`(min-width: 1280px) and (hover: hover) and (pointer: fine)`), siehe ENTSCHEIDUNGEN.md, E17.
 - **Spalten:** zweispaltige Seiten ab 768 px (iPad hochkant, Handy quer).
 - **Querformat:** Seitliche Schutzabstände für Kameraaussparungen (`env(safe-area-inset-left/right)`), auch in Zeitungsleser und Fotoansicht. Bei geringer Höhe scrollt die Kopfzeile mit, und Titel und Leisten sind kompakter.
-- Der Zeitungsleser zeigt hochkant eine Seite und quer eine Doppelseite und passt sich beim Drehen an.
+- Der Zeitungsleser zeigt immer genau eine Seite – hochkant wie quer – und passt ihre Größe beim Drehen an.
 - Geprüft mit `tests/layout-check.js` u. a. bei 375×812, 430×932, 932×430, 744×1133, 820×1180, 800×1280, 1024×768, 1180×820, 1280×800 und 1366×1024, jeweils mit normaler und sehr großer Schrift.
 
 ## Lesbarkeit

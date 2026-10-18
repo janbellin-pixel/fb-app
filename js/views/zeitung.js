@@ -253,6 +253,12 @@ export async function reader(ctx) {
     swipeDistance: 20,
   });
   flip.loadFromHTML(book.querySelectorAll('.flip-page'));
+  // Immer nur EINE Seite, auch quer und auf großen Bildschirmen (Wunsch der Verbindung, E11).
+  // StPageFlip kennt dafür keine Einstellung: Hochkant („portrait“) wählt es im Modus „stretch“,
+  // solange die Fläche schmaler als 2 × minWidth ist. minWidth wird deshalb nach dem Aufbau
+  // hochgesetzt (vorher würde die Bibliothek daraus eine riesige Mindestbreite des Elements machen).
+  flip.getSettings().minWidth = 1e6;
+  flip.update();
 
   const pageEls = () => book.querySelectorAll('.flip-page');
   const pageWidth = () => {
@@ -305,20 +311,14 @@ export async function reader(ctx) {
   const counter = el.querySelector('#count');
   function update() {
     const cur = flip.getCurrentPageIndex();
-    const landscape = flip.getOrientation() === 'landscape';
-    let label;
-    if (landscape && cur > 0 && cur < n - 1) label = `Seite ${cur + 1}–${Math.min(n, cur + 2)} von ${n}`;
-    else label = `Seite ${cur + 1} von ${n}`;
-    counter.textContent = label;
-    const lastVisible = landscape && cur > 0 ? cur + 1 : cur;
+    counter.textContent = `Seite ${cur + 1} von ${n}`;
     el.querySelector('[data-action=prev]').disabled = cur <= 0;
-    el.querySelector('[data-action=next]').disabled = lastVisible >= n - 1;
+    el.querySelector('[data-action=next]').disabled = cur >= n - 1;
     el.querySelector('[data-action=zoom]').disabled = false;
     schedule();
   }
 
   flip.on('flip', update);
-  flip.on('changeOrientation', () => setTimeout(update, 50));
   update();
   // Größe nach dem ersten Zeichnen noch einmal messen (Layout kann sich gesetzt haben)
   requestAnimationFrame(() => setTimeout(() => { try { flip.update(); } catch { /* egal */ } update(); }, 60));
@@ -349,9 +349,7 @@ export async function reader(ctx) {
   window.addEventListener('resize', onResize);
 
   async function zoom() {
-    const cur = flip.getCurrentPageIndex();
-    const landscape = flip.getOrientation() === 'landscape';
-    const pages = landscape && cur > 0 && cur < n - 1 ? [cur, cur + 1] : [cur];
+    const pages = [flip.getCurrentPageIndex()];
     const view = document.createElement('div');
     view.className = 'zoom-view';
     view.innerHTML = `<button class="btn btn-primary btn-icon close" aria-label="Schließen"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button><div class="center-load" style="color:#fff"><span class="spinner"></span></div>`;

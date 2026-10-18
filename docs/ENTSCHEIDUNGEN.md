@@ -84,7 +84,8 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 ## E11 · Verbindungszeitung als PDFs mit Umblätter-Ansicht
 *2026-10-16*
 
-- **Entscheidung:** PDFs liegen in einem Drive-Ordner (Dateiname `JJJJ-N Titel.pdf`). PDF.js rendert die Seiten, StPageFlip blättert sie (hochkant Einzelseite, quer Doppelseite). Geöffnete Ausgaben werden offline zwischengespeichert.
+- **Entscheidung:** PDFs liegen in einem Drive-Ordner (Dateiname `JJJJ-N Titel.pdf`). PDF.js rendert die Seiten, StPageFlip blättert sie. Geöffnete Ausgaben werden offline zwischengespeichert.
+- **Geändert 2026-10-18 (Wunsch der Verbindung):** immer nur **eine Seite**, keine Doppelseite – auch quer und auf Tablets/Computern. Umsetzung: `minWidth` von StPageFlip wird nach dem Aufbau auf 1e6 gesetzt, damit die Bibliothek stets „portrait“ wählt (`js/views/zeitung.js`). Vorher: hochkant Einzelseite, quer Doppelseite.
 - **Folgen:** Die Redaktion lädt nur PDFs hoch. Große PDFs brauchen beim ersten Öffnen etwas Ladezeit.
 - **Ergänzt durch E25** (Jahresordner, andere Dateinamen).
 
