@@ -354,7 +354,8 @@ forum: { aktiv: false },                         // Forum ausblenden
 profilBearbeiten: false,                         // keine eigenen Profilangaben (nur Adressverzeichnis + Google-Konto)
 chat: { aktiv: false },                          // Chat ausblenden
 chat: { aktiv: true, newsRaum: 'spaces/AAAA…' }, // vorgeschlagener Raum für „Im Chat ankündigen“ (ID aus der Adresse des Raums)
-statusOptionen: ['Fux', 'Aktiver Bursch', 'Inaktiver Bursch', 'Alter Herr', 'Ehrenmitglied'],
+statusOptionen: ['Fux', 'Aktiver Bursche', 'Inaktiver Bursche', 'Alter Herr', 'Ehrenmitglied', 'Verkehrsgast', 'Chordame', 'Chormitglied'],
+statusGruppen: { Aktivitas: ['Fux', 'Aktiver Bursche', 'Inaktiver Bursche'], …, Chor: ['Chordame', 'Chormitglied'] }, // Filter in „Mitglieder“; „Bursch“ im Adressverzeichnis zählt wie „Bursche“
 terminKategorien: [{ name: 'Kneipe', farbe: '#88bb2a', googleFarbe: '10' }, …],
 forumKategorien: ['Allgemeines', 'Aktivitas', …],
 newsKategorien: ['Allgemein', 'Aktivitas', …],

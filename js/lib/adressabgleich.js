@@ -4,7 +4,7 @@
 // Gibt ein Mitglied abweichende Daten ein, bereitet die App eine E-Mail an das Postfach für
 // Adressänderungen vor – mit den neuen Angaben und dem Hinweis, dass der Eintrag falsch oder
 // unvollständig ist. Abgeschickt wird sie vom Mitglied selbst aus dem eigenen E-Mail-Programm.
-import { config } from '../config.js';
+import { config, statusKey } from '../config.js';
 import { norm } from './text.js';
 import { parseFlexibleDate, isoDate } from './dates.js';
 
@@ -83,6 +83,8 @@ export function vergleichsWert(key, value) {
     }
     case 'email':
       return s.toLowerCase();
+    case 'status':
+      return statusKey(s);
     case 'geburtstag': {
       const d = parseFlexibleDate(s);
       return d ? isoDate(d) : norm(s);

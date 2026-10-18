@@ -43,11 +43,13 @@ const DEFAULTS = {
   testMitglieder: [],
   // E-Mail-Adressen, die nicht im Mitgliederverzeichnis erscheinen (z. B. Funktionskonten)
   ausgeblendeteKonten: [],
-  statusOptionen: ['Fux', 'Aktiver Bursch', 'Inaktiver Bursch', 'Alter Herr', 'Ehrenmitglied'],
+  statusOptionen: ['Fux', 'Aktiver Bursche', 'Inaktiver Bursche', 'Alter Herr', 'Ehrenmitglied', 'Verkehrsgast', 'Chordame', 'Chormitglied'],
   statusGruppen: {
-    Aktivitas: ['Fux', 'Aktiver Bursch', 'Inaktiver Bursch'],
+    Aktivitas: ['Fux', 'Aktiver Bursche', 'Inaktiver Bursche'],
     Altherrenschaft: ['Alter Herr'],
     Ehrenmitglieder: ['Ehrenmitglied'],
+    Chor: ['Chordame', 'Chormitglied'],
+    Verkehrsgäste: ['Verkehrsgast'],
   },
   terminKategorien: [
     { name: 'Kneipe', farbe: '#88bb2a', googleFarbe: '10' },
@@ -168,9 +170,14 @@ export function categoryInfo(name) {
   return cats.find((c) => c.name === name) || cats[cats.length - 1] || { name: 'Sonstiges', farbe: '#9a9a9a' };
 }
 
+/** Status vergleichbar machen: Groß/klein und Leerzeichen egal, „Bursch“ = „Bursche“ (ältere Schreibweise) */
+export const statusKey = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ').replace(/\bbursch\b/g, 'bursche');
+
 export function statusGroup(status) {
+  const k = statusKey(status);
+  if (!k) return '';
   for (const [group, list] of Object.entries(config.statusGruppen || {})) {
-    if (list.includes(status)) return group;
+    if (list.some((s) => statusKey(s) === k)) return group;
   }
   return '';
 }

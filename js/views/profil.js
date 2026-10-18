@@ -5,10 +5,12 @@
 // • Anschrift und Kontakt stehen im Adressverzeichnis, das der Schriftwart pflegt. Die App gleicht die
 //   Eingaben damit ab und bereitet bei Abweichungen eine E-Mail an das Postfach für Adressänderungen vor.
 //   Bewusst getrennt: siehe docs/ENTSCHEIDUNGEN.md („Selbst gepflegte Profile ≠ Adressverzeichnis“).
-import { html, setHtml, icon, hero, avatar, loading, errorBox, toast, showError, formData, setBusy, notice, copyText } from '../ui.js';
-import { config } from '../config.js';
+import {
+  html, setHtml, icon, hero, avatar, loading, errorBox, toast, showError, formData, setBusy, notice, copyText, openModal,
+} from '../ui.js';
+import { config, statusKey } from '../config.js';
 import * as auth from '../auth.js';
-import { firstName } from '../lib/text.js';
+import { firstName, matchesQuery } from '../lib/text.js';
 import { PROFILE_MAX } from '../backend/common.js';
 import {
   ADRESS_FELDER, PROFIL_FELDER, findOwnAddress, anzeigeWert, vergleiche, mailEntwurf, adressaenderungEmail, adressaenderungMail,
@@ -37,28 +39,32 @@ export default async function profil(ctx) {
 
   const demo = app.mode === 'demo';
   const editable = config.profilBearbeiten !== false;
-  const own = addr ? findOwnAddress(addr.items, { email: me.email, name: m.name || me.name }) : { entry: null };
+  let own = addr ? findOwnAddress(addr.items, { email: me.email, name: m.name || me.name }) : { entry: null };
   const statuses = config.statusOptionen || [];
   const field = (name, label, value, attrs = {}) => html`
     <div class="field"><label for="p-${name}">${label}</label>
       <input class="input" id="p-${name}" name="${name}" value="${value || ''}" maxlength="${attrs.max || 120}" placeholder="${attrs.ph || ''}"
         ${attrs.type ? html`type="${attrs.type}"` : ''} ${attrs.auto ? html`autocomplete="${attrs.auto}"` : ''} ${attrs.mode ? html`inputmode="${attrs.mode}"` : ''}>
       ${attrs.hint ? html`<span class="hint">${attrs.hint}</span>` : ''}</div>`;
-  const statusSelect = (value) => html`
+  // „Aktiver Bursch“ aus dem Adressverzeichnis wählt „Aktiver Bursche“ (statusKey)
+  const statusSelect = (value) => {
+    const hit = statuses.find((s) => statusKey(s) === statusKey(value));
+    return html`
     <div class="field"><label for="p-status">Status</label>
       <select class="select" id="p-status" name="status">
         <option value="">– bitte wählen –</option>
-        ${statuses.map((s) => html`<option ${s === value ? 'selected' : ''}>${s}</option>`)}
-        ${value && !statuses.includes(value) ? html`<option selected>${value}</option>` : ''}
+        ${statuses.map((s) => html`<option ${s === hit ? 'selected' : ''}>${s}</option>`)}
+        ${value && !hit ? html`<option selected>${value}</option>` : ''}
       </select>
       <span class="hint">Maßgeblich ist das Adressverzeichnis – Abweichungen meldest du unten.</span></div>`;
+  };
 
-  const ownLine = own.entry
-    ? html`${icon('check', 'icon-sm')} Dein Eintrag im Adressverzeichnis${own.via === 'name' ? ' (über deinen Namen gefunden)' : ''}.`
+  const ownLine = () => (own.entry
+    ? html`${icon('check', 'icon-sm')} Dein Eintrag im Adressverzeichnis${own.via === 'name' ? ' (über deinen Namen gefunden)' : own.via === 'auswahl' ? ` (ausgewählt: ${own.entry.name})` : ''}.`
     : addrError ? html`${icon('alert', 'icon-sm')} Das Adressverzeichnis ist gerade nicht erreichbar.`
       : !addr ? html`${icon('info', 'icon-sm')} Kein Adressverzeichnis eingerichtet.`
         : own.mehrdeutig ? html`${icon('alert', 'icon-sm')} Es gibt mehrere mögliche Einträge mit deinem Namen. Trag deine Angaben ein – der Schriftwart ordnet sie zu.`
-          : html`${icon('alert', 'icon-sm')} Für dich gibt es noch keinen Eintrag. Trag deine Angaben ein und melde sie.`;
+          : html`${icon('alert', 'icon-sm')} Für dich gibt es noch keinen Eintrag. Trag deine Angaben ein und melde sie.`);
 
   // Adressänderungen: immer sichtbar oben – ein Tipp öffnet die E-Mail an das Postfach für Adressänderungen
   const mailTo = adressaenderungEmail();
@@ -124,7 +130,8 @@ export default async function profil(ctx) {
     <section class="card card-pad" id="abgleich" style="margin-top:1rem">
       <h2 class="card-title">Anschrift und Kontakt</h2>
       <p class="small muted" style="margin:.25rem 0 .5rem">Diese Angaben stehen im <strong>Adressverzeichnis</strong>, das der Schriftwart pflegt. Prüfe sie hier: Stimmt etwas nicht oder fehlt etwas, bereitet die App eine E-Mail${adressaenderungEmail() ? html` an <strong>${adressaenderungEmail()}</strong>` : ''} mit deinen neuen Angaben vor.</p>
-      <p class="small abgleich-status">${ownLine}</p>
+      <p class="small abgleich-status" id="own-line">${ownLine()}</p>
+      ${addr?.items?.length ? html`<p style="margin:0 0 1rem"><button class="btn btn-sm" type="button" data-action="from-directory">${icon('book', 'icon-sm')}Aus Adressverzeichnis übernehmen</button></p>` : ''}
       <form id="adr" novalidate>
         ${!editable ? html`<div class="form-grid cols-2">${PROFIL_FELDER.map((f) => f.key === 'status' ? statusSelect(anzeigeWert(own.entry, 'status')) : field(f.key, f.label, anzeigeWert(own.entry, f.key)))}</div>` : ''}
         <div class="form-grid cols-2">${ADRESS_FELDER.map((f) => field(f.key, f.label, anzeigeWert(own.entry, f.key), { type: f.type, auto: f.auto, mode: f.mode, ph: f.ph || '', max: 160 }))}</div>
@@ -176,6 +183,61 @@ export default async function profil(ctx) {
       </div></div>`);
   }
 
+  /** Eigenen Eintrag im Adressverzeichnis auswählen – wenn die App ihn nicht eindeutig gefunden hat */
+  function chooseEntry() {
+    const items = addr?.items || [];
+    const nachname = String(m.name || me.name || '').trim().split(/\s+/).pop() || '';
+    const list = (q) => {
+      const hits = items.filter((a) => matchesQuery([a.name, a.kneipname, a.ort, a.email].join(' '), q)).slice(0, 40);
+      return hits.length
+        ? html`${hits.map((a) => html`<button type="button" class="pick-row" data-idx="${items.indexOf(a)}"><span class="grow" style="min-width:0">
+            <span class="name">${a.name}</span><span class="sub">${[a.kneipname && `v/o ${a.kneipname}`, a.ort, a.status].filter(Boolean).join(' · ')}</span></span></button>`)}`
+        : html`<p class="small muted">Kein Eintrag gefunden – anderen Teil des Namens versuchen.</p>`;
+    };
+    return openModal({
+      title: 'Dein Eintrag im Adressverzeichnis',
+      body: html`<p class="small muted" style="margin-top:0">Die App hat dich nicht eindeutig gefunden. Tippe auf deinen Eintrag – seine Angaben werden übernommen.</p>
+        <div class="search" style="margin-bottom:.625rem">${icon('search')}<input class="input" type="search" id="pick-q" value="${nachname}" placeholder="Name, Ort …" aria-label="Im Adressverzeichnis suchen" autocomplete="off"></div>
+        <div class="pick-list" id="pick-list">${list(nachname)}</div>`,
+      actions: [{ label: 'Abbrechen', kind: 'ghost', value: null }],
+      onOpen: (body, close) => {
+        body.querySelector('#pick-q').addEventListener('input', (e) => setHtml(body.querySelector('#pick-list'), list(e.target.value)));
+        body.addEventListener('click', (e) => {
+          const row = e.target.closest('[data-idx]');
+          if (row) close(items[+row.dataset.idx]);
+        });
+      },
+    }).result;
+  }
+
+  const setField = (inp, v) => {
+    if (inp.tagName === 'SELECT') {
+      const hit = [...inp.options].find((o) => o.value && statusKey(o.value) === statusKey(v));
+      if (hit) inp.value = hit.value;
+      else if (v) inp.add(new Option(v, v, true, true));
+      else inp.value = '';
+    } else {
+      inp.value = v;
+    }
+  };
+
+  /**
+   * Felder unter „Anschrift und Kontakt“ mit den Angaben aus dem Adressverzeichnis füllen (eigene Eingaben
+   * dort weg). Kneipname, Status und Rezeption im Profil oben nur, wo noch nichts steht.
+   */
+  function fillFromEntry(entry) {
+    for (const f of [...ADRESS_FELDER, ...(editable ? [] : PROFIL_FELDER)]) {
+      const inp = c.querySelector(`#adr [name="${f.key}"]`);
+      if (inp) setField(inp, anzeigeWert(entry, f.key));
+    }
+    if (!editable) return;
+    for (const f of PROFIL_FELDER) {
+      const inp = c.querySelector(`#f [name="${f.key}"]`);
+      const v = anzeigeWert(entry, f.key);
+      if (inp && v && !String(inp.value || '').trim()) setField(inp, v);
+    }
+  }
+
   let timer = null;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(renderDiffs, 150); };
   c.addEventListener('input', schedule);
@@ -220,6 +282,18 @@ export default async function profil(ctx) {
   });
 
   c.addEventListener('click', async (e) => {
+    if (e.target.closest('[data-action=from-directory]')) {
+      const entry = own.entry || await chooseEntry();
+      if (!entry || !ctx.alive()) return;
+      if (!own.entry) {
+        own = { entry, via: 'auswahl' };
+        setHtml(c.querySelector('#own-line'), ownLine());
+      }
+      fillFromEntry(entry);
+      renderDiffs();
+      toast('Angaben aus dem Adressverzeichnis übernommen');
+      return;
+    }
     if (e.target.closest('[data-action=copy-mail]') && current.mail) {
       const { an, subject, body } = current.mail;
       copyText(`${an ? `An: ${an}\n` : ''}Betreff: ${subject}\n\n${body}`);

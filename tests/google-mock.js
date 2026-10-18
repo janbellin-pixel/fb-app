@@ -385,6 +385,10 @@ async function run() {
   const body = decodeURIComponent(mail.href.split('body=')[1]);
   check(mail.href.startsWith(`mailto:${config.adressaenderung}?subject=`) && config.adressaenderung === 'adressaenderung@frankonia-brunonia.de', 'E-Mail an das Postfach für Adressänderungen', mail.href.slice(0, 80));
   check(body.includes('falsch oder unvollständig') && body.includes('Neuer Weg 9') && body.includes('bisher: Alter Weg 1') && body.includes(`Google-Konto: ${me.email}`), 'E-Mail enthält die neuen Angaben und den Hinweis', body.slice(0, 200));
+  const cfgMod = await import('../js/config.js');
+  check(cfgMod.statusGroup('Aktiver Bursche') === 'Aktivitas' && cfgMod.statusGroup('Inaktiver Bursch') === 'Aktivitas' && cfgMod.statusGroup('Chordame') === 'Chor' && cfgMod.statusGroup('Verkehrsgast') === 'Verkehrsgäste',
+    'Status: „Bursche“ (auch alte Schreibweise „Bursch“), Chor und Verkehrsgäste als Gruppen');
+  check(ab.vergleichsWert('status', 'Aktiver Bursch') === ab.vergleichsWert('status', 'aktiver  Bursche'), 'Status „Bursch“ und „Bursche“ gelten nicht als Abweichung');
   const vorlage = ab.adressaenderungMail({ name: me.name, email: me.email });
   check(vorlage.href.startsWith(`mailto:${config.adressaenderung || 'adressaenderung@frankonia-brunonia.de'}?subject=`) && decodeURIComponent(vorlage.href).includes(`Adressänderung: ${me.name}`) && vorlage.body.includes('Gültig ab:'),
     'Knopf „Adressänderung per E-Mail mitteilen“: Vorlage an das Postfach', vorlage.href.slice(0, 120));
