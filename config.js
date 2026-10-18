@@ -34,12 +34,12 @@ window.FB_CONFIG = {
   appUrl: 'https://janbellin-pixel.github.io/fb-app/',
 
   // Google-Kalender der Verbindung (Kalender-ID, endet meist auf @group.calendar.google.com)
-  kalenderId: '',
+  kalenderId: 'c_92482b914db0f6dc0ed5fab395081064d14dd8c2d096e10d7d1f8760ee3632e1@group.calendar.google.com',
 
   // Google-Tabellen (IDs aus der Adresszeile: docs.google.com/spreadsheets/d/<ID>/edit)
   // Die App liest sie nur – gepflegt werden sie direkt in Google Tabellen.
   tabellen: {
-    adressen: '',       // Adressverzeichnis
+    adressen: '1PUfw03rWme3QXVzluFMWSa-yUrHjfUtO43jbBne8_Sg', // Mitgliederliste
     news: '',           // Neuigkeiten (Redaktion pflegt die Tabelle)
     einwilligungen: ''  // Sammelliste der Datenschutz-Einwilligungen (vertraulich, nur Verantwortliche)
   },
@@ -48,10 +48,10 @@ window.FB_CONFIG = {
   adressenBlatt: '',
 
   // Google-Drive-Ordner mit den PDF-Ausgaben der Verbindungszeitung (nur lesen)
-  zeitungOrdnerId: '',
+  zeitungOrdnerId: '1sZ9aHz2aiOPqNiyEVxRbJOGgPQe8TpJt',
 
   // Google-Drive-Ordner mit den Fotos der Galerie; Unterordner = Alben (nur lesen)
-  galerieOrdnerId: '',
+  galerieOrdnerId: '1KHHPf5PG2uLJ8YosmDb85HlUVsNkCVPl',
 
   // Google Chat (nur mit Google Workspace verfügbar)
   chat: {
