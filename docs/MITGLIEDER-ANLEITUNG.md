@@ -51,7 +51,7 @@ Unten in der App gibt es fünf Bereiche:
 
 - **Schrift zu klein?** Mehr › Schriftgröße › „Groß“ oder „Sehr groß“.
 - **Abmelden oder Konto wechseln:** Mehr › oben **„Abmelden“**. Beim nächsten „Mit Google anmelden“ fragt Google, welches Konto du nehmen willst.
-- **Bitte dein Profil ausfüllen und deine Anschrift prüfen:** Mehr › Mein Profil (Kneipname, Tätigkeit, was du Jüngeren anbieten kannst …). Stimmt etwas im Adressverzeichnis nicht, schickst du mit einem Tipp eine vorbereitete E-Mail an den Schriftwart. Dein Foto änderst du in deinem Google-Konto.
+- **Bitte dein Profil ausfüllen und deine Anschrift prüfen:** Mehr › Mein Profil (Kneipname, Tätigkeit, was du Jüngeren anbieten kannst …). Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart. Dein Foto änderst du in deinem Google-Konto.
 - **Liedermappe:** Liednummer ins Suchfeld tippen und Enter – schon ist das Lied offen. Der Bildschirm bleibt an, solange ein Lied offen ist. Mit „Alle Lieder speichern“ geht es auch ohne Netz, z. B. auf der Kneipe.
 - **Keine Sorge:** Termine, Adressen, Bundesbote, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge.
 - **iPhone:** Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt.

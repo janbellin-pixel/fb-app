@@ -115,6 +115,32 @@ export function vergleiche(eingabe, entry) {
 
 /* ------------------------------------------------------------------ E-Mail vorbereiten */
 
+const mailEnc = (s) => encodeURIComponent(s).replace(/%0A/g, '%0D%0A');
+
+/**
+ * Leere Vorlage für eine Adressänderung (Knopf oben im Profil): Betreff mit Namen, Felder zum Ausfüllen.
+ * Abgeschickt wird sie vom Mitglied selbst aus dem eigenen E-Mail-Programm.
+ */
+export function adressaenderungMail(user, an = adressaenderungEmail()) {
+  const subject = `Adressänderung: ${user.name}`;
+  const body = [
+    'Hallo,',
+    '',
+    'bitte ändert meine Angaben im Adressverzeichnis:',
+    '',
+    'Straße und Hausnummer:',
+    'PLZ und Ort:',
+    'Telefon / Mobil:',
+    'E-Mail-Adresse:',
+    'Gültig ab:',
+    '',
+    'Viele Grüße',
+    user.name,
+    `(Google-Konto: ${user.email})`,
+  ].join('\n');
+  return { an, subject, body, href: an ? `mailto:${an}?subject=${mailEnc(subject)}&body=${mailEnc(body)}` : '' };
+}
+
 export function mailEntwurf({ user, eingabe, diffs, gefunden, an = adressaenderungEmail() }) {
   const subject = `Adressänderung: ${user.name}`;
   const lines = [
@@ -137,6 +163,5 @@ export function mailEntwurf({ user, eingabe, diffs, gefunden, an = adressaenderu
     '(vorbereitet in der Mitglieder-App)',
   ];
   const body = lines.join('\n');
-  const enc = (s) => encodeURIComponent(s).replace(/%0A/g, '%0D%0A');
-  return { an, subject, body, href: an ? `mailto:${an}?subject=${enc(subject)}&body=${enc(body)}` : '' };
+  return { an, subject, body, href: an ? `mailto:${an}?subject=${mailEnc(subject)}&body=${mailEnc(body)}` : '' };
 }

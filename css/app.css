@@ -771,6 +771,28 @@ body.demo .chat-room { height: calc(100dvh - var(--topbar-h) - var(--tabbar-h) -
   body.chat-open .main { padding-bottom: 0; }
   body.demo .chat-room { height: calc(100dvh - var(--topbar-h) - 3rem - 1.9375rem); }
 }
+/* Profil: Hinweis „Adressänderungen per E-Mail mitteilen“ */
+.adr-hinweis { display: flex; gap: .875rem; align-items: flex-start; margin-bottom: 1rem; }
+.adr-hinweis > .icon { flex: none; width: 1.75rem; height: 1.75rem; color: var(--green-ink); margin-top: .125rem; }
+
+/* Bildschirmtastatur offen (Handy, E36, js/lib/tastatur.js): Tab-Leiste weg; der Chat füllt genau den
+   sichtbaren Bereich über der Tastatur – Kopf mit Namen oben, Eingabefeld unten, dazwischen die Nachrichten */
+body.keyboard-open .tabbar { display: none; }
+/* im Chat auch die Kopfzeile der App: Zurück und Name stehen im Kopf des Chats */
+body.chat-open.keyboard-open .topbar, body.chat-open.keyboard-open .demo-bar, body.chat-open.keyboard-open .offline-bar { display: none; }
+body.chat-open.keyboard-open .chat-room {
+  position: fixed;
+  z-index: 45;
+  top: var(--vv-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--vvh, 100dvh);
+  margin: 0;
+  padding: var(--safe-t) var(--safe-r) 0 var(--safe-l);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 .google-btn:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ---------- Zeitung ---------- */
@@ -1248,6 +1270,8 @@ body.login-open .view { animation: none; }
   pointer-events: none;
 }
 @media (min-width: 1280px) and (hover: hover) and (pointer: fine) { .toasts { bottom: 1.5rem; } }
+/* über der Bildschirmtastatur statt dahinter */
+body.keyboard-open .toasts { bottom: calc(100% - var(--vv-top, 0px) - var(--vvh, 100%) + 4.75rem); }
 .toast {
   pointer-events: auto;
   display: flex;

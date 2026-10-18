@@ -486,7 +486,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
     # Gut zu wissen
     tips = [
         ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße › „Groß“ oder „Sehr groß“."),
-        ("users", f"{b('Profil ausfüllen, Anschrift prüfen:')} Mehr › Mein Profil. Stimmt etwas im Adressverzeichnis nicht, schickst du mit einem Tipp eine vorbereitete E-Mail an den Schriftwart."),
+        ("users", f"{b('Profil ausfüllen, Anschrift prüfen:')} Mehr › Mein Profil. Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart."),
         ("music", f"{b('Liedermappe:')} Liednummer eintippen und Enter – schon ist das Lied offen."),
         ("shield", f"{b('Keine Sorge:')} Termine, Adressen, Bundesbote, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge."),
         ("share", f"{b('iPhone:')} Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt."),

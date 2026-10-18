@@ -385,6 +385,9 @@ async function run() {
   const body = decodeURIComponent(mail.href.split('body=')[1]);
   check(mail.href.startsWith(`mailto:${config.adressaenderung}?subject=`) && config.adressaenderung === 'adressaenderung@frankonia-brunonia.de', 'E-Mail an das Postfach für Adressänderungen', mail.href.slice(0, 80));
   check(body.includes('falsch oder unvollständig') && body.includes('Neuer Weg 9') && body.includes('bisher: Alter Weg 1') && body.includes(`Google-Konto: ${me.email}`), 'E-Mail enthält die neuen Angaben und den Hinweis', body.slice(0, 200));
+  const vorlage = ab.adressaenderungMail({ name: me.name, email: me.email });
+  check(vorlage.href.startsWith(`mailto:${config.adressaenderung || 'adressaenderung@frankonia-brunonia.de'}?subject=`) && decodeURIComponent(vorlage.href).includes(`Adressänderung: ${me.name}`) && vorlage.body.includes('Gültig ab:'),
+    'Knopf „Adressänderung per E-Mail mitteilen“: Vorlage an das Postfach', vorlage.href.slice(0, 120));
   const writesNow = fake.state.writes.length;
   ab.mailEntwurf({ user: { name: me.name, email: me.email }, eingabe: eing, diffs, gefunden: false });
   check(fake.state.writes.length === writesNow, 'Abgleich und E-Mail-Entwurf schreiben nichts in Google');

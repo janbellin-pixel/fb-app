@@ -5,6 +5,7 @@ import { html, setHtml, icon, avatar, toast, openModal, $, $$, isStandalone } fr
 import { startRouter, navigate, refresh, lastRenderTime } from './router.js';
 import { cachedLoad, local, kv } from './lib/store.js';
 import { firstName } from './lib/text.js';
+import { watchKeyboard } from './lib/tastatur.js';
 
 export const APP_VERSION = '1.0.0';
 
@@ -220,6 +221,7 @@ async function boot() {
   startRouter(app);
   watchConnection();
   watchVisibility();
+  watchKeyboard();
   // Hinweise auf Neues (Zahlen am Chat und an „Mehr“, Mitteilungen solange die App läuft, E34)
   if (app.user) import('./lib/hinweise.js').then((m) => m.startHinweise(app)).catch((e) => console.warn('Hinweise nicht gestartet', e));
   // Verantwortliche: Einwilligungs-Sammeltabelle im Hintergrund abgleichen

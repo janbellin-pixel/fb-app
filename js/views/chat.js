@@ -321,6 +321,13 @@ export async function room(ctx) {
   let messages = [];
   let timer = null;
   let stopped = false;
+  // Wer unten (bei der neuesten Nachricht) war, bleibt unten – auch wenn die Tastatur den Bereich verkleinert
+  let atBottom = true;
+  scroll.addEventListener('scroll', () => { atBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 48; }, { passive: true });
+  const keepBottom = window.ResizeObserver ? new ResizeObserver(() => { if (atBottom) scroll.scrollTop = scroll.scrollHeight; }) : null;
+  keepBottom?.observe(scroll);
+  // Tastatur geht auf: danach wieder zur neuesten Nachricht (falls man dort war)
+  input.addEventListener('focus', () => { if (atBottom) setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 350); });
 
   // Name, Art und Link der Unterhaltung ergänzen (auch wenn direkt aufgerufen)
   b.listSpaces().then((spaces) => {
@@ -434,6 +441,7 @@ export async function room(ctx) {
   return () => {
     stopped = true;
     clearInterval(timer);
+    keepBottom?.disconnect();
     document.body.classList.remove('chat-open');
   };
 }

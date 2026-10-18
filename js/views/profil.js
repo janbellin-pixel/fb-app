@@ -10,7 +10,9 @@ import { config } from '../config.js';
 import * as auth from '../auth.js';
 import { firstName } from '../lib/text.js';
 import { PROFILE_MAX } from '../backend/common.js';
-import { ADRESS_FELDER, PROFIL_FELDER, findOwnAddress, anzeigeWert, vergleiche, mailEntwurf, adressaenderungEmail } from '../lib/adressabgleich.js';
+import {
+  ADRESS_FELDER, PROFIL_FELDER, findOwnAddress, anzeigeWert, vergleiche, mailEntwurf, adressaenderungEmail, adressaenderungMail,
+} from '../lib/adressabgleich.js';
 
 export default async function profil(ctx) {
   const { el, app } = ctx;
@@ -58,7 +60,21 @@ export default async function profil(ctx) {
         : own.mehrdeutig ? html`${icon('alert', 'icon-sm')} Es gibt mehrere mögliche Einträge mit deinem Namen. Trag deine Angaben ein – der Schriftwart ordnet sie zu.`
           : html`${icon('alert', 'icon-sm')} Für dich gibt es noch keinen Eintrag. Trag deine Angaben ein und melde sie.`;
 
+  // Adressänderungen: immer sichtbar oben – ein Tipp öffnet die E-Mail an das Postfach für Adressänderungen
+  const mailTo = adressaenderungEmail();
+  const vorlage = mailTo ? adressaenderungMail({ name: m.name || me.name, email: me.email }) : null;
+
   setHtml(c, html`
+    ${vorlage ? html`
+    <section class="card card-pad adr-hinweis">
+      ${icon('mail')}
+      <div class="grow" style="min-width:0">
+        <h2 class="card-title" style="margin:0">Adressänderungen</h2>
+        <p style="margin:.25rem 0 .75rem">Bitte teile uns Adressänderungen per E-Mail mit – zum Beispiel nach einem Umzug oder mit neuer Telefonnummer. Der Schriftwart trägt sie ins Adressverzeichnis ein.</p>
+        <a class="btn btn-primary" id="adr-mail" href="${vorlage.href}">${icon('mail', 'icon-sm')}Adressänderung per E-Mail mitteilen</a>
+        <p class="tiny muted" style="margin:.5rem 0 0">Öffnet eine E-Mail an <strong>${mailTo}</strong> in deinem E-Mail-Programm. Hast du unten unter „Anschrift und Kontakt“ etwas geändert, steht es schon drin.</p>
+      </div>
+    </section>` : ''}
     ${editable ? html`
     <div class="grid-2-1">
       <form class="card card-pad" id="f" novalidate>
@@ -133,12 +149,17 @@ export default async function profil(ctx) {
     if (!addr) {
       setHtml(diffsEl, '');
       current = { diffs: [], mail: null };
+      const top = c.querySelector('#adr-mail');
+      if (top && vorlage) top.href = vorlage.href;
       return;
     }
     const e = eingabe();
     const diffs = vergleiche(e, own.entry);
     const mail = diffs.length ? mailEntwurf({ user: { name: m.name || me.name, email: me.email }, eingabe: e, diffs, gefunden: !!own.entry }) : null;
     current = { diffs, mail };
+    // der Knopf oben nimmt die eingetragenen Abweichungen mit, sonst die leere Vorlage
+    const top = c.querySelector('#adr-mail');
+    if (top && vorlage) top.href = mail?.href || vorlage.href;
     if (!diffs.length) {
       setHtml(diffsEl, html`<div class="notice notice-green" style="margin-top:.875rem">${icon('check')}<div class="grow"><p>Stimmt mit dem Adressverzeichnis überein.</p></div></div>`);
       return;

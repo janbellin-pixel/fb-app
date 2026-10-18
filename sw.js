@@ -35,6 +35,7 @@ const CORE = [
   './js/lib/schrift.js',
   './js/lib/setup.js',
   './js/lib/store.js',
+  './js/lib/tastatur.js',
   './js/lib/text.js',
   './js/views/adressen.js',
   './js/views/chat.js',
