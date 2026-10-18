@@ -47,11 +47,17 @@ export default async function mitglieder(ctx) {
   function renderDirectoryHint() {
     const box = el.querySelector('#dir-hint');
     const info = b.directoryInfo;
+    // Berechtigung fehlt (bei Google abgewählt oder nie erteilt): für alle, mit Knopf zum Nachholen
+    if (app.mode === 'google' && info?.reason === 'scope') {
+      setHtml(box, html`<div style="margin-bottom:1rem">${notice('gold', 'Mitgliederliste unvollständig',
+        'Der App fehlt deine Erlaubnis, das Google-Verzeichnis der Verbindung zu lesen – deshalb siehst du nicht alle Mitglieder. Ein Klick genügt; bei Google bitte alle Häkchen setzen.',
+        html`<p style="margin-top:.5rem"><button class="btn btn-sm btn-primary" data-action="grant-directory">${icon('key', 'icon-sm')}Berechtigung erteilen</button></p>`)}</div>`);
+      return;
+    }
     // nur nach einer echten Abfrage und nur, wenn das Verzeichnis höchstens ein Konto liefert
     if (app.mode !== 'google' || !app.isAdmin() || !info || info.reason === 'no-workspace' || (info.ok && info.count > 1)) { setHtml(box, ''); return; }
     const why = info.reason === 'error' ? `Google meldet: „${info.error}“. `
-      : info.reason === 'scope' ? 'Die Berechtigung für das Verzeichnis fehlt – einmal ab- und wieder anmelden. '
-        : info.ok ? `Das Google-Verzeichnis liefert ${info.count} ${info.count === 1 ? 'Konto' : 'Konten'}. ` : '';
+      : info.ok ? `Das Google-Verzeichnis liefert ${info.count} ${info.count === 1 ? 'Konto' : 'Konten'}. ` : '';
     setHtml(box, html`<div style="margin-bottom:1rem">${notice('gold', 'Für Admins: Das Google-Verzeichnis zeigt nur dein Konto',
       `${why}Häufige Ursachen: In der Admin-Konsole ist unter Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen die „Kontaktfreigabe“ aus, oder die People API ist im Google-Cloud-Projekt nicht aktiviert. Neue Konten erscheinen manchmal erst nach einigen Stunden.`,
       html`<p style="margin-top:.5rem"><a class="btn btn-sm" href="#/einrichtung">${icon('tool', 'icon-sm')}Verbindung prüfen</a></p>`)}</div>`);
@@ -87,6 +93,7 @@ export default async function mitglieder(ctx) {
     if (g) { group = g.dataset.group; render(); }
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
+    if (e.target.closest('[data-action=grant-directory]')) auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: '#/mitglieder' });
   });
 
   try {

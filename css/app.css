@@ -730,6 +730,10 @@ img.avatar { background: #e5e5e5; }
   flex: none;
 }
 .space-row .name { font-weight: 650; }
+.space-row .dot-unread { display: none; margin-right: .375rem; vertical-align: .0625rem; }
+.space-row.unread .dot-unread { display: inline-block; }
+.space-row.unread .name { font-weight: 800; }
+.space-row.unread .sub { color: var(--ink-2); }
 .space-row .sub { font-size: .875rem; color: var(--ink-3); }
 .chat-room {
   display: flex;
@@ -1187,7 +1191,9 @@ body.login-open .view { animation: none; }
 .tabbar a.active { color: #fff; }
 .tabbar a.active .icon { stroke: var(--green); stroke-width: 2; }
 .tabbar a.active::before { content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: .125rem; background: var(--green); }
-.tab-badge { position: absolute; top: .5rem; left: calc(50% + .5rem); min-width: .5rem; height: .5rem; border-radius: 4px; background: var(--green); }
+.tab-badge { position: absolute; top: .3125rem; left: calc(50% + .4375rem); min-width: 1.125rem; height: 1.125rem; padding: 0 .3125rem; border-radius: 999px; background: var(--green); color: #0f1f00; font-size: .6875rem; font-weight: 800; line-height: 1.125rem; text-align: center; letter-spacing: 0; }
+.badge-new { background: var(--green); border-color: var(--green); color: #0f1f00; }
+.nav-badge, .menu-badge { display: inline-block; min-width: 1.125rem; height: 1.125rem; margin-left: .375rem; padding: 0 .3125rem; border-radius: 999px; background: var(--green); color: #0f1f00; font-size: .6875rem; font-weight: 800; line-height: 1.125rem; text-align: center; vertical-align: .0625rem; }
 
 /* Navigation: Textleiste oben nur am Computer mit Maus und genug Breite.
    Handys, Phablets und Tablets (Touch) behalten die große Tab-Leiste unten – in jeder Ausrichtung. */

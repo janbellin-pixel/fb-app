@@ -8,6 +8,7 @@ import { linkify, matchesQuery } from '../lib/text.js';
 import { config } from '../config.js';
 import * as auth from '../auth.js';
 import { local } from '../lib/store.js';
+import { isUnreadChat, markChatRead, onChange, GOOGLE_CHAT_APP, notificationsWanted, enableNotifications } from '../lib/hinweise.js';
 
 const CHAT_HOME = 'https://chat.google.com/';
 
@@ -55,27 +56,36 @@ export default async function chat(ctx) {
       <a class="btn btn-primary" href="#/chat-neu">${icon('send', 'icon-sm')}Neue Nachricht</a>
       <a class="btn" href="#/chat-neu?gruppe=1">${icon('users', 'icon-sm')}Neue Gruppe</a>` : '')}
     <div id="c">${status.available ? skeletonList(4, 'sk-card') : unavailable(status)}</div>
-    <div class="notice" style="margin-top:1.125rem">${icon('smartphone')}<div><h3>Tipp: Benachrichtigungen</h3>
-      <p>Für Push-Mitteilungen bei neuen Nachrichten die App „Google Chat“ auf dem Handy installieren und mit dem Verbindungskonto anmelden. Alle Unterhaltungen sind dort und hier gleich.</p>
-      <p style="margin-top:.5rem"><a href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat öffnen</a></p></div></div>`);
+    <div class="notice" style="margin-top:1.125rem">${icon('smartphone')}<div><h3>Tipp: Benachrichtigungen aufs Handy</h3>
+      <p>Auch wenn diese App geschlossen ist: die App „Google Chat“ installieren und mit dem Verbindungskonto anmelden. Alle Unterhaltungen sind dort und hier gleich, und neue News kündigt die Redaktion dort an. Hier in der App zeigt eine Zahl am Chat, was neu ist.</p>
+      <p class="row wrap" style="margin-top:.5rem;gap:.375rem 1rem"><a href="${GOOGLE_CHAT_APP.android}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Android</a><a href="${GOOGLE_CHAT_APP.ios}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}iPhone</a><a href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat im Browser</a></p>
+      <div id="notify-here" style="margin-top:.625rem">${status.available && !notificationsWanted() ? html`<button class="btn btn-sm" data-action="notify-on">${icon('chat', 'icon-sm')}Benachrichtigungen in dieser App einschalten</button>` : ''}</div></div></div>`);
   const c = el.querySelector('#c');
 
-  el.addEventListener('click', (e) => {
+  el.addEventListener('click', async (e) => {
     if (e.target.closest('[data-action=grant]')) grantChat();
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
+    if (e.target.closest('[data-action=notify-on]')) {
+      await enableNotifications();
+      setHtml(el.querySelector('#notify-here'), html`<p class="small">${icon('check', 'icon-sm')} Eingeschaltet – ändern unter Mehr › Einstellungen.</p>`);
+    }
   });
 
   if (!status.available) return;
+  // Ungelesenes hervorheben – auch wenn es erst während des Lesens dazukommt
+  const off = onChange(() => {
+    el.querySelectorAll('.space-row[data-id]').forEach((r) => r.classList.toggle('unread', isUnreadChat(r.dataset.id)));
+  });
   try {
     await app.load('chat-spaces', () => b.listSpaces(), (spaces) => {
       if (!ctx.alive()) return;
       setHtml(c, spaces.length
         ? html`<div class="list">${spaces.map((s) => html`
-            <a class="card space-row" href="${roomLink(s)}">
+            <a class="card space-row ${isUnreadChat(s.id) ? 'unread' : ''}" href="${roomLink(s)}" data-id="${s.id}">
               ${spaceIcon(s)}
               <div class="grow" style="min-width:0">
-                <div class="name ellipsis">${s.name}</div>
+                <div class="name ellipsis"><span class="dot-unread" title="Ungelesen"></span>${s.name}</div>
                 <div class="sub ellipsis">${spaceSub(s)}</div>
               </div>
               <span class="tiny muted nowrap">${s.lastActive ? relTime(s.lastActive) : ''}</span>
@@ -86,6 +96,7 @@ export default async function chat(ctx) {
   } catch (err) {
     setHtml(c, errorBox(err));
   }
+  return off;
 }
 
 /* ===================================================================== Neue Nachricht, Gruppe, Personen hinzufügen */
@@ -361,6 +372,7 @@ export async function room(ctx) {
       if (add.length && ctx.alive()) {
         messages = [...messages, ...add];
         render(false);
+        markChatRead(spaceId, messages[messages.length - 1].created);
       }
     } catch (err) {
       console.warn('Chat-Aktualisierung fehlgeschlagen', err);
@@ -371,6 +383,7 @@ export async function room(ctx) {
     messages = await b.listMessages(spaceId, { pageSize: 80 });
     if (!ctx.alive()) { document.body.classList.remove('chat-open'); return; }
     render(true);
+    markChatRead(spaceId, messages[messages.length - 1]?.created);
   } catch (err) {
     setHtml(scroll, errorBox(err));
   }
@@ -403,6 +416,7 @@ export async function room(ctx) {
       autosize();
       if (!messages.some((m) => m.id === msg.id)) messages.push(msg);
       render(true);
+      markChatRead(spaceId, msg.created);
       setTimeout(poll, 4500);
     } catch (err) {
       showError(err);

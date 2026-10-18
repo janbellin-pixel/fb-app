@@ -109,7 +109,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 
 - **Entscheidung:** Die App zeigt Räume und Nachrichten aus Google Chat und sendet eigene Nachrichten. Für Push-Benachrichtigungen dient die Google-Chat-App.
 - **Folgen:** Kein eigener Chat-Server. Funktioniert nur mit Workspace, und das Cloud-Projekt braucht die Chat-API-Konfiguration.
-- **Ergänzt durch E30** (Direktnachrichten und Gruppen in der App anlegen).
+- **Ergänzt durch E30** (Direktnachrichten und Gruppen in der App anlegen), **E33** (News im Chat ankündigen), **E34** (Benachrichtigungen) und **E35** (eigene Nachrichten über die Konto-ID).
 
 ## E15 · Datenschutz: zwei getrennte Einwilligungen, nachweisbar gespeichert
 *2026-10-17 – Anforderung des Auftraggebers*
@@ -244,3 +244,26 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Entscheidung:** Liste `config.links` (`[{ titel, url, symbol? }]`) statt einer festen Wiki-Adresse, damit weitere Angebote der Verbindung ohne Programmänderung dazukommen können. Angezeigt werden nur vollständige `https`-Adressen mit Titel (`extraLinks()` in `js/config.js`): als Kachel im Schnellzugriff und als Eintrag unter „Mehr“ mit dem Hinweis „öffnet sich außerhalb der App“ (`target="_blank" rel="noopener"`).
 - **Nicht eingebettet:** Die CSP bleibt unverändert (`frame-src 'none'`). Die App gibt dem fremden Angebot keine Daten und keine Anmeldung weiter; die Datenschutzerklärung nennt die Links und dass dort deren eigene Hinweise gelten.
 - **Folgen:** Für das Wiki gilt dessen eigene Anmeldung. Eingetragen ist `https://frbr-bookstack.cubiga.to/login`.
+
+## E33 · Neue News im Chat ankündigen
+*2026-10-18 – Wunsch der Verbindung: Mitglieder sollen von neuen News erfahren, auch wenn die App geschlossen ist*
+
+- **Kontext:** Die App hat keinen eigenen Server (E3) und kann deshalb keine Push-Nachrichten verschicken. Google Chat dagegen benachrichtigt auf dem Handy zuverlässig – auch wenn unsere App zu ist.
+- **Entscheidung:** Beim Schreiben einer News (nur neue, nicht beim Bearbeiten) kann die Redaktion **„Im Chat ankündigen“** ankreuzen und einen Raum oder eine Gruppe wählen, in der sie selbst ist. Die App schickt dann als **eigene Nachricht** der Verfasserin bzw. des Verfassers Titel, Anfang des Textes und den Link zur News. Das Kästchen ist jedes Mal aus und muss bewusst gesetzt werden; vorgeschlagen wird der zuletzt gewählte Raum (`fb.newsRaum`) bzw. `config.chat.newsRaum`.
+- **Folgen:** Keine neue Berechtigung und keine neue Schreibregel (eigene Chat-Nachricht, E14). Wer im Raum ist und die App „Google Chat“ nutzt, bekommt eine Benachrichtigung; stummschalten lässt sich der Raum wie jeder andere in Google Chat. Klappt die Ankündigung nicht (z. B. kein Mitglied des Raums), bleibt die News veröffentlicht und die App meldet den Fehler.
+
+## E34 · Benachrichtigungen nur nach Einschalten, ohne eigenen Server
+*2026-10-18 – Wunsch der Verbindung: über neue News und Direktnachrichten informiert werden – aber nur, wenn man das in der App aktiv auswählt*
+
+- **Kontext:** Push-Nachrichten bei geschlossener App brauchen einen Absender, der sie über die Push-Dienste der Browser verschickt (Web Push mit VAPID). Den gibt es bewusst nicht (E3). Private Nachrichten könnte ein solcher Absender ohnehin nicht lesen.
+- **Entscheidung:** Ein Schalter **„Benachrichtigungen“** (Mehr › Einstellungen, auch im Chat) – je Gerät und Konto, Standard **aus**. Ausgeschaltet fragt die App nichts ab und zeigt nichts an. Eingeschaltet prüft `js/lib/hinweise.js`, solange die App geöffnet ist, jede Minute die Unterhaltungen (im Hintergrund alle drei Minuten) und alle fünf Minuten die News: Zahlen am Chat und an „Mehr“/News und am App-Symbol (Badging API), Markierungen in den Listen, Hinweise in der App und – nur mit Erlaubnis des Browsers – Mitteilungen des Systems; antippen öffnet die Unterhaltung bzw. News (`notificationclick` im Service Worker). Gezählt wird ab dem Einschalten; Ungelesenes erkennt die App am Zeitpunkt der letzten Nachricht (`lastActive`) und an deren Absender (`latestMessage()`), eigene Nachrichten zählen nicht. Viele Neuigkeiten auf einmal werden zu einem Hinweis zusammengefasst. Bei (fast) abgelaufener Anmeldung, offline und während der Datenschutz-Abfrage wird nicht geprüft.
+- **Bei geschlossener App:** die App „Google Chat“ (Direktnachrichten und Ankündigungen nach E33) – Hinweis mit Links im Chat und in den Einstellungen.
+- **Nicht umgesetzt:** Web Push über ein Google-Apps-Script im Konto eines Admins. Möglich wäre es für News, Forum und Termine (nicht für Direktnachrichten), braucht aber dort eingerichtete Schlüssel und einen Zeitauslöser, eine eigene Krypto-Umsetzung (Apps Script kennt kein ES256/AES-GCM) und die Speicherung der Push-Adressen der Geräte. Erst nach Rückfrage bei der Verbindung.
+- **Folgen:** Was gelesen ist, steht nur auf dem Gerät (`fb.gelesen.<email>`, `fb.benachrichtigungen.<email>`); die Datenschutzerklärung nennt das. Keine neuen Berechtigungen.
+
+## E35 · Eigene Chat-Nachrichten über die Google-Konto-ID erkennen
+*2026-10-18 – Beim Bau von E34: Ohne Kontaktfreigabe fehlt das eigene Konto im Verzeichnis*
+
+- **Kontext:** Die App erkannte eigene Nachrichten bisher daran, dass die Absender-ID zum eigenen Eintrag im Google-Verzeichnis passt. Ohne Kontaktfreigabe (oder ohne Berechtigung) ist das Verzeichnis leer – dann standen eigene Nachrichten als „Mitglied“ auf der falschen Seite und hätten als ungelesen gezählt.
+- **Entscheidung:** `myId()` im Google-Backend nimmt die Konto-ID aus der Anmeldung (`sub` aus `userinfo`, gespeichert als `user.id`), sonst aus dem Verzeichnis, sonst einmal aus dem Google-Profil. Sie ist dieselbe ID wie in `users/{id}` bei Google Chat.
+- **Folgen:** Keine neue Berechtigung (`openid` war schon dabei). Für Konten, die vor dieser Änderung angemeldet waren, wird die ID einmal nachgeladen.

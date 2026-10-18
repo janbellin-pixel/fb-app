@@ -430,6 +430,16 @@ export class DemoBackend {
     return c;
   }
 
+  /** Beispiel-Unterhaltungen mit festen Zeiten (einmal am Tag neu), damit nichts ständig „neu“ wirkt */
+  chatBase() {
+    const c = this.chatState();
+    if (!c.epoch || Date.now() - Date.parse(c.epoch) > 24 * 3600_000) {
+      c.epoch = nowIso();
+      this.save();
+    }
+    return buildChat(new Date(c.epoch));
+  }
+
   async openDirectChat(email, name = '') {
     await wait(200);
     const space = await this.findDirectChat(email);
@@ -480,10 +490,12 @@ export class DemoBackend {
 
   async listSpaces() {
     await wait();
-    const base = buildChat();
+    const base = this.chatBase();
     const c = this.chatState();
+    const now = nowIso();
     const spaces = [...base.spaces.map((s) => ({ type: 'SPACE', ...s })), ...c.groups, ...c.dms].map((s) => {
-      const own = c.messages[s.id] || [];
+      // die Demo-Antwort kommt erst ein paar Sekunden später an – vorher zählt sie nicht
+      const own = (c.messages[s.id] || []).filter((m) => m.created <= now);
       const last = own[own.length - 1];
       return { ...s, lastActive: last && last.created > s.lastActive ? last.created : s.lastActive, url: 'https://chat.google.com/' };
     });
@@ -492,13 +504,18 @@ export class DemoBackend {
 
   async listMessages(spaceId, { since } = {}) {
     await wait(since ? 40 : 150);
-    const base = buildChat().messages[spaceId] || [];
+    const base = this.chatBase().messages[spaceId] || [];
     const own = this.chatState().messages[spaceId] || [];
     const now = nowIso();
     return [...base, ...own]
       .filter((m) => m.created <= now && (!since || m.created > since))
       .sort((a, b) => a.created.localeCompare(b.created))
       .map((m) => this.mapMessage(m));
+  }
+
+  async latestMessage(spaceId) {
+    const list = await this.listMessages(spaceId);
+    return list[list.length - 1] || null;
   }
 
   mapMessage(m) {

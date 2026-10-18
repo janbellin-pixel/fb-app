@@ -43,7 +43,7 @@ Unten in der App gibt es fünf Bereiche:
 |---|---|
 | **Start** | Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos. |
 | **Termine** | Alle Veranstaltungen als Liste oder Monat. Termin antippen › **Zusagen, Vielleicht oder Absagen**, Gäste und Kommentar angeben, sehen wer kommt. „Kalender abonnieren“ holt alle Termine in den eigenen Kalender. |
-| **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Für Benachrichtigungen aufs Handy die App „Google Chat“ installieren. |
+| **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“. |
 | **Mitglieder** | Alle Bundesbrüder mit Foto und Profil. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
 | **Mehr** | **Bundesbote** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
 

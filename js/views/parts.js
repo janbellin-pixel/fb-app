@@ -97,11 +97,12 @@ document.addEventListener('error', (e) => {
   }
 }, true);
 
-export function newsCard(item, imageUrl = '') {
+export function newsCard(item, imageUrl = '', { isNew = false } = {}) {
   return html`<a class="card news-card" href="#/news/${encodeURIComponent(item.id)}">
     ${imageUrl ? html`<img class="img" src="${imageUrl}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
     <div class="body">
       <div class="row wrap" style="gap:.375rem">
+        ${isNew ? html`<span class="badge badge-new">Neu</span>` : ''}
         ${item.pinned ? html`<span class="badge badge-black">${icon('bookmark', 'icon-sm')}Angeheftet</span>` : ''}
         ${item.category ? html`<span class="badge badge-green">${item.category}</span>` : ''}
       </div>

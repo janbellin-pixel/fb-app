@@ -1116,10 +1116,24 @@ export class GoogleBackend {
     return map;
   }
 
+  /**
+   * Eigene Google-Konto-ID (= „users/{id}“ in Google Chat) – aus der Anmeldung, sonst aus dem Verzeichnis,
+   * sonst aus dem Google-Profil. So erkennt die App eigene Nachrichten auch ohne Kontaktfreigabe.
+   */
+  async myId() {
+    if (this.user.id) return this.user.id;
+    return this.cached('myId', 24 * 3600_000, async () => {
+      const dir = await this.dirMap();
+      const hit = [...dir.values()].find((p) => p.email === this.myEmail)?.id;
+      if (hit) return hit;
+      const info = await people.userinfo().catch(() => null);
+      return String(info?.sub || '');
+    });
+  }
+
   /** Räume, Gruppen und Direktnachrichten, in denen ich Mitglied bin – mit Namen der anderen */
   async listSpaces() {
-    const [spaces, dir] = await Promise.all([chat.listSpaces(), this.dirMap()]);
-    const myId = [...dir.values()].find((p) => p.email === this.myEmail)?.id;
+    const [spaces, dir, myId] = await Promise.all([chat.listSpaces(), this.dirMap(), this.myId()]);
     const names = local.get(CHAT_NAMES, {});
     const rows = await Promise.all(spaces.map(async (s) => {
       const type = s.spaceType || (s.type === 'DM' ? 'DIRECT_MESSAGE' : s.type === 'ROOM' ? 'SPACE' : s.type) || '';
@@ -1140,14 +1154,19 @@ export class GoogleBackend {
   }
 
   async listMessages(spaceId, opts = {}) {
-    const [msgs, dir] = await Promise.all([chat.listMessages(spaceId, opts), this.dirMap()]);
-    const myId = [...dir.values()].find((p) => p.email === this.myEmail)?.id;
+    const [msgs, dir, myId] = await Promise.all([chat.listMessages(spaceId, opts), this.dirMap(), this.myId()]);
     return msgs.map((m) => this.mapMessage(m, dir, myId));
   }
 
+  /** Letzte Nachricht einer Unterhaltung (für die Hinweise auf Ungelesenes, E34) – oder null */
+  async latestMessage(spaceId) {
+    const [msgs, dir, myId] = await Promise.all([chat.listMessages(spaceId, { pageSize: 1 }), this.dirMap(), this.myId()]);
+    const m = msgs[msgs.length - 1];
+    return m ? this.mapMessage(m, dir, myId) : null;
+  }
+
   async sendMessage(spaceId, text) {
-    const [m, dir] = await Promise.all([chat.createMessage(spaceId, text), this.dirMap()]);
-    const myId = [...dir.values()].find((p) => p.email === this.myEmail)?.id;
+    const [m, dir, myId] = await Promise.all([chat.createMessage(spaceId, text), this.dirMap(), this.myId()]);
     const msg = this.mapMessage(m, dir, myId);
     msg.mine = true;
     return msg;
@@ -1160,7 +1179,9 @@ export class GoogleBackend {
       id: m.name,
       text: m.text || (m.attachment?.length ? '📎 Anhang – in Google Chat ansehen' : ''),
       created: m.createTime,
-      sender: { id: uid, name: person?.name || m.sender?.displayName || 'Mitglied', photo: person?.photo || '', email: person?.email || '' },
+      sender: !!myId && uid === myId
+        ? { id: uid, name: this.user.name || 'Ich', photo: this.user.photo || '', email: this.myEmail }
+        : { id: uid, name: person?.name || m.sender?.displayName || 'Mitglied', photo: person?.photo || '', email: person?.email || '' },
       mine: !!myId && uid === myId,
     };
   }

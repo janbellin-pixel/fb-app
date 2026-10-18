@@ -6,6 +6,7 @@ import { local } from '../lib/store.js';
 import { hasSongbook, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
 import { albumInfo } from './galerie.js';
+import { isNewNews } from '../lib/hinweise.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -181,7 +182,7 @@ export default async function home(ctx) {
       const urls = await Promise.all(top.map((n) => b.imageUrl(n.image).catch(() => '')));
       if (!ctx.alive()) return;
       setHtml(q('#h-news'), top.length
-        ? html`<div class="news-grid">${top.map((n, i) => newsCard(n, urls[i]))}</div>`
+        ? html`<div class="news-grid">${top.map((n, i) => newsCard(n, urls[i], { isNew: isNewNews(n) }))}</div>`
         : html`<div class="card">${emptyState('news', 'Noch keine Neuigkeiten')}</div>`);
     }, { maxAge: 5 * 60_000 }).catch(failed('#h-news', 'News nicht verfügbar')),
     app.load('issues', () => b.listIssues(), (issues) => {

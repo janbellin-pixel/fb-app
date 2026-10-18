@@ -4,11 +4,14 @@ import {
   html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, loading, shareLink,
   toast, showError, setBusy, formData, confirmDialog, notice,
 } from '../ui.js';
-import { markdown } from '../lib/text.js';
+import { markdown, plainText } from '../lib/text.js';
 import { fDateLong, fDateShort } from '../lib/dates.js';
 import { appBaseUrl, config } from '../config.js';
 import { local } from '../lib/store.js';
 import { newsCard, memberMap, personFor } from './parts.js';
+import { isNewNews, markNewsRead } from '../lib/hinweise.js';
+
+const ROOM_KEY = 'fb.newsRaum'; // zuletzt gewählter Chat-Raum für Ankündigungen (E33)
 
 const MAX_TEXT = 4000;
 
@@ -17,6 +20,7 @@ export default async function news(ctx) {
   const b = app.backend;
   let items = [];
   let cat = 'Alle';
+  const shownNew = new Set();
   const canWrite = await b.canEditNews().catch(() => false);
   if (!ctx.alive()) return;
   setHtml(el, html`
@@ -39,7 +43,10 @@ export default async function news(ctx) {
     }
     const urls = await Promise.all(list.map((n) => b.imageUrl(n.image).catch(() => '')));
     if (!ctx.alive()) return;
-    setHtml(c, html`<div class="news-grid three">${list.map((n, i) => newsCard(n, urls[i]))}</div>`);
+    // „Neu“ bleibt stehen, solange diese Ansicht offen ist; einmal gezeigt = gesehen
+    for (const n of list) if (isNewNews(n)) shownNew.add(n.id);
+    setHtml(c, html`<div class="news-grid three">${list.map((n, i) => newsCard(n, urls[i], { isNew: shownNew.has(n.id) }))}</div>`);
+    markNewsRead(items.map((n) => n.id));
   }
 
   el.addEventListener('click', (e) => {
@@ -76,6 +83,7 @@ export async function detail(ctx) {
     setHtml(c, html`<div class="card" style="margin-top:1rem">${emptyState('news', 'Meldung nicht gefunden', 'Vielleicht wurde sie gelöscht.')}</div>`);
     return;
   }
+  markNewsRead([item.id]);
   const img = await b.imageUrl(item.image).catch(() => '');
   const author = personFor(item.authorEmail, members, item.authorName);
   setHtml(c, html`
@@ -171,6 +179,11 @@ export async function editor(ctx) {
         </div>
         <span class="hint">Wird verkleinert und in deinem eigenen Google Drive gespeichert, für die Mitglieder nur lesbar.</span>
       </div>
+      ${!editId && b.chatStatus().available ? html`<div class="field" id="n-announce-box">
+        <label class="checkbox"><input type="checkbox" id="n-announce"> Im Chat ankündigen</label>
+        <select class="select" id="n-room" aria-label="Chat-Raum für die Ankündigung" style="margin-top:.5rem" disabled><option value="">Räume werden geladen …</option></select>
+        <span class="hint">Alle in diesem Raum bekommen eine Nachricht mit Link zur News – mit der App „Google Chat“ auch als Benachrichtigung aufs Handy, wenn diese App zu ist.</span>
+      </div>` : ''}
       <p class="small muted">${icon('shield', 'icon-sm')} Die News wird in deinem eigenen Google Drive gespeichert und für die Mitglieder lesbar freigegeben. Ändern oder löschen kannst nur du.</p>
       <div class="form-actions">
         <a class="btn btn-ghost" href="${editId ? `#/news/${encodeURIComponent(editId)}` : '#/news'}">Abbrechen</a>
@@ -180,6 +193,21 @@ export async function editor(ctx) {
 
   const form = el.querySelector('#f');
   const textEl = form.querySelector('#n-text');
+
+  // Räume für die Ankündigung: nur Räume und Gruppen, in denen ich bin (keine Direktnachrichten)
+  const roomSel = form.querySelector('#n-room');
+  if (roomSel) {
+    b.listSpaces().then((spaces) => {
+      if (!ctx.alive()) return;
+      const rooms = spaces.filter((s) => s.type !== 'DIRECT_MESSAGE');
+      const want = [local.get(ROOM_KEY, ''), config.chat?.newsRaum || ''].find((id) => id && rooms.some((r) => r.id === id)) || '';
+      setHtml(roomSel, rooms.length
+        ? html`${want ? '' : html`<option value="">Raum wählen …</option>`}${rooms.map((r) => html`<option value="${r.id}" ${r.id === want ? 'selected' : ''}>${r.name}</option>`)}`
+        : html`<option value="">Du bist in keinem Chat-Raum</option>`);
+      roomSel.disabled = !rooms.length;
+    }).catch(() => { form.querySelector('#n-announce-box')?.remove(); });
+    roomSel.addEventListener('change', () => { if (roomSel.value) form.querySelector('#n-announce').checked = true; });
+  }
   const countEl = form.querySelector('#n-count');
   const updateCount = () => { countEl.textContent = `${textEl.value.length} von ${MAX_TEXT} Zeichen`; };
   updateCount();
@@ -231,7 +259,21 @@ export async function editor(ctx) {
       else id = await b.createNews(fields);
       local.del(draftKey);
       await app.forget('news');
-      toast(editId ? 'Änderungen gespeichert' : 'News veröffentlicht');
+      const room = !editId && form.querySelector('#n-announce')?.checked ? roomSel?.value : '';
+      if (room) {
+        // als eigene Nachricht in den gewählten Raum – Google Chat benachrichtigt alle dort
+        const teaser = plainText(fields.text, 160);
+        const link = `${appBaseUrl()}#/news/${encodeURIComponent(id)}`;
+        try {
+          await b.sendMessage(room, `📰 *${fields.title}*${teaser ? `\n${teaser}` : ''}\n${link}`);
+          local.set(ROOM_KEY, room);
+        } catch (err) {
+          toast(`News veröffentlicht – die Ankündigung im Chat hat nicht geklappt: ${err.message}`, { type: 'err', timeout: 8000 });
+          app.navigate(`#/news/${encodeURIComponent(id)}`, { replace: true });
+          return;
+        }
+      }
+      toast(editId ? 'Änderungen gespeichert' : room ? 'News veröffentlicht und im Chat angekündigt' : 'News veröffentlicht');
       app.navigate(`#/news/${encodeURIComponent(id)}`, { replace: true });
     } catch (err) {
       setBusy(btn, false);

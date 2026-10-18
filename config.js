@@ -59,9 +59,11 @@ window.FB_CONFIG = {
   // Google-Drive-Ordner mit den Fotos der Galerie; Unterordner = Alben (nur lesen)
   galerieOrdnerId: '1KHHPf5PG2uLJ8YosmDb85HlUVsNkCVPl',
 
-  // Google Chat (nur mit Google Workspace verfügbar)
+  // Google Chat (nur mit Google Workspace verfügbar).
+  // newsRaum: vorgeschlagener Raum für Ankündigungen neuer News, z. B. 'spaces/AAAA…' (leer = zuletzt gewählter Raum)
   chat: {
-    aktiv: true
+    aktiv: true,
+    newsRaum: ''
   },
 
   // Forum: Beiträge liegen als eigene Dateien im Drive des jeweiligen Mitglieds

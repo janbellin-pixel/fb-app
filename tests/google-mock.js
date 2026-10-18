@@ -439,8 +439,25 @@ async function run() {
   check(spaces?.length === 2 && spaces.some((s) => s.name === 'Allgemein' && s.type === 'SPACE') && spaces.some((s) => s.type === 'DIRECT_MESSAGE'), 'Räume und Direktnachrichten in der Liste', JSON.stringify(spaces?.map((s) => [s.name, s.type])));
   const msgs = await step('listMessages', () => b.listMessages('spaces/AAA'));
   check(msgs?.[0]?.sender.name === 'Anna Andere' && !msgs[0].mine, 'Absender über Verzeichnis aufgelöst');
+  const lastBefore = await step('latestMessage', () => b.latestMessage('spaces/AAA'));
+  check(lastBefore && !lastBefore.mine && lastBefore.sender.name === 'Anna Andere' && lastBefore.text === 'Hallo zusammen', 'letzte Nachricht: von Anna (Hinweis auf Ungelesenes)', JSON.stringify(lastBefore));
   const sent = await step('sendMessage', () => b.sendMessage('spaces/AAA', 'Test 123'));
   check(sent?.mine && sent?.text === 'Test 123', 'eigene Nachricht gesendet');
+  const lastAfter = await step('latestMessage (nach dem Senden)', () => b.latestMessage('spaces/AAA'));
+  check(lastAfter?.mine && lastAfter.text === 'Test 123', 'danach ist die letzte Nachricht die eigene (zählt nicht als ungelesen)', JSON.stringify(lastAfter));
+  // ohne Kontaktfreigabe fehlt das eigene Konto im Verzeichnis: eigene Nachrichten über die Konto-ID aus dem Google-Profil
+  const dirBackup = fake.state.directory;
+  fake.state.directory = dirBackup.filter((p) => p.resourceName !== 'people/111');
+  const bNoDir = new GoogleBackend(me);
+  const myIdNoDir = await step('myId (ohne Verzeichnis)', () => bNoDir.myId());
+  const ownNoDir = ((await bNoDir.listMessages('spaces/AAA').catch(() => [])) || []).filter((m) => m.mine).map((m) => m.text);
+  fake.state.directory = dirBackup;
+  check(myIdNoDir === '111' && ownNoDir.join() === 'Test 123', 'eigene Nachrichten auch ohne Verzeichnis erkannt (Konto-ID aus dem Google-Profil)', JSON.stringify([myIdNoDir, ownNoDir]));
+  const hw = await import('../js/lib/hinweise.js');
+  check(hw.isNewer('2026-10-18T12:00:05Z', '2026-10-18T12:00:00Z') && !hw.isNewer('2026-10-18T12:00:01.500Z', '2026-10-18T12:00:00Z') && hw.isNewer('2026-10-18T12:00:00Z', undefined),
+    'Hinweise: neuer als zuletzt gelesen (2 s Spielraum), neue Unterhaltung zählt');
+  const freshList = hw.freshNews([{ id: 'a' }, { id: 'b', own: true }, { id: 'c' }], new Set(['a']));
+  check(freshList.map((n) => n.id).join() === 'c', 'Hinweise: neue News ohne gesehene und eigene', JSON.stringify(freshList));
   const chatApi = await import('../js/google/chat.js');
   const { api } = await import('../js/google/client.js');
   check(b.chatCanCreate(), 'neue Unterhaltungen möglich (Zustimmung erteilt)');

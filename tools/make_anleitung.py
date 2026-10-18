@@ -463,7 +463,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
         ("home", "Start", "Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos."),
         ("calendar", "Termine", f"Alle Veranstaltungen als Liste oder Monat. Termin antippen › {b('Zusagen, Vielleicht oder Absagen')}, Gäste und Kommentar angeben, sehen wer kommt. "
                                 f"„Kalender abonnieren“ holt alle Termine in deinen eigenen Kalender."),
-        ("chat", "Chat", "Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Für Benachrichtigungen aufs Handy die App „Google Chat“ installieren."),
+        ("chat", "Chat", "Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“."),
         ("users", "Mitglieder", f"Alle Bundesbrüder mit Foto und Profil. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter {b('„Angebote für Jüngere“')} steht, wer Praktika, Mentoring & Co. anbietet."),
         ("grid", "Mehr", f"{b('Bundesbote')} · {b('Liedermappe')} · {b('Galerie')} · {b('News')} · {b('Forum')} · {b('Adressverzeichnis')} · {b('Wiki')} · "
                          f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Schriftgröße')} · Einstellungen"),

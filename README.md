@@ -16,6 +16,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Zu- und Absagen** | Normale Google-Kalender-Antwort (Ja/Vielleicht/Nein, Gäste, Kommentar) im eigenen Kalender. „Wer kommt?“ zeigt Fotos. Jeder Termin enthält einen Link, der direkt in die App führt, auch im exportierten Kalender. |
 | **Geburtstage** | Die nächsten drei Geburtstage auf der Startseite, aus dem Adressverzeichnis. |
 | **Chat** | Google Chat in der App: private Nachrichten (aus dem Profil oder „Neue Nachricht“), eigene Gruppen, Räume der Verbindung; Personen hinzufügen. |
+| **Benachrichtigungen** | Nur wenn man sie einschaltet: Zahlen am Chat und an „Mehr“, „Neu“ an News, Hinweise und – solange die App läuft – Mitteilungen des Systems. Bei geschlossener App über die App „Google Chat“; die Redaktion kann neue News dort ankündigen. |
 | **Adressverzeichnis** | Google-Tabelle, nur lesbar. Suche, anrufen, E-Mail, Karte, in Kontakte übernehmen (vCard). |
 | **Bundesbote** | Die Zeitung der Verbindung: PDFs aus einem Drive-Ordner mit allen Ausgaben, immer eine Seite (Doppelseiten aus Scans werden geteilt), **realistische Umblätter-Animation**, Zoom, offline verfügbar. |
 | **Liedermappe** | Noten aus einem Drive-Ordner (PDFs oder Scans), Rubriken aus Unterordnern, Suche nach Titel oder Liednummer, Blättern wie beim Bundesboten. Der Bildschirm bleibt beim Singen an; auf Wunsch liegt die ganze Mappe offline auf dem Gerät. |

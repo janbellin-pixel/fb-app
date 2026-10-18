@@ -198,6 +198,7 @@ Einrichtung: Die Anleitung steht oben in der Datei (5 Minuten, kein Programmiere
   Ergebnis: `docs/Anleitung-Mitglieder-App.pdf` und `docs/qr-code.png`. Die PDF per E-Mail oder im Chat verschicken bzw. ausdrucken.
 - In der App unter **Mehr → App installieren** gibt es den QR-Code ebenfalls, zum Zeigen auf dem Handy oder Teilen.
 - Erinnerung an alle: einmal anmelden, **Profil ausfüllen**, App auf den Startbildschirm legen.
+- **Benachrichtigungen:** Wer bei geschlossener App benachrichtigt werden will, installiert zusätzlich die App **„Google Chat“** (Direktnachrichten und Ankündigungen neuer News, E33). In unserer App schaltet jedes Mitglied Zahlen und Hinweise selbst ein (Mehr › Einstellungen › Benachrichtigungen); ohne Einschalten zeigt die App nichts an.
 
 ---
 
@@ -208,7 +209,7 @@ Alles Gemeinsame wird direkt bei Google gepflegt. Die App zeigt Änderungen nach
 | Was | Wo pflegen | So geht's |
 |---|---|---|
 | **Termine** | Google Kalender „Frankonia-Brunonia“ | Termin wie gewohnt anlegen, Mitglieder-Gruppe als Gast hinzufügen (oder Automatik, B4). Die Kategorie errät die App aus dem Titel (Kneipe, Convent, Vortrag, Stammtisch …). Optional je eine eigene Zeile in die Beschreibung: `Kategorie: Kneipe`, `Kleidung: Vollcouleur`, `Pflichttermin` |
-| **News** | In der App: Neuigkeiten → **„News schreiben“** (nur Admins und Redaktion, siehe Optionen) – mit Kategorie, „oben anheften“ und Foto vom Handy. Bearbeiten und löschen kann jeder nur seine eigenen. Zusätzlich weiterhin möglich: Tabelle „News“ | Neue Zeile in der Tabelle: *Titel*, *Text* (Absätze, `**fett**`, Links möglich), *Datum*, *Kategorie*; *Bild* = Link zu einem Bild in Google Drive; *Angeheftet* = `ja` hält die Meldung oben; *Gelöscht* = `ja` blendet sie aus. Die *ID* ist ein beliebiges eindeutiges Kürzel (z. B. `n12`) |
+| **News** | In der App: Neuigkeiten → **„News schreiben“** (nur Admins und Redaktion, siehe Optionen) – mit Kategorie, „oben anheften“ und Foto vom Handy. Mit **„Im Chat ankündigen“** geht zusätzlich eine Nachricht mit Link in einen Chat-Raum, in dem du bist – wer die App „Google Chat“ hat, bekommt dann eine Benachrichtigung. Bearbeiten und löschen kann jeder nur seine eigenen. Zusätzlich weiterhin möglich: Tabelle „News“ | Neue Zeile in der Tabelle: *Titel*, *Text* (Absätze, `**fett**`, Links möglich), *Datum*, *Kategorie*; *Bild* = Link zu einem Bild in Google Drive; *Angeheftet* = `ja` hält die Meldung oben; *Gelöscht* = `ja` blendet sie aus. Die *ID* ist ein beliebiges eindeutiges Kürzel (z. B. `n12`) |
 | **Adressen, Geburtstage** | Tabelle „Adressverzeichnis“ | Zeilen ergänzen oder korrigieren; Geburtstag als Datum (z. B. `03.04.1970`). Die nächsten drei Geburtstage erscheinen auf der Startseite. Mitglieder prüfen ihre Angaben unter „Mein Profil“; Abweichungen kommen als vorbereitete E-Mail an das Postfach für Adressänderungen, der Schriftwart übernimmt sie hier. Damit die App jemanden zuordnet, sollte die Spalte *E-Mail* das Google-Konto der Verbindung enthalten (sonst wird über den Namen gesucht) |
 | **Bundesbote** | Drive-Ordner des Bundesboten | PDF hochladen, am besten mit Dateiname `JJJJ-N Titel.pdf`, z. B. `2026-2 Bundesbote SoSe 2026.pdf` (Jahr, Nummer der Ausgabe im Jahr). Die App zeigt immer eine Seite; Doppelseiten im PDF (Querformat-Seiten, z. B. aus Scans) teilt sie selbst in zwei Einzelseiten. Jahresordner (`2019/…`, auch `Archiv/2003/…`, bis zwei Ebenen tief) sind möglich; fehlt das Jahr im Dateinamen, zählt der Ordner, „Nr. 3“ oder „Heft 3“ im Namen gilt als Nummer. Neueste Ausgabe steht oben |
 | **Liedermappe** | Drive-Ordner der Liedermappe | Noten als **PDF** oder Bild (JPG, PNG) hineinlegen, am besten mit Liednummer vorn: `012 Gaudeamus igitur.pdf` (auch `12 - Titel`, `Nr. 12 Titel`). Unterordner werden zu Rubriken (`Kommerslieder/…`, bis drei Ebenen tief). Laufen die Nummern durch die ganze Mappe, zeigt die App eine Liste nach Nummer; fängt jede Rubrik wieder bei 1 an, gliedert sie nach Rubriken. Die Beschreibung einer Datei in Drive erscheint als Untertitel. Andere Dateien (Word, MuseScore, iPhone-Fotos im HEIC-Format) zeigt die App nicht an – bitte als PDF bzw. JPG ablegen. Querformat-Seiten bleiben ganz |
@@ -338,6 +339,7 @@ Der automatische Test `tests/google-mock.html` spielt alle Funktionen gegen eine
 | Verantwortliche sehen keine Einwilligungen | Sie stehen nicht unter „Wer darf die Einwilligungen sehen?“ bzw. sind keine Admins | Eintragen, `config.js` neu verteilen; die Freigaben passen sich beim nächsten Öffnen der Mitglieder an |
 | Profil oder Beitrag anderer nicht sichtbar | Freigabe innerhalb der Organisation ist in der Admin-Konsole gesperrt | Drive-Freigabe innerhalb der Organisation erlauben (B2) |
 | „Chat braucht Google Workspace“ | Privates Konto | Normal im Prototyp, Chat geht nur mit Workspace |
+| „Mitgliederliste unvollständig“ (ein Konto sieht andere, ein anderes nicht) | Diesem Konto fehlt die Berechtigung für das Verzeichnis (bei der Anmeldung abgewählt oder nie erteilt) | Auf der Mitglieder-Seite „Berechtigung erteilen“ bzw. ab- und wieder anmelden und alle Häkchen setzen; danach ggf. Mehr › Einstellungen › „Zwischenspeicher leeren“ |
 | Chat: 403 / „Chat app not found“ | Chat-API-Konfiguration fehlt | B1 Schritt 4 |
 | Neue Version erscheint nicht | Handy hat alte Version zwischengespeichert | App schließen und neu öffnen; es erscheint „Neue Version verfügbar → Neu laden“ |
 
@@ -351,6 +353,7 @@ adressaenderung: 'adressaenderung@frankonia-brunonia.de', // Empfänger für Adr
 forum: { aktiv: false },                         // Forum ausblenden
 profilBearbeiten: false,                         // keine eigenen Profilangaben (nur Adressverzeichnis + Google-Konto)
 chat: { aktiv: false },                          // Chat ausblenden
+chat: { aktiv: true, newsRaum: 'spaces/AAAA…' }, // vorgeschlagener Raum für „Im Chat ankündigen“ (ID aus der Adresse des Raums)
 statusOptionen: ['Fux', 'Aktiver Bursch', 'Inaktiver Bursch', 'Alter Herr', 'Ehrenmitglied'],
 terminKategorien: [{ name: 'Kneipe', farbe: '#88bb2a', googleFarbe: '10' }, …],
 forumKategorien: ['Allgemeines', 'Aktivitas', …],

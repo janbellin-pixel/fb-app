@@ -437,7 +437,8 @@ export function createFakeGoogle({ me, workspace = true }) {
       const since = filter && filter.match(/createTime > "([^"]+)"/);
       if (since) outList = outList.filter((x) => x.createTime > since[1]);
       outList.sort((a, b) => b.createTime.localeCompare(a.createTime));
-      return json({ messages: outList });
+      const size = Number(url.searchParams.get('pageSize')) || 0;
+      return json({ messages: size ? outList.slice(0, size) : outList });
     }
     return error(400, `Unbekannter Chat-Aufruf ${path}`);
   }
@@ -466,7 +467,7 @@ export function createFakeGoogle({ me, workspace = true }) {
       if (url.pathname.includes('/drive/v3/')) return await driveApi(url, method, body, init.body);
       if (url.hostname === 'chat.googleapis.com') return chatApi(url, method, body);
       if (url.hostname === 'people.googleapis.com') return peopleApi(url);
-      if (url.hostname === 'openidconnect.googleapis.com') return json({ email: me.email, name: me.name, picture: me.photo, hd: workspace ? 'beispiel.de' : undefined, given_name: me.name.split(' ')[0] });
+      if (url.hostname === 'openidconnect.googleapis.com') return json({ sub: state.myDirectoryId || '1000', email: me.email, name: me.name, picture: me.photo, hd: workspace ? 'beispiel.de' : undefined, given_name: me.name.split(' ')[0] });
       return error(404, `Kein Nachbau für ${url.href}`);
     } catch (e) {
       return error(e.status || 500, e.message);

@@ -17,7 +17,8 @@ const DEFAULTS = {
   // Ordner mit den Noten der Liedermappe (PDFs oder Bilder, Unterordner = Rubriken); leer = ausgeblendet
   liedermappeOrdnerId: '',
   galerieOrdnerId: '',
-  chat: { aktiv: true },
+  // newsRaum: vorgeschlagener Chat-Raum für Ankündigungen neuer News, z. B. 'spaces/AAAA…' (E33)
+  chat: { aktiv: true, newsRaum: '' },
   forum: { aktiv: true },
   profilBearbeiten: true,
   // Weitere Links im Schnellzugriff und unter „Mehr“, z. B. [{ titel: 'Wiki', url: 'https://…' }] – nur https

@@ -4,6 +4,7 @@ import {
 } from '../ui.js';
 import { config, appBaseUrl, hasOverride, clearOverride, isGoogleConfigured, hasSongbook, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
+import * as hinweise from '../lib/hinweise.js';
 import * as auth from '../auth.js';
 import { schriftAuswahl, bindSchriftAuswahl } from '../lib/schrift.js';
 
@@ -33,7 +34,7 @@ export default async function mehr(ctx) {
     </section>
     <div class="grid-2" style="margin-top:1rem">
       <div class="card menu-list">
-        ${menuItem('#/news', 'news', 'Neuigkeiten', 'Aus dem Bundesleben')}
+        ${menuItem('#/news', 'news', html`Neuigkeiten<span class="menu-badge hidden" data-badge="news"></span>`, 'Aus dem Bundesleben')}
         ${menuItem('#/forum', 'forum', 'Forum', 'Diskussionen und Fragen')}
         ${menuItem('#/zeitung', 'paper', 'Bundesbote', 'Alle Ausgaben zum Blättern')}
         ${app.mode === 'demo' || hasSongbook() ? menuItem('#/lieder', 'music', 'Liedermappe', 'Noten und Texte zum Mitsingen') : ''}
@@ -52,6 +53,7 @@ export default async function mehr(ctx) {
       </div>
     </div>`);
   bindSchriftAuswahl(el.querySelector('#schrift-box'));
+  hinweise.refreshBadges();
   el.addEventListener('click', async (e) => {
     if (!e.target.closest('[data-action=logout]')) return;
     if (app.mode === 'demo') return app.endDemo();
@@ -73,6 +75,14 @@ export async function settings(ctx) {
           <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Schriftgröße</h2>
           <p class="small muted">Vergrößert Text, Knöpfe und Symbole in der ganzen App – gut für kleine Bildschirme oder wenn das Lesen schwerfällt.</p>
           ${schriftAuswahl()}
+        </section>
+        <section class="card card-pad" id="notify-box">
+          <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Benachrichtigungen</h2>
+          <p class="small"><strong>Aufs Handy, auch wenn diese App zu ist:</strong> die App „Google Chat“ installieren
+            (<a href="${hinweise.GOOGLE_CHAT_APP.android}" target="_blank" rel="noopener">Android</a> · <a href="${hinweise.GOOGLE_CHAT_APP.ios}" target="_blank" rel="noopener">iPhone</a>)
+            und mit dem Verbindungskonto anmelden. Dort kommen private Nachrichten und die Ankündigungen neuer News an.</p>
+          <p class="small muted">In dieser App – nur wenn du es hier einschaltest: Zahlen am Chat und an „Mehr“, Markierungen für Neues, Hinweise auf neue Nachrichten und News und, solange die App im Hintergrund geöffnet ist, Mitteilungen des Systems (mit Absender und Anfang der Nachricht). Gilt nur für dieses Gerät.</p>
+          <div id="notify-state"></div>
         </section>
         <div class="card card-pad">
           <h2 style="margin:0 0 .75rem;font-weight:300;font-size:1.375rem">Konto</h2>
@@ -116,10 +126,49 @@ export async function settings(ctx) {
     </div>`);
 
   bindSchriftAuswahl(el.querySelector('#schrift-box'));
+  const renderNotify = () => {
+    const perm = hinweise.notificationPermission();
+    if (!hinweise.notificationsWanted()) {
+      setHtml(el.querySelector('#notify-state'), html`<p class="small"><strong>Aus.</strong> Die App zeigt keine Zahlen, Hinweise oder Mitteilungen.</p>
+        <button class="btn btn-sm btn-primary" data-action="notify-on">${icon('chat', 'icon-sm')}Benachrichtigungen einschalten</button>`);
+      return;
+    }
+    const system = perm === 'granted' ? 'Mitteilungen des Systems sind erlaubt – sie erscheinen, wenn die App im Hintergrund geöffnet ist.'
+      : perm === 'denied' ? 'Mitteilungen des Systems sind im Browser blockiert; erlauben lassen sie sich in den Website-Einstellungen des Browsers.'
+        : perm === 'unsupported' ? `Mitteilungen des Systems kann dieser Browser nicht anzeigen.${isIos() && !isStandalone() ? ' Auf dem iPhone geht es nur, wenn die App auf dem Home-Bildschirm liegt (Mehr › App installieren).' : ''}`
+          : 'Mitteilungen des Systems (wenn die App im Hintergrund geöffnet ist) sind noch nicht erlaubt.';
+    setHtml(el.querySelector('#notify-state'), html`<p class="small">${icon('check', 'icon-sm')} <strong>Eingeschaltet:</strong> Zahlen am Chat und an „Mehr“ und Hinweise in der App.</p>
+      <p class="small muted">${system}</p>
+      <div class="row wrap">
+        ${perm === 'default' ? html`<button class="btn btn-sm" data-action="notify-perm">Mitteilungen erlauben</button>` : ''}
+        ${perm === 'granted' ? html`<button class="btn btn-sm" data-action="notify-test">Probe-Mitteilung</button>` : ''}
+        <button class="btn btn-sm btn-ghost" data-action="notify-off">Ausschalten</button>
+      </div>`);
+  };
+  renderNotify();
   el.addEventListener('click', async (e) => {
     const a = e.target.closest('[data-action]');
     if (!a) return;
     switch (a.dataset.action) {
+      case 'notify-on':
+        await hinweise.enableNotifications();
+        renderNotify();
+        toast('Benachrichtigungen eingeschaltet – ab jetzt zeigt die App, was neu ist.');
+        break;
+      case 'notify-perm':
+        await hinweise.requestSystemPermission();
+        renderNotify();
+        break;
+      case 'notify-off':
+        hinweise.disableNotifications();
+        renderNotify();
+        break;
+      case 'notify-test': {
+        const reg = await navigator.serviceWorker?.getRegistration();
+        if (!reg) { toast('Mitteilungen gehen erst mit installiertem Service Worker (Seite neu laden).', { type: 'err' }); break; }
+        await reg.showNotification('Mitglieder-App', { body: 'So sehen Mitteilungen aus.', icon: 'assets/icons/icon-192.png', tag: 'probe', data: { url: location.href } }).catch((err) => toast(err.message, { type: 'err' }));
+        break;
+      }
       case 'demo-reset':
         if (await confirmDialog('Alle in der Demo gemachten Änderungen (Zusagen, Beiträge, Profil) zurücksetzen?', { ok: 'Zurücksetzen' })) {
           app.backend.reset();

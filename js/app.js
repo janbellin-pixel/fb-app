@@ -135,6 +135,7 @@ async function enterGoogle(fresh) {
     const info = await userinfo();
     user = {
       email: String(info.email || '').toLowerCase(),
+      id: String(info.sub || ''), // Google-Konto-ID, erkennt eigene Chat-Nachrichten auch ohne Verzeichnis
       name: info.name || info.email,
       photo: info.picture || '',
       hd: info.hd || '',
@@ -219,6 +220,8 @@ async function boot() {
   startRouter(app);
   watchConnection();
   watchVisibility();
+  // Hinweise auf Neues (Zahlen am Chat und an „Mehr“, Mitteilungen solange die App läuft, E34)
+  if (app.user) import('./lib/hinweise.js').then((m) => m.startHinweise(app)).catch((e) => console.warn('Hinweise nicht gestartet', e));
   // Verantwortliche: Einwilligungs-Sammeltabelle im Hintergrund abgleichen
   if (app.user && app.backend?.autoSyncConsents) {
     setTimeout(() => app.backend.autoSyncConsents().catch((e) => console.warn('Einwilligungsliste nicht abgeglichen', e)), 4000);
@@ -296,7 +299,7 @@ function renderShell() {
         </a>
         ${loggedIn ? html`
           <nav class="topnav" aria-label="Hauptnavigation">
-            ${NAV.map((n) => html`<a href="#/${n.path}" data-nav="${n.id}">${n.label}</a>`)}
+            ${NAV.map((n) => html`<a href="#/${n.path}" data-nav="${n.id}">${n.label}${n.id === 'chat' || n.id === 'news' ? html`<span class="nav-badge hidden" data-badge="${n.id}"></span>` : ''}</a>`)}
           </nav>
           <a class="topbar-user" href="#/mehr" aria-label="Mein Bereich und Einstellungen">${avatar(app.user, 36)}</a>` : ''}
       </div>
@@ -310,7 +313,7 @@ function renderShell() {
       <div class="footer-ground">${config.appName} · Mitglieder-App ${APP_VERSION} · <a href="#/datenschutz">Datenschutz</a>${loggedIn ? html` · <a href="#/einstellungen">Einstellungen</a>` : ''}</div>
     </footer>
     ${loggedIn ? html`<nav class="tabbar" aria-label="Navigation">
-      ${TABS.map((t) => html`<a href="#/${t.path}" data-tab="${t.id}">${icon(t.icon)}<span>${t.label}</span></a>`)}
+      ${TABS.map((t) => html`<a href="#/${t.path}" data-tab="${t.id}">${icon(t.icon)}<span>${t.label}</span>${t.id === 'chat' || t.id === 'mehr' ? html`<span class="tab-badge hidden" data-badge="${t.id === 'chat' ? 'chat' : 'news'}"></span>` : ''}</a>`)}
     </nav>` : ''}
   `);
   root.addEventListener('click', (e) => {
@@ -344,6 +347,11 @@ function watchVisibility() {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
   if (new URLSearchParams(location.search).has('nosw')) return;
+  // Mitteilung angetippt: der Service Worker holt das Fenster nach vorn und nennt das Ziel
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    const hash = e.data?.type === 'navigate' ? String(e.data.hash || '') : '';
+    if (hash.startsWith('#/')) navigate(hash);
+  });
   navigator.serviceWorker.register('sw.js').then((reg) => {
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;

@@ -31,6 +31,7 @@ const CORE = [
   './js/lib/dates.js',
   './js/lib/einwilligungsliste.js',
   './js/lib/export.js',
+  './js/lib/hinweise.js',
   './js/lib/schrift.js',
   './js/lib/setup.js',
   './js/lib/store.js',
@@ -94,6 +95,27 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') self.skipWaiting();
+});
+
+// Mitteilung angetippt (E34): offenes Fenster der App nach vorn holen und zur Unterhaltung bzw. News wechseln
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const scope = self.registration.scope;
+  let target = new URL(scope);
+  try {
+    const u = new URL(event.notification.data?.url || scope, scope);
+    if (u.href.startsWith(scope)) target = u;
+  } catch { /* ungültig – Startseite */ }
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const win = wins.find((w) => w.url.startsWith(scope));
+    if (win) {
+      await win.focus();
+      win.postMessage({ type: 'navigate', hash: target.hash || '#/' });
+      return;
+    }
+    await self.clients.openWindow(target.href);
+  })());
 });
 
 function timeout(ms) {

@@ -67,6 +67,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Bundesbote (Zeitung) | PDF-Dateien im Drive-Ordner, Dateiname `JJJJ-N Titel.pdf` | lesen | Redaktion in Google Drive |
 | Liedermappe | PDFs und Bilder im Drive-Ordner (`liedermappeOrdnerId`), Unterordner = Rubriken, Dateiname `012 Titel.pdf`; geöffnete bzw. gespeicherte Lieder im Cache-Speicher `fb-lieder` | lesen | Liederwart in Google Drive |
 | Weitere Links (z. B. Wiki) | `config.links`, öffnen sich außerhalb der App (E32) | – | Admins in `config.js` |
+| Benachrichtigungen | nur auf dem Gerät: ein/aus und was gelesen ist (`fb.benachrichtigungen.<email>`, `fb.gelesen.<email>`); Mitteilungen über den Service Worker, solange die App läuft (E34). Ankündigung neuer News = eigene Chat-Nachricht (E33) | – | jedes Mitglied selbst |
 | Galerie | Bilder im Drive-Ordner; Unterordner = Alben (`JJJJ-MM Name`), lose Bilder = Album „Allgemein“ | lesen | Admins / Fotowart in Google Drive |
 | Chat | Google Chat (Räume des Workspace) | wie in Google Chat | – |
 | Datenschutz-Einwilligung | Datei *„Datenschutz-Einwilligung (Mitglieder-App).json“* im **eigenen** Drive (`appProperties.fbTyp = einwilligung`, öffentlich `properties.fbTyp` für das Apps-Script). Inhalt und Beschreibung: Entscheidungen, Zeitpunkt, Fassung, Prüfsumme des Wortlauts, Gerät, letzte 10 Entscheidungen | **kein Zugriff**; lesen nur Mitglied und Verantwortliche (`type: user`, `role: reader`) | jedes Mitglied selbst |
