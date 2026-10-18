@@ -80,6 +80,7 @@ async function run() {
     { name: 'spaces/AAA/messages/1', text: 'Hallo zusammen', createTime: new Date(Date.now() - 60_000).toISOString(), sender: { name: 'users/222', type: 'HUMAN' } },
   ];
   window.fetch = fake.fakeFetch;
+  try { await caches.delete('fb-lieder'); } catch { /* egal */ }
 
   const { config } = await import('../js/config.js');
   Object.assign(config, {
@@ -103,10 +104,10 @@ async function run() {
   check(res?.kalenderId?.endsWith('@group.calendar.google.com'), 'Kalender angelegt', JSON.stringify(res));
   check(res?.tabellen?.adressen && res?.tabellen?.news && !res?.tabellen?.mitglieder, 'nur Adressen- und News-Tabelle (keine beschreibbare Mitgliedertabelle)');
   check(res?.tabellen?.einwilligungen, 'vertrauliche Einwilligungsliste angelegt');
-  check(res?.zeitungOrdnerId && res?.galerieOrdnerId, 'Zeitungs- und Galerie-Ordner angelegt');
+  check(res?.zeitungOrdnerId && res?.galerieOrdnerId && res?.liedermappeOrdnerId, 'Ordner für Bundesbote, Liedermappe und Galerie angelegt');
   check(!logs.some((l) => l.startsWith('err')), 'keine Fehler im Protokoll', logs.filter((l) => l.startsWith('err')).join(' | '));
   if (!res) return;
-  Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
+  Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, liedermappeOrdnerId: res.liedermappeOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
   check(fake.state.permissions.length > 0 && fake.state.permissions.every((p) => p.role === 'reader'), 'Mitglieder bekommen überall nur Leserechte', JSON.stringify(fake.state.permissions.filter((p) => p.role !== 'reader')));
   check(fake.state.acls.every((a) => a.role === 'reader'), 'Kalender nur lesbar freigegeben');
   const fbCal = fake.state.calendars[res.kalenderId];
@@ -119,6 +120,23 @@ async function run() {
   check(albums.length === 3, '3 Galerie-Alben angelegt', albums.length);
   const checks = await step('checkSetup', () => setup.checkSetup());
   check(checks?.every((c) => c.ok), 'Verbindungsprüfung: alles grün', JSON.stringify(checks?.filter((c) => !c.ok)));
+  const cl0 = checks?.find((c) => c.label === 'Ordner Liedermappe');
+  check(cl0?.ok && cl0.warn.some((w) => w.includes('Keine PDFs oder Bilder')), 'Liedermappe: neuer, leerer Ordner – Hinweis statt Fehler', JSON.stringify(cl0));
+  check(fake.state.permissions.some((p) => p.file === res.liedermappeOrdnerId && p.role === 'reader'), 'neuer Liedermappen-Ordner für Mitglieder nur lesbar');
+
+  // Noten, die der Liederwart (ein anderes Mitglied) in die Liedermappe gelegt hat
+  const LW = { ownerEmail: 'liederwart@beispiel.de', ownerName: 'Liederwart' };
+  const DIR = 'application/vnd.google-apps.folder';
+  const lK = fake.addFile({ ...LW, name: 'Kommerslieder', mimeType: DIR, parents: [res.liedermappeOrdnerId] });
+  const lV = fake.addFile({ ...LW, name: 'Volkslieder', mimeType: DIR, parents: [res.liedermappeOrdnerId] });
+  const lW = fake.addFile({ ...LW, name: 'Wanderlieder', mimeType: DIR, parents: [lV.id] });
+  const song1 = fake.addFile({ ...LW, name: '001 Gaudeamus igitur.pdf', mimeType: 'application/pdf', parents: [lK.id], content: new TextEncoder().encode('%PDF-1.4 Gaudeamus').buffer });
+  fake.addFile({ ...LW, name: '12 - Burschen heraus.pdf', mimeType: 'application/pdf', parents: [lK.id] });
+  fake.addFile({ ...LW, name: 'Nr. 2 Student sein.pdf', mimeType: 'application/pdf', parents: [lK.id] });
+  fake.addFile({ ...LW, name: '003 Ergo bibamus.pdf', mimeType: 'application/pdf', parents: [res.liedermappeOrdnerId] });
+  fake.addFile({ ...LW, name: 'Das Wandern.jpg', mimeType: 'image/jpeg', parents: [lW.id] });
+  fake.addFile({ ...LW, name: 'Liederbuch.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', parents: [res.liedermappeOrdnerId] });
+  fake.addFile({ ...LW, name: 'Notizen.mscz', mimeType: 'application/octet-stream', parents: [lK.id] });
 
   /* ---------------------------------------------------------------- Schreibschutz */
   section('Schreibschutz: gemeinsame Daten bleiben unverändert');
@@ -133,6 +151,10 @@ async function run() {
   await blocked('Zeitung umbenennen', fake, () => drive.updateFile(pdfs[0].id, { name: 'Hack.pdf' }));
   await blocked('Zeitung in den Papierkorb legen', fake, () => drive.trashFile(pdfs[0].id));
   await blocked('Datei in den Zeitungsordner legen', fake, () => drive.createFile({ name: 'x.json', parents: [res.zeitungOrdnerId] }));
+  await blocked('Lied umbenennen', fake, () => drive.updateFile(song1.id, { name: 'Hack.pdf' }));
+  await blocked('Lied in den Papierkorb legen', fake, () => drive.trashFile(song1.id));
+  await blocked('Datei in die Liedermappe legen', fake, () => drive.createFile({ name: 'x.pdf', parents: [res.liedermappeOrdnerId] }));
+  await blocked('Liedermappe neu freigeben', fake, () => drive.addPermission(res.liedermappeOrdnerId, { type: 'anyone', role: 'reader' }));
   await blocked('Galerie-Ordner neu freigeben', fake, () => drive.addPermission(res.galerieOrdnerId, { type: 'anyone', role: 'writer' }));
   await blocked('Datei verschieben (addParents)', fake, () => drive.updateFile('irgendwas', {}, { addParents: res.galerieOrdnerId }));
   await blocked('Kalender-Freigabe ändern', fake, () => cal.insertAcl(res.kalenderId, { role: 'writer', scope: { type: 'default' } }));
@@ -381,6 +403,35 @@ async function run() {
   const full = await step('photoFullUrl', () => b.photoFullUrl(gal.albums[0].photos[0]));
   check(String(full).startsWith('blob:'), 'Original über Anmeldung geladen');
 
+  /* ---------------------------------------------------------------- Liedermappe */
+  section('Liedermappe (nur lesen)');
+  const sb = await step('listSongs', () => b.listSongs());
+  const songTitles = sb?.songs.map((s) => s.title).join(' | ');
+  check(sb?.songs.length === 5 && songTitles === 'Gaudeamus igitur | Student sein | Ergo bibamus | Burschen heraus | Das Wandern', 'PDFs und Bilder auch aus Unterordnern, nach Liednummer, ohne Nummer ans Ende', songTitles);
+  check(sb?.songs[0].nr === '1' && sb.songs[1].nr === '2' && sb.songs[3].nr === '12' && sb.songs[0].category === 'Kommerslieder' && sb.songs[2].category === '', 'Nummern aus „001 …“, „Nr. 2 …“ und „12 - …“, Rubrik aus dem Ordner', JSON.stringify(sb?.songs.map((s) => [s.nr, s.category])));
+  const wand = sb?.songs.find((s) => s.title === 'Das Wandern');
+  check(wand?.kind === 'image' && wand.category === 'Volkslieder › Wanderlieder' && !wand.nr, 'Bild aus einem Unterordner zweiter Ebene', JSON.stringify(wand));
+  check(sb?.other === 2, 'andere Dateien (Word, MuseScore) werden gezählt, aber nicht angezeigt', sb?.other);
+  const common = await import('../js/backend/common.js');
+  const mkSong = (name, path) => common.songFromFile({ id: name, name, path, mimeType: 'application/pdf' });
+  const perCat = [mkSong('2 B.pdf', ['Kommers']), mkSong('1 A.pdf', ['Kommers']), mkSong('Z.pdf', ['Volk']), mkSong('1 C.pdf', ['Volk'])];
+  check(common.songsGrouped(perCat) && common.sortSongs(perCat).map((s) => s.title).join() === 'A,B,C,Z', 'jede Rubrik mit eigenen Nummern: nach Rubriken gegliedert');
+  check(!common.songsGrouped(sb?.songs || []), 'durchgehende Nummern: eine Liste nach Nummer');
+  const tailNr = common.songFromFile({ name: 'Gaudeamus igitur (Nr. 12).pdf' });
+  check(tailNr.nr === '12' && tailNr.title === 'Gaudeamus igitur', 'Nummer auch am Ende („Titel (Nr. 12)“)', JSON.stringify(tailNr));
+  const { songMatches } = await import('../js/views/lieder.js');
+  const songsFor = (q) => (sb?.songs || []).filter((s) => songMatches(s, q)).map((s) => s.title).join();
+  check(songsFor('12') === 'Burschen heraus' && songsFor('Nr. 2') === 'Student sein' && songsFor('gaudeamus') === 'Gaudeamus igitur' && songsFor('wanderlieder') === 'Das Wandern', 'Suche nach Nummer, Titel und Rubrik', [songsFor('12'), songsFor('Nr. 2'), songsFor('gaudeamus'), songsFor('wanderlieder')].join(' / '));
+  const logBefore = fake.state.log.length;
+  const songBuf = await step('loadSong', () => b.loadSong(sb.songs[0]));
+  check(songBuf instanceof ArrayBuffer && songBuf.byteLength > 5 && fake.state.log.slice(logBefore).some((l) => l.includes(song1.id)), 'Noten aus Google Drive geladen', songBuf?.byteLength);
+  const logAfter = fake.state.log.length;
+  await step('loadSong (erneut)', () => b.loadSong(sb.songs[0]));
+  check(fake.state.log.length === logAfter, 'beim zweiten Mal vom Gerät (auch ohne Netz)');
+  const offline = await step('songsOffline', () => b.songsOffline(sb.songs));
+  check(offline?.size === 1 && offline.has(song1.id), 'auf dem Gerät gespeicherte Lieder erkannt', JSON.stringify([...(offline || [])]));
+  check(b.songOpenUrl(sb.songs[0]).includes(song1.id), 'Link zum Öffnen in Google Drive');
+
   /* ---------------------------------------------------------------- Chat */
   section('Chat (eigene Nachrichten, Direktnachrichten, Gruppen)');
   check(b.chatStatus().available, 'Chat verfügbar (Workspace + Berechtigung)');
@@ -575,6 +626,17 @@ async function run() {
   const gSF = fake.addFile({ ...OTHER, name: 'Stiftungsfest', mimeType: FOLDER_MIME, parents: [g2023.id] });
   for (const [n, p] of [['lose.jpg', extG.id], ['k1.jpg', gK.id], ['sf1.jpg', gSF.id], ['sf2.jpg', gSF.id]]) fake.addFile({ ...OTHER, name: n, mimeType: 'image/jpeg', parents: [p] });
   fake.state.permissions.push({ file: extG.id, id: 'p-grp', type: 'group', role: 'writer', emailAddress: 'mitglieder@beispiel.de' });
+  // vorhandene Liedermappe: jede Rubrik mit eigenen Nummern, ein Bild, ein Handyfoto (HEIC) und ein Word-Dokument
+  const extL = fake.addFile({ ...OTHER, name: 'Noten', mimeType: FOLDER_MIME });
+  const lKo = fake.addFile({ ...OTHER, name: 'Kommerslieder', mimeType: FOLDER_MIME, parents: [extL.id] });
+  const lVo = fake.addFile({ ...OTHER, name: 'Volkslieder', mimeType: FOLDER_MIME, parents: [extL.id] });
+  fake.addFile({ ...OTHER, name: '1 Gaudeamus igitur.pdf', mimeType: 'application/pdf', parents: [lKo.id] });
+  fake.addFile({ ...OTHER, name: '2 Burschen heraus.pdf', mimeType: 'application/pdf', parents: [lKo.id] });
+  fake.addFile({ ...OTHER, name: '1 Das Wandern.png', mimeType: 'image/png', parents: [lVo.id] });
+  fake.addFile({ ...OTHER, name: 'Am Brunnen vor dem Tore.pdf', mimeType: 'application/pdf', parents: [lVo.id] });
+  fake.addFile({ ...OTHER, name: 'Handyfoto.heic', mimeType: 'image/heic', parents: [lVo.id] });
+  fake.addFile({ ...OTHER, name: 'Liederliste.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', parents: [extL.id] });
+  fake.state.permissions.push({ file: extL.id, id: 'p-dom-l', type: 'domain', role: 'reader', domain: 'beispiel.de' });
 
   const existing = new Set([...fake.state.files.values()].filter((f) => f.ownerEmail === OTHER.ownerEmail).map((f) => f.id));
   const extNames = new Set([...fake.state.files.values()].filter((f) => existing.has(f.id)).map((f) => f.name));
@@ -585,8 +647,8 @@ async function run() {
     events: [...fake.state.calendars[extCal].events.values()],
     acl: fake.state.acls.filter((a) => a.calendar === extCal),
   });
-  const savedCfg = { kalenderId: config.kalenderId, tabellen: { ...config.tabellen }, adressenBlatt: config.adressenBlatt, zeitungOrdnerId: config.zeitungOrdnerId, galerieOrdnerId: config.galerieOrdnerId };
-  Object.assign(config, { kalenderId: extCal, tabellen: { adressen: extSheet.id, news: '', einwilligungen: '' }, adressenBlatt: 'Aktive', zeitungOrdnerId: extZ.id, galerieOrdnerId: extG.id });
+  const savedCfg = { kalenderId: config.kalenderId, tabellen: { ...config.tabellen }, adressenBlatt: config.adressenBlatt, zeitungOrdnerId: config.zeitungOrdnerId, liedermappeOrdnerId: config.liedermappeOrdnerId, galerieOrdnerId: config.galerieOrdnerId };
+  Object.assign(config, { kalenderId: extCal, tabellen: { adressen: extSheet.id, news: '', einwilligungen: '' }, adressenBlatt: 'Aktive', zeitungOrdnerId: extZ.id, liedermappeOrdnerId: extL.id, galerieOrdnerId: extG.id });
   check(setup.missingResources().join() === 'news,einwilligungen', 'es fehlen nur News-Tabelle und Einwilligungsliste', setup.missingResources().join());
   const snapBefore = snap();
   const w0 = fake.state.writes.length;
@@ -598,7 +660,7 @@ async function run() {
   }));
   fake.state.setupPhase = false;
   check(res2?.created.join() === 'news,einwilligungen', 'angelegt: nur News-Tabelle und Einwilligungsliste', res2?.created.join());
-  check(res2 && !res2.kalenderId && !res2.zeitungOrdnerId && !res2.galerieOrdnerId && !res2.tabellen.adressen, 'kein neuer Kalender, keine neue Adressliste, keine neuen Zeitungs- oder Fotoordner');
+  check(res2 && !res2.kalenderId && !res2.zeitungOrdnerId && !res2.liedermappeOrdnerId && !res2.galerieOrdnerId && !res2.tabellen.adressen, 'kein neuer Kalender, keine neue Adressliste, keine neuen Ordner für Bundesbote, Liedermappe oder Fotos');
   check(snap() === snapBefore, 'vorhandene Dateien, Freigaben, Termine und Kalenderfreigaben unverändert');
   const newWrites = fake.state.writes.slice(w0);
   const touched = newWrites.filter((w) => existing.has(w.target) || extNames.has(w.target) || w.target === extCal || String(w.target).startsWith(extCal));
@@ -629,6 +691,9 @@ async function run() {
   const cz = by('Ordner Bundesbote');
   check(cz?.ok && cz.detail.includes('3 Ausgaben') && !cz.warn.length, 'Zeitung: 3 PDFs in Jahresordnern, Freigabe in Ordnung', JSON.stringify(cz));
   check(fake.state.queries.some((q) => q.driveId === SD.driveId && q.corpora === 'drive'), 'geteilte Ablage gezielt durchsucht');
+  const cl = by('Ordner Liedermappe');
+  check(cl?.ok && cl.detail.includes('4 Lieder (3 PDF, 1 Bild) in 2 Rubriken') && !cl.warn.length, 'Liedermappe: Lieder und Rubriken gezählt, Freigabe in Ordnung', JSON.stringify(cl));
+  check(cl?.lines.some((l) => l.startsWith('2 weitere Dateien') && l.includes('Handyfoto.heic')) && cl.lines.some((l) => l.startsWith('1 ohne Liednummer')), 'Liedermappe: nicht anzeigbare Dateien und fehlende Nummern genannt', JSON.stringify(cl?.lines));
   const cg = by('Ordner Galerie');
   check(cg?.ok && cg.detail.includes('3 Alben') && cg.detail.includes('4 Fotos'), 'Galerie: auch verschachtelte Alben', JSON.stringify(cg));
   check(cg?.warn.length === 1 && cg.warn[0].includes('Bearbeiten dürfen mitglieder@beispiel.de'), 'Warnung: Gruppe darf bearbeiten (und nur diese)', JSON.stringify(cg?.warn));
@@ -650,6 +715,8 @@ async function run() {
   const gal2 = await step('listGallery (verschachtelt)', () => b2.listGallery());
   const sfAlbum = gal2?.albums.find((x) => x.title === 'Stiftungsfest');
   check(gal2?.albums.length === 3 && sfAlbum?.path.join() === '2023' && sfAlbum.photos.length === 2, 'Album im Jahresordner mit Pfad „2023“', JSON.stringify(gal2?.albums.map((x) => [x.title, x.path, x.photos.length])));
+  const sb2 = await step('listSongs (Rubriken mit eigenen Nummern)', () => b2.listSongs());
+  check(sb2?.songs.map((s) => s.title).join() === 'Gaudeamus igitur,Burschen heraus,Das Wandern,Am Brunnen vor dem Tore' && sb2.other === 2, 'je Rubrik nach Nummer, HEIC und Word nicht angezeigt', JSON.stringify(sb2?.songs.map((s) => [s.category, s.nr, s.title])));
   const adr = await step('listAddresses (vorhandene Liste)', () => b2.listAddresses());
   const annaA = adr?.items.find((x) => x.nachname === 'Andere');
   check(annaA?.vorname === 'Anna' && annaA?.name === 'Anna Andere' && annaA?.strasse === 'Lindenweg 3' && annaA?.plz === '38106' && annaA?.ort === 'Braunschweig' && annaA?.kneipname === 'Ännchen',

@@ -10,7 +10,9 @@ import * as cal from '../google/calendar.js';
 import * as people from '../google/people.js';
 import * as chat from '../google/chat.js';
 import { beginSetup, endSetup, registerSetupResource } from '../google/guard.js';
-import { SHEETS, SHEET_HEADERS, appLinkBlock, addressesFromRows, addressTab, issueFromFile } from '../backend/common.js';
+import {
+  SHEETS, SHEET_HEADERS, appLinkBlock, addressesFromRows, addressTab, issueFromFile, isSongFile, songFromFile,
+} from '../backend/common.js';
 import { buildMembers, buildAddressRows, buildNews, buildGallery, DEMO_ISSUES } from '../backend/demo-data.js';
 import { calendarEventId, newId } from './text.js';
 import { addDays, startOfDay, isoDate } from './dates.js';
@@ -55,6 +57,7 @@ export const RESOURCES = [
   { key: 'adressen', label: 'Adressverzeichnis', id: (c) => c.tabellen?.adressen },
   { key: 'news', label: 'News-Tabelle', id: (c) => c.tabellen?.news },
   { key: 'zeitung', label: 'Ordner Bundesbote', id: (c) => c.zeitungOrdnerId },
+  { key: 'lieder', label: 'Ordner Liedermappe', id: (c) => c.liedermappeOrdnerId },
   { key: 'galerie', label: 'Ordner Galerie', id: (c) => c.galerieOrdnerId },
   { key: 'einwilligungen', label: 'Einwilligungsliste (vertraulich)', id: (c) => c.tabellen?.einwilligungen },
 ];
@@ -208,19 +211,26 @@ export async function createMissing({
   try {
     // Neue Tabellen und Ordner kommen in einen gemeinsamen Ordner (die Einwilligungsliste bewusst nicht)
     let root = null;
-    if (['adressen', 'news', 'zeitung', 'galerie'].some((k) => want.has(k))) {
+    if (['adressen', 'news', 'zeitung', 'lieder', 'galerie'].some((k) => want.has(k))) {
       log('Ordner in Google Drive anlegen …');
       root = await newFolder(`${name} – Mitglieder-App`);
       out.rootFolderId = root.id;
       log(`Ordner „${name} – Mitglieder-App“ angelegt`, 'ok');
     }
     let zeitung = null;
+    let lieder = null;
     let galerie = null;
     if (want.has('zeitung')) {
       zeitung = await newFolder('Bundesbote', root.id);
       out.zeitungOrdnerId = zeitung.id;
       out.created.push('zeitung');
       log('Ordner „Bundesbote“ angelegt', 'ok');
+    }
+    if (want.has('lieder')) {
+      lieder = await newFolder('Liedermappe', root.id);
+      out.liedermappeOrdnerId = lieder.id;
+      out.created.push('lieder');
+      log('Ordner „Liedermappe“ angelegt (Noten als PDF oder Bild hineinlegen, Unterordner = Rubriken)', 'ok');
     }
     if (want.has('galerie')) {
       galerie = await newFolder('Galerie', root.id);
@@ -271,7 +281,7 @@ export async function createMissing({
     }
 
     // Freigaben nur für das NEU Angelegte – Mitglieder dürfen nur lesen
-    const newShared = [root, zeitung, galerie, adressen, news].filter(Boolean).map((x) => x.id);
+    const newShared = [root, zeitung, lieder, galerie, adressen, news].filter(Boolean).map((x) => x.id);
     if (newShared.length || calendar) {
       if (targets.length) {
         log('Für die Mitglieder freigeben – nur lesen …');
@@ -540,6 +550,18 @@ export async function checkSetup() {
       c.detail = `„${f.name}“ · ${files.length} Ausgaben (PDF)${folders.length ? ` in ${folders.length} Unterordnern` : ''}`;
       if (!files.length) c.warn.push('Keine PDF-Dateien gefunden (gesucht wird bis zwei Ordnerebenen tief).');
       if (undated) c.lines.push(`${undated} ohne erkennbares Jahr – Tipp: Dateinamen wie „2026-1 Titel.pdf“ (Jahr-Nummer)`);
+    } else if (kind === 'lieder') {
+      const { files, folders } = await drive.listTree(id, { depth: 3, filter: `mimeType != '${drive.FOLDER}'`, fields: 'id,name,mimeType,parents', ...scope });
+      const songs = files.filter(isSongFile).map((x) => songFromFile(x));
+      const pdfs = songs.filter((s) => s.kind === 'pdf').length;
+      const imgs = songs.length - pdfs;
+      const rubriken = new Set(songs.map((s) => s.category).filter(Boolean)).size;
+      c.detail = `„${f.name}“ · ${songs.length} ${songs.length === 1 ? 'Lied' : 'Lieder'}${songs.length ? ` (${pdfs} PDF${imgs ? `, ${imgs} ${imgs === 1 ? 'Bild' : 'Bilder'}` : ''})` : ''}${rubriken ? ` in ${rubriken} ${rubriken === 1 ? 'Rubrik' : 'Rubriken'}` : ''}`;
+      if (!songs.length) c.warn.push(`Keine PDFs oder Bilder gefunden (gesucht wird bis drei Ordnerebenen tief${folders.length ? `, ${folders.length} Unterordner` : ''}).`);
+      const other = files.filter((x) => !isSongFile(x)).map((x) => x.name);
+      if (other.length) c.lines.push(`${other.length} weitere Dateien zeigt die App nicht an: ${short(other, 4)} – Tipp: als PDF oder JPG ablegen`);
+      const numbered = songs.filter((s) => s.nr).length;
+      if (numbered && numbered < songs.length) c.lines.push(`${songs.length - numbered} ohne Liednummer im Dateinamen – sortiert nach Titel ans Ende (Tipp: „012 Titel.pdf“)`);
     } else {
       const { files, folders } = await drive.listTree(id, { depth: 2, filter: "mimeType contains 'image/'", fields: 'id,name,mimeType,parents', ...scope });
       const albums = new Set(files.map((x) => x.parentId)).size;
@@ -549,6 +571,14 @@ export async function checkSetup() {
     await addSharing(c, id);
   };
   await add('Ordner Bundesbote', (c) => folderCheck(c, config.zeitungOrdnerId, 'zeitung'));
+  await add('Ordner Liedermappe', async (c) => {
+    // freiwillig: ohne Ordner ist die Liedermappe in der App einfach ausgeblendet
+    if (!String(config.liedermappeOrdnerId || '').trim()) {
+      c.detail = 'Nicht eingetragen – die Liedermappe ist in der App ausgeblendet (freiwillig).';
+      return;
+    }
+    await folderCheck(c, config.liedermappeOrdnerId, 'lieder');
+  });
   await add('Ordner Galerie', (c) => folderCheck(c, config.galerieOrdnerId, 'galerie'));
 
   await add('Einwilligungsliste (vertraulich)', async (c) => {

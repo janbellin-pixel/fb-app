@@ -168,6 +168,65 @@ export function sortIssues(list) {
   return list.slice().sort((a, b) => ((b.year || 0) - (a.year || 0)) || ((b.nr || 0) - (a.nr || 0)) || String(b.date).localeCompare(String(a.date)) || String(b.name).localeCompare(String(a.name)));
 }
 
+/* ---------------------------------------------------------- Liedermappe */
+/** Dateien, die die Liedermappe anzeigen kann: PDFs und Bilder, die jeder Browser kennt */
+export const SONG_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+export const isSongFile = (f) => SONG_TYPES.includes(f?.mimeType);
+
+/**
+ * Lied aus einer Datei der Liedermappe: „012 Gaudeamus igitur.pdf“ → Nummer „12“, Titel „Gaudeamus igitur“.
+ * Ebenso „12 - Titel“, „12. Titel“, „Nr. 12 Titel“ und „Titel (Nr. 12)“; ohne Nummer zählt der Titel.
+ * Unterordner ergeben die Rubrik („Kommerslieder“, „Volkslieder › Wanderlieder“, siehe f.path).
+ */
+export function songFromFile(f) {
+  const base = String(f.name || '').replace(/\.[a-z0-9]{2,4}$/i, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
+  let nr = '';
+  let title = base;
+  const lead = base.match(/^(?:nr\.?\s*)?0*(\d{1,4}[a-z]?)(?:\s*[-–—.:)]\s*|\s+)(\S.*)$/i);
+  const tail = !lead && base.match(/^(.*?\S)\s*[-–—(,]?\s*nr\.?\s*0*(\d{1,4}[a-z]?)\)?$/i);
+  if (lead) [, nr, title] = lead;
+  else if (tail) [, title, nr] = tail;
+  nr = nr.toLowerCase();
+  return {
+    id: f.id,
+    name: f.name,
+    title: title.trim() || base || 'Ohne Titel',
+    nr,
+    num: nr ? parseInt(nr, 10) : null,
+    category: (f.path || []).join(' › '),
+    info: String(f.description || '').trim(),
+    mimeType: f.mimeType || '',
+    kind: String(f.mimeType || '').startsWith('image/') ? 'image' : 'pdf',
+    size: Number(f.size) || 0,
+    modified: f.modifiedTime || '',
+    version: f.md5Checksum || f.modifiedTime || '',
+    webViewLink: f.webViewLink || '',
+    url: f.url || '',
+  };
+}
+
+/**
+ * Nach Rubriken gliedern? Nur wenn es Rubriken gibt und die Nummern nicht schon durch die ganze
+ * Mappe laufen (z. B. wenn jede Rubrik wieder bei 1 anfängt oder es gar keine Nummern gibt).
+ */
+export function songsGrouped(list) {
+  if (!list.some((s) => s.category)) return false;
+  const numbered = list.filter((s) => s.nr);
+  return !numbered.length || new Set(numbered.map((s) => s.nr)).size < numbered.length;
+}
+
+const collator = new Intl.Collator('de', { numeric: true, sensitivity: 'base' });
+const byNumber = (a, b) => (a.num == null ? (b.num == null ? 0 : 1) : b.num == null ? -1 : a.num - b.num);
+
+/** Reihenfolge der Liedermappe: nach Nummer (Lieder ohne Nummer danach, nach Titel), ggf. je Rubrik */
+export function sortSongs(list) {
+  const grouped = songsGrouped(list);
+  return list.slice().sort((a, b) => (grouped ? collator.compare(a.category, b.category) : 0)
+    || byNumber(a, b) || collator.compare(a.nr, b.nr)
+    || (a.nr || b.nr ? 0 : collator.compare(a.category, b.category))
+    || collator.compare(a.title, b.title));
+}
+
 /* ---------------------------------------------------------- Adressen */
 const ADDRESS_FIELDS = [
   { key: 'vorname', names: ['Vorname', 'Rufname', 'First name'] },

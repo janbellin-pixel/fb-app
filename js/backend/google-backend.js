@@ -3,7 +3,7 @@
 // Gemeinsame Daten werden NUR GELESEN:
 //   Termine            → Google Kalender der Verbindung
 //   Adressen, News     → Google-Tabellen (gepflegt von Admins/Redaktion direkt in Google)
-//   Zeitung, Galerie   → Ordner in Google Drive
+//   Bundesbote, Liedermappe, Galerie → Ordner in Google Drive
 //   Namen, Fotos       → Workspace-Verzeichnis bzw. Google-Konto
 //
 // Geändert werden ausschließlich EIGENE Daten des angemeldeten Mitglieds:
@@ -27,7 +27,7 @@ import { buildRecord, consentRecipients, isConsentManager, pruefsumme, ja } from
 import { prepareConsentSheet, syncConsentSheet, TABLE_TYPE } from '../lib/einwilligungsliste.js';
 import {
   SHEETS, NEWS_SCHEMA, PROFILE_FIELDS, PROFILE_MAX, guessCategory, parseEventMeta, stripAppLink, issueFromFile, sortIssues, addressesFromRows, addressTab,
-  buildForum, newsFromRows, sortNews, sortMembers,
+  buildForum, newsFromRows, sortNews, sortMembers, isSongFile, songFromFile, sortSongs,
 } from './common.js';
 import { htmlToText } from '../lib/text.js';
 import { isoLocal } from '../lib/dates.js';
@@ -890,29 +890,71 @@ export class GoogleBackend {
     return sortIssues(files.map(issueFromFile));
   }
 
-  async loadIssue(issue, onProgress) {
-    const key = `https://fb-cache.local/zeitung/${issue.id}?v=${encodeURIComponent(issue.version || '')}`;
+  loadIssue(issue, onProgress) {
+    return this.keptFile('fb-zeitung', 'zeitung', issue, onProgress);
+  }
+
+  issueOpenUrl(issue) {
+    return issue.webViewLink || `https://drive.google.com/file/d/${issue.id}/view`;
+  }
+
+  /** Adresse einer auf dem Gerät behaltenen Datei im Cache-Speicher (neue Fassung = neuer Schlüssel) */
+  keptKey(prefix, f) {
+    return `https://fb-cache.local/${prefix}/${f.id}?v=${encodeURIComponent(f.version || '')}`;
+  }
+
+  /** Datei herunterladen und auf dem Gerät behalten, damit sie auch offline lesbar ist; ältere Fassungen fliegen raus */
+  async keptFile(cacheName, prefix, f, onProgress) {
+    const key = this.keptKey(prefix, f);
     let cache = null;
     try {
-      cache = await caches.open('fb-zeitung');
+      cache = await caches.open(cacheName);
       const hit = await cache.match(key);
       if (hit) return await hit.arrayBuffer();
     } catch { cache = null; }
     onProgress?.('download');
-    const buf = await drive.download(issue.id);
+    const buf = await drive.download(f.id);
     if (cache) {
       try {
         for (const req of await cache.keys()) {
-          if (req.url.includes(`/zeitung/${issue.id}?`) && req.url !== key) await cache.delete(req);
+          if (req.url.includes(`/${prefix}/${f.id}?`) && req.url !== key) await cache.delete(req);
         }
-        await cache.put(key, new Response(buf.slice(0), { headers: { 'Content-Type': 'application/pdf' } }));
+        await cache.put(key, new Response(buf.slice(0), { headers: { 'Content-Type': f.mimeType || 'application/pdf' } }));
       } catch { /* Speicher voll – egal */ }
     }
     return buf;
   }
 
-  issueOpenUrl(issue) {
-    return issue.webViewLink || `https://drive.google.com/file/d/${issue.id}/view`;
+  /* ================================================================ Liedermappe (nur lesen) */
+
+  async listSongs() {
+    const folder = (config.liedermappeOrdnerId || '').trim();
+    if (!folder) throw notConfigured('Der Ordner der Liedermappe');
+    // Rubriken als Unterordner („Kommerslieder“, „Volkslieder/Wanderlieder“): bis drei Ebenen tief
+    const { files } = await drive.listTree(folder, {
+      depth: 3, filter: `mimeType != '${drive.FOLDER}'`, fields: drive.FILE_FIELDS, orderBy: 'name', ...(await this.folderScope(folder)),
+    });
+    const songs = files.filter(isSongFile);
+    return { songs: sortSongs(songs.map(songFromFile)), other: files.length - songs.length, folderUrl: `https://drive.google.com/drive/folders/${folder}` };
+  }
+
+  loadSong(song, onProgress) {
+    return this.keptFile('fb-lieder', 'lieder', song, onProgress);
+  }
+
+  songOpenUrl(song) {
+    return song.webViewLink || `https://drive.google.com/file/d/${song.id}/view`;
+  }
+
+  /** IDs der Lieder, die schon auf diesem Gerät liegen (auch ohne Netz lesbar) */
+  async songsOffline(songs) {
+    try {
+      const cache = await caches.open('fb-lieder');
+      const keys = new Set((await cache.keys()).map((r) => r.url));
+      return new Set(songs.filter((s) => keys.has(this.keptKey('lieder', s))).map((s) => s.id));
+    } catch {
+      return new Set();
+    }
   }
 
   /* ================================================================ Galerie (nur lesen) */

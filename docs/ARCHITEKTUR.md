@@ -65,6 +65,8 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | News | Eigene Dateien der Redaktion (`fbTyp=news`, Bilder `fbTyp=newsbild`) und Tabelle „News“ | lesen; Admins/Redaktion schreiben eigene | Redaktion in der App bzw. in Google Tabellen |
 | Adressen, Geburtstage | Tabelle „Adressverzeichnis“ (Spalten frei, werden erkannt) | lesen | Admins / Schriftwart |
 | Bundesbote (Zeitung) | PDF-Dateien im Drive-Ordner, Dateiname `JJJJ-N Titel.pdf` | lesen | Redaktion in Google Drive |
+| Liedermappe | PDFs und Bilder im Drive-Ordner (`liedermappeOrdnerId`), Unterordner = Rubriken, Dateiname `012 Titel.pdf`; geöffnete bzw. gespeicherte Lieder im Cache-Speicher `fb-lieder` | lesen | Liederwart in Google Drive |
+| Weitere Links (z. B. Wiki) | `config.links`, öffnen sich außerhalb der App (E32) | – | Admins in `config.js` |
 | Galerie | Bilder im Drive-Ordner; Unterordner = Alben (`JJJJ-MM Name`), lose Bilder = Album „Allgemein“ | lesen | Admins / Fotowart in Google Drive |
 | Chat | Google Chat (Räume des Workspace) | wie in Google Chat | – |
 | Datenschutz-Einwilligung | Datei *„Datenschutz-Einwilligung (Mitglieder-App).json“* im **eigenen** Drive (`appProperties.fbTyp = einwilligung`, öffentlich `properties.fbTyp` für das Apps-Script). Inhalt und Beschreibung: Entscheidungen, Zeitpunkt, Fassung, Prüfsumme des Wortlauts, Gerät, letzte 10 Entscheidungen | **kein Zugriff**; lesen nur Mitglied und Verantwortliche (`type: user`, `role: reader`) | jedes Mitglied selbst |
@@ -154,6 +156,7 @@ Die PWA lässt sich ohne Codeänderung in Store-Pakete verpacken, z. B. mit [PWA
 ```bash
 python tools/build_assets.py       # Wappen, Skyline, Icons aus tools/screenshot.webp
 python tools/make_demo_pdfs.py     # Beispielausgaben des Bundesboten
+python tools/make_demo_lieder.py   # Beispiellieder der Liedermappe (fiktiv)
 python tools/make_demo_images.py   # Titelbilder der Demo-News
 python tools/make_demo_gallery.py  # Beispielfotos der Galerie
 python tools/make_anleitung.py https://DEINNAME.github.io/fb-app/   # PDF-Anleitung + QR-Code

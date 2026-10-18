@@ -21,6 +21,7 @@
   "shortcuts": [
     { "name": "Termine", "url": "./#/termine", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Chat", "url": "./#/chat", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Bundesbote", "url": "./#/zeitung", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Bundesbote", "url": "./#/zeitung", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Liedermappe", "url": "./#/lieder", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

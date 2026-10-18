@@ -1,9 +1,11 @@
 // Demo-Modus: gleiche Schnittstelle wie GoogleBackend, Daten sind fiktiv.
 // Änderungen (Zusagen, Beiträge, Profil …) werden nur in diesem Browser gespeichert.
 import {
-  buildMembers, buildEvents, buildNews, buildForumData, buildChat, buildAddressRows, buildGallery, DEMO_ISSUES, DEMO_ME_EMAIL, DEMO_DOMAIN,
+  buildMembers, buildEvents, buildNews, buildForumData, buildChat, buildAddressRows, buildGallery, DEMO_ISSUES, DEMO_SONGS, DEMO_ME_EMAIL, DEMO_DOMAIN,
 } from './demo-data.js';
-import { addressesFromRows, buildForum, issueFromFile, sortIssues, sortMembers, sortNews, PROFILE_FIELDS } from './common.js';
+import {
+  addressesFromRows, buildForum, issueFromFile, sortIssues, sortMembers, sortNews, songFromFile, sortSongs, PROFILE_FIELDS,
+} from './common.js';
 import { local } from '../lib/store.js';
 import { newId, calendarEventId, firstName } from '../lib/text.js';
 import { addDays, isoDate, isoLocal } from '../lib/dates.js';
@@ -377,6 +379,26 @@ export class DemoBackend {
 
   issueOpenUrl(issue) {
     return issue.url;
+  }
+
+  /* ---------------------------------------------------------- Liedermappe */
+  async listSongs() {
+    await wait();
+    return { songs: sortSongs(DEMO_SONGS.map((f) => songFromFile(f))), other: 0, folderUrl: '' };
+  }
+
+  async loadSong(song) {
+    const res = await fetch(song.url);
+    if (!res.ok) throw new Error('Lied konnte nicht geladen werden');
+    return res.arrayBuffer();
+  }
+
+  songOpenUrl(song) {
+    return song.url;
+  }
+
+  async songsOffline() {
+    return new Set();
   }
 
   /* ---------------------------------------------------------- Galerie */

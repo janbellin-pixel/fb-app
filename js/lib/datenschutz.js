@@ -8,7 +8,7 @@
 //   • als kleine Datei im EIGENEN Google Drive des Mitglieds (Inhaber und Zeitstempel setzt Google,
 //     das kann niemand fälschen) – lesbar nur für das Mitglied und die Datenschutz-Verantwortlichen,
 //   • gesammelt in einer vertraulichen Tabelle, die das Konto der Verantwortlichen führt.
-import { config } from '../config.js';
+import { config, extraLinks } from '../config.js';
 import { html } from '../html.js';
 
 const list = (v) => (Array.isArray(v) ? v : String(v || '').split(/[\s,;]+/))
@@ -170,6 +170,7 @@ export const ja = (v) => (v === true ? 'Ja' : v === false ? 'Nein' : '');
 export function erklaerung() {
   const ds = dsConfig();
   const ph = (t) => html`<span class="ds-platzhalter">${t}</span>`;
+  const links = extraLinks();
   return [
     {
       titel: 'Wer ist verantwortlich?',
@@ -178,7 +179,8 @@ export function erklaerung() {
     },
     {
       titel: 'Wofür gibt es die App?',
-      inhalt: html`<p>Die Mitglieder-App ist ein internes Angebot der ${ds.verein} für ihre Mitglieder. Sie zeigt Termine, Mitglieder, das Adressverzeichnis, den Bundesboten (die Zeitung der Verbindung), Fotos, Neuigkeiten, das Forum und den Chat. Nutzen können sie nur Mitglieder mit einem Google-Konto der Verbindung.</p>`,
+      inhalt: html`<p>Die Mitglieder-App ist ein internes Angebot der ${ds.verein} für ihre Mitglieder. Sie zeigt Termine, Mitglieder, das Adressverzeichnis, den Bundesboten (die Zeitung der Verbindung), die Liedermappe, Fotos, Neuigkeiten, das Forum und den Chat. Nutzen können sie nur Mitglieder mit einem Google-Konto der Verbindung.</p>
+        ${links.length ? html`<p>Links zu weiteren Angeboten (${links.map((l) => l.titel).join(', ')}) öffnen sich außerhalb der App; dort gelten deren eigene Datenschutzhinweise. Die App gibt dabei keine Daten weiter.</p>` : ''}`,
     },
     {
       titel: 'Welche Daten verarbeitet die App?',

@@ -1,8 +1,10 @@
-// Startseite: Begrüßung, nächste Termine, Neuigkeiten, Bundesbote, Forum, Geburtstage
+// Startseite: Begrüßung, nächste Termine, Neuigkeiten, Schnellzugriff (auch Liedermappe und weitere Links), Bundesbote, Forum, Geburtstage
 import { html, setHtml, icon, avatar, sectionTitle, skeletonList, toast, showError, isStandalone, emptyState } from '../ui.js';
 import { fDateLong, fDateNoYear, semesterLabel, addDays, startOfDay, nextBirthday, toDate, relDay } from '../lib/dates.js';
 import { eventCard, memberMap, newsCard, threadRow, issueCover, bindCardLinks, isUnread, forumSeen } from './parts.js';
 import { local } from '../lib/store.js';
+import { hasSongbook, extraLinks } from '../config.js';
+import { ICON_NAMES } from '../icons.js';
 import { albumInfo } from './galerie.js';
 
 function greeting() {
@@ -17,6 +19,7 @@ export default async function home(ctx) {
   const b = app.backend;
   const me = app.user;
   const showInstall = !isStandalone() && !local.get('fb.installDismissed');
+  const songs = app.mode === 'demo' || hasSongbook();
 
   setHtml(el, html`
     <section class="home-hero">
@@ -48,11 +51,13 @@ export default async function home(ctx) {
           <a class="tile" href="#/mitglieder">${icon('users')}Mitglieder</a>
           <a class="tile" href="#/adressen">${icon('book')}Adressen</a>
           <a class="tile" href="#/zeitung">${icon('paper')}Bundesbote</a>
+          ${songs ? html`<a class="tile" href="#/lieder">${icon('music')}Lieder&shy;mappe</a>` : ''}
           <a class="tile" href="#/galerie">${icon('image')}Galerie</a>
           <a class="tile" href="#/forum">${icon('forum')}Forum</a>
           <a class="tile" href="#/news">${icon('news')}News</a>
           <a class="tile" href="#/profil">${icon('user')}Profil</a>
           <a class="tile" href="#/termine?abo=1">${icon('calendarPlus')}Kalender</a>
+          ${extraLinks().map((l) => html`<a class="tile" href="${l.url}" target="_blank" rel="noopener" title="${l.titel} (${l.host}) – öffnet sich außerhalb der App">${icon(ICON_NAMES.includes(l.symbol) ? l.symbol : 'globe')}${l.titel}</a>`)}
         </div>
         ${sectionTitle('Bundesbote', { href: '#/zeitung', label: 'Archiv' })}
         <div id="h-zeitung"><div class="skeleton" style="height:7.5rem"></div></div>

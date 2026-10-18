@@ -4,7 +4,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 
 ## Unverhandelbare Regeln
 
-1. **Nur lesen.** Die App ändert **nie** gemeinsame Daten (Kalender der Verbindung, Adressverzeichnis, News, Zeitung, Galerie, Dateien anderer Mitglieder). Mitglieder ändern nur Eigenes: eigene Zu-/Absage im eigenen Kalender, eigene Dateien im eigenen Drive (Profil, Forumsbeiträge, Zusagen ohne Einladung, News der Redaktion, Einwilligung), eigene Chat-Nachrichten, neue Chat-Unterhaltungen nur mit Personen, Personen hinzufügen. Jede ändernde Anfrage läuft durch `js/google/guard.js`. Eine neue Schreibfunktion braucht eine **enge** Wächter-Regel und Tests (positiv + negativ) in `tests/google-mock.js`. Am Ende des Tests müssen **0 Verstöße** stehen.
+1. **Nur lesen.** Die App ändert **nie** gemeinsame Daten (Kalender der Verbindung, Adressverzeichnis, News, Bundesbote, Liedermappe, Galerie, Dateien anderer Mitglieder). Mitglieder ändern nur Eigenes: eigene Zu-/Absage im eigenen Kalender, eigene Dateien im eigenen Drive (Profil, Forumsbeiträge, Zusagen ohne Einladung, News der Redaktion, Einwilligung), eigene Chat-Nachrichten, neue Chat-Unterhaltungen nur mit Personen, Personen hinzufügen. Jede ändernde Anfrage läuft durch `js/google/guard.js`. Eine neue Schreibfunktion braucht eine **enge** Wächter-Regel und Tests (positiv + negativ) in `tests/google-mock.js`. Am Ende des Tests müssen **0 Verstöße** stehen.
 2. **Keine neuen OAuth-Scopes** (`js/auth.js`) und keine Aufweichung der CSP (`index.html`) ohne dokumentierte Entscheidung.
 3. **Identität = Dateieigentümer laut Google** (`owners[0]`), nie Angaben im Dateiinhalt.
 4. **Profil ≠ Adressverzeichnis:** Selbst gepflegte Profile bleiben bewusst getrennt vom Adressverzeichnis, das der Schriftwart pflegt. Abweichungen werden per vorbereiteter E-Mail an `config.adressaenderung` gemeldet, nie direkt geschrieben (E7).
@@ -31,7 +31,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 ## Wo finde ich was?
 
 - Start, Datenschutz-Abfrage, Navigation: `js/app.js`, `js/router.js`
-- Seiten: `js/views/<bereich>.js`
+- Seiten: `js/views/<bereich>.js`; Leseansicht für PDFs und Bilder (Bundesbote, Liedermappe): `js/views/reader.js`
 - Google-Zugriffe: `js/google/*.js`; Schreibschutz: `js/google/guard.js`
 - Datenmodelle: `js/backend/common.js`; Einwilligungen: `js/lib/datenschutz.js`, `js/lib/einwilligungsliste.js`; Adressabgleich: `js/lib/adressabgleich.js`
 - Einrichtung (verbindet Vorhandenes, legt nur Fehlendes neu an, prüft Freigaben nur lesend): `js/lib/setup.js`, `js/views/einrichtung.js`

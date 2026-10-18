@@ -831,7 +831,7 @@ body.reader-open .topbar, body.reader-open .tabbar, body.reader-open .footer, bo
 .reader-book { margin: 0 auto; }
 .flip-page { background: #fff; overflow: hidden; }
 .flip-page .pg { width: 100%; height: 100%; position: relative; background: #fff; }
-.flip-page img { width: 100%; height: 100%; display: block; object-fit: fill; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.flip-page img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
 .flip-page .ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #b5b5b5; font-size: .8125rem; font-weight: 600; }
 .reader-foot {
   display: flex;
@@ -850,6 +850,46 @@ body.reader-open .topbar, body.reader-open .tabbar, body.reader-open .footer, bo
 .zoom-view { position: fixed; inset: 0; z-index: 70; background: #111; overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y pinch-zoom; }
 .zoom-view img { display: block; width: 100%; max-width: 87.5rem; margin: 0 auto; background: #fff; }
 .zoom-view .close { position: fixed; top: calc(.625rem + var(--safe-t)); right: calc(.625rem + var(--safe-r)); z-index: 2; }
+/* nur eine Seite (z. B. ein Lied auf einem Blatt): ohne Umblättern, eingepasst */
+.reader-single .pg { position: relative; width: 100%; height: 100%; }
+.reader-single img { width: 100%; height: 100%; display: block; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.reader-single .ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #b5b5b5; font-size: .8125rem; font-weight: 600; }
+.reader-single.reader-scroll { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-x pan-y pinch-zoom; -webkit-overflow-scrolling: touch; }
+.reader-single.reader-scroll .pg { height: auto; max-width: 60rem; margin: 0 auto; }
+.reader-single.reader-scroll img { height: auto; }
+.reader-single.reader-scroll .ph { position: static; min-height: 60vh; }
+/* Inhalt (Lesezeichen) und „Zu Seite …“ */
+.reader-toc { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; background: #1b1b1b; color: #fff; }
+.reader-toc-head { display: flex; align-items: center; gap: .5rem; min-height: 3.5rem; padding: calc(.5rem + var(--safe-t)) calc(.625rem + var(--safe-r)) .5rem calc(1rem + var(--safe-l)); background: rgba(0, 0, 0, .55); }
+.reader-toc-head h2 { margin: 0; flex: 1; min-width: 0; font-size: 1rem; font-weight: 600; }
+.reader-toc-body { flex: 1; overflow: auto; width: 100%; max-width: 40rem; margin: 0 auto; padding: 1rem calc(1rem + var(--safe-r)) calc(1rem + var(--safe-b)) calc(1rem + var(--safe-l)); }
+.reader-goto { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+.reader-goto .input, .reader-toc .search .input { color: var(--ink); }
+.reader-goto .input { width: 6.5rem; }
+.reader-toc-list { list-style: none; margin: 0; padding: 0; }
+.reader-toc-list button { display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: .75rem; padding: .6875rem .25rem; border: 0; border-top: 1px solid rgba(255, 255, 255, .12); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.reader-toc-list button:hover, .reader-toc-list button:focus-visible { background: rgba(255, 255, 255, .07); }
+.reader-toc-list span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.reader-toc-list .no { flex: none; color: #aaa; font-variant-numeric: tabular-nums lining-nums; }
+
+/* ---------- Liedermappe ---------- */
+.song-list { padding: .25rem 0; overflow: hidden; }
+.song-list + .month-label { margin-top: 1.5rem; }
+.song-row { display: flex; align-items: center; gap: .75rem; min-height: 3.25rem; padding: .625rem 1rem; color: inherit; text-decoration: none; border-top: 1px solid var(--line); }
+.song-row:first-child { border-top: 0; }
+.song-row:hover { background: var(--surface-2); }
+.song-row .chev { flex: none; color: var(--ink-3); }
+.song-nr { flex: none; min-width: 2.5rem; text-align: right; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums lining-nums; }
+.song-list.no-nr .song-nr { display: none; }
+.song-text { flex: 1; min-width: 0; }
+.song-title { display: block; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.song-sub { display: block; font-size: .8125rem; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.song-off { flex: none; display: inline-flex; color: var(--green-ink); }
+.song-recent { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; margin: 0 0 .875rem; }
+.song-recent .chip { max-width: 100%; gap: .375rem; text-decoration: none; }
+.song-recent .chip .ellipsis { min-width: 0; }
+.song-offline { display: flex; gap: .75rem; align-items: flex-start; margin-top: 1rem; }
+.song-offline > .icon { flex: none; color: var(--ink-3); margin-top: .125rem; }
 
 /* ---------- Galerie ---------- */
 .album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }

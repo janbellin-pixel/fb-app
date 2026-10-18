@@ -14,10 +14,14 @@ const DEFAULTS = {
   // Tabellenblatt des Adressverzeichnisses; leer = „Adressen“, sonst das erste Blatt
   adressenBlatt: '',
   zeitungOrdnerId: '',
+  // Ordner mit den Noten der Liedermappe (PDFs oder Bilder, Unterordner = Rubriken); leer = ausgeblendet
+  liedermappeOrdnerId: '',
   galerieOrdnerId: '',
   chat: { aktiv: true },
   forum: { aktiv: true },
   profilBearbeiten: true,
+  // Weitere Links im Schnellzugriff und unter „Mehr“, z. B. [{ titel: 'Wiki', url: 'https://…' }] – nur https
+  links: [],
   // Postfach für Adressänderungen: „Mein Profil“ bereitet bei Abweichungen vom Adressverzeichnis eine E-Mail vor.
   // (Umlaute sind in E-Mail-Adressen bei Google Workspace nicht möglich – daher „ae“.)
   adressaenderung: 'adressaenderung@frankonia-brunonia.de',
@@ -142,6 +146,22 @@ export function isConfigured() {
   return !!(config.kalenderId && config.tabellen?.adressen && config.tabellen?.news && config.zeitungOrdnerId && config.galerieOrdnerId);
 }
 
+/** Ist eine Liedermappe eingetragen? (sonst bleibt sie in der App ausgeblendet) */
+export const hasSongbook = () => !!String(config.liedermappeOrdnerId || '').trim();
+
+/** Weitere Links aus config.links – nur vollständige https-Adressen mit Titel */
+export function extraLinks() {
+  return (Array.isArray(config.links) ? config.links : []).map((l) => {
+    const titel = String(l?.titel || '').trim();
+    try {
+      const u = new URL(String(l?.url || '').trim());
+      return titel && u.protocol === 'https:' ? { titel, url: u.href, host: u.hostname, symbol: String(l?.symbol || 'globe') } : null;
+    } catch {
+      return null;
+    }
+  }).filter(Boolean);
+}
+
 export function categoryInfo(name) {
   const cats = config.terminKategorien || [];
   return cats.find((c) => c.name === name) || cats[cats.length - 1] || { name: 'Sonstiges', farbe: '#9a9a9a' };
@@ -158,7 +178,8 @@ export function statusGroup(status) {
 export function configFileContent(values) {
   const c = merge(deployedConfig, values);
   const keep = ['appName', 'googleClientId', 'workspaceDomain', 'mitgliederGruppe', 'admins', 'redaktion', 'appUrl',
-    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'adressaenderung', 'datenschutz',
+    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'liedermappeOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
+    'adressaenderung', 'datenschutz',
     'demoErlaubt', 'testMitglieder'];
   // eigene Zusatzeinstellungen aus der bisherigen config.js behalten
   const obj = { ...(window.FB_CONFIG || {}) };

@@ -50,8 +50,11 @@ window.FB_CONFIG = {
   // Tabellenblatt des Adressverzeichnisses; leer = „Adressen“, sonst das erste Blatt
   adressenBlatt: '',
 
-  // Google-Drive-Ordner mit den PDF-Ausgaben der Verbindungszeitung (nur lesen)
+  // Google-Drive-Ordner mit den PDF-Ausgaben des Bundesboten (nur lesen)
   zeitungOrdnerId: '1sZ9aHz2aiOPqNiyEVxRbJOGgPQe8TpJt',
+
+  // Google-Drive-Ordner mit den Noten der Liedermappe: PDFs oder Bilder, Unterordner = Rubriken (nur lesen)
+  liedermappeOrdnerId: '1Alvm6W_XaqwQysdX-VhOAPL2C1BgPfvl',
 
   // Google-Drive-Ordner mit den Fotos der Galerie; Unterordner = Alben (nur lesen)
   galerieOrdnerId: '1KHHPf5PG2uLJ8YosmDb85HlUVsNkCVPl',
@@ -65,6 +68,12 @@ window.FB_CONFIG = {
   forum: {
     aktiv: true
   },
+
+  // Weitere Links im Schnellzugriff (Startseite) und unter „Mehr“ – nur https-Adressen;
+  // symbol optional (Name eines App-Symbols, Standard 'globe')
+  links: [
+    { titel: 'Wiki', url: 'https://frbr-bookstack.cubiga.to/login' }
+  ],
 
   // Mitglieder dürfen eigene Profilangaben (Kneipname, Tätigkeit, Angebot für Jüngere …) ergänzen
   profilBearbeiten: true,

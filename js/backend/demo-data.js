@@ -445,6 +445,21 @@ export const DEMO_ISSUES = [
   { id: 'z2025-2', name: '2025-2 Bundesbote SoSe 2025.pdf', createdTime: '2025-10-08T10:00:00Z', modifiedTime: '2026-10-18T12:00:00Z', size: 1150000, url: 'assets/demo/2025-2 Bundesbote SoSe 2025.pdf' },
 ];
 
+/* ------------------------------------------------------------------ Liedermappe */
+// Fiktive Beispiellieder (tools/make_demo_lieder.py): Name wie in Google Drive, Unterordner = Rubrik
+const SONGS = [
+  ['Kommerslieder', '001 Morgenlied der Füxe.pdf', 'morgenlied.pdf'],
+  ['Kommerslieder', '002 Vom alten Haus am Fluss.pdf', 'altes-haus.pdf'],
+  ['Kommerslieder', '003 Rundgesang (Scan).jpg', 'rundgesang.jpg'],
+  ['Volkslieder', '010 Abendlied am Ufer.pdf', 'abendlied.pdf'],
+  ['Volkslieder', '011 Wanderlied.pdf', 'wanderlied.pdf'],
+  ['Festlieder', '020 Ständchen zum Stiftungsfest.pdf', 'staendchen.pdf'],
+];
+export const DEMO_SONGS = SONGS.map(([folder, name, file], i) => ({
+  id: `lied${i + 1}`, name, path: [folder], mimeType: file.endsWith('.jpg') ? 'image/jpeg' : 'application/pdf',
+  modifiedTime: '2026-10-18T12:00:00Z', url: `assets/demo/lieder/${file}`,
+}));
+
 /* ------------------------------------------------------------------ Galerie */
 const GALLERY = [
   ['2026-06 Stiftungsfest', ['01 Festkommers', '02 Ballabend', '03 Begrüßungsabend im Garten', '04 Frühschoppen'], '2026-06-27'],

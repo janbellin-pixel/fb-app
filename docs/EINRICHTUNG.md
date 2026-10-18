@@ -83,6 +83,7 @@ So bleibt es dabei:
    - Tabelle **Adressverzeichnis**,
    - Tabelle **News**,
    - Ordner **Bundesbote** (auf Wunsch mit drei Beispielausgaben),
+   - Ordner **Liedermappe** (leer – Noten als PDF oder Bild hineinlegen),
    - Ordner **Galerie** (auf Wunsch mit drei Beispielalben),
    - und einen neuen Google-Kalender **„Frankonia-Brunonia“** mit Beispielterminen.
 
@@ -97,7 +98,7 @@ So bleibt es dabei:
 - Mit dem zweiten Test-Konto die App öffnen (z. B. im privaten Fenster oder auf dem Handy) und anmelden. Beim ersten Öffnen erscheint die Datenschutz-Abfrage.
 - Einen Termin öffnen und **Zusagen**. Im Google Kalender des Test-Kontos erscheint der Termin als „Zugesagt“.
 - Im Google Kalender selbst zu- oder absagen; die App zeigt die Antwort an.
-- Profil ausfüllen, im Forum schreiben, im Bundesboten blättern, Galerie ansehen.
+- Profil ausfüllen, im Forum schreiben, im Bundesboten blättern, ein Lied in der Liedermappe öffnen, Galerie ansehen.
 - Unter **Mehr → Schriftgröße** die Stufen „Groß“ und „Sehr groß“ ausprobieren.
 
 ---
@@ -132,7 +133,7 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 In der App unter **Einrichtung** (als Admin angemeldet):
 
 1. **Optionen:** Workspace-Domain (z. B. `frankonia-brunonia.de`), Mitglieder-Gruppe (`mitglieder@…`, falls vorhanden), **Admins** (nur sie sehen die Einrichtung) und die Angaben zum **Datenschutz** eintragen → „Optionen speichern“.
-2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit dem Bundesboten und mit den Fotos → „Übernehmen“. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
+2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit dem Bundesboten, mit der Liedermappe und mit den Fotos → „Übernehmen“. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
 3. **„Verbindung prüfen (nur lesend)“** und die Hinweise abarbeiten (siehe unten). Die Prüfung ändert nichts.
 4. **„2. Fehlendes neu anlegen“:** legt nur noch an, was nicht verbunden ist – typischerweise die **News-Tabelle** und die **Einwilligungsliste**. Was verbunden ist, wird dabei weder verändert noch neu freigegeben; Beispieldaten sind hier nicht vorausgewählt.
 5. Noch einmal prüfen, dann **config.js** herunterladen (siehe unten).
@@ -152,6 +153,7 @@ Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browse
 | Freigaben nicht einsehbar | Nur Inhaber und Bearbeiter sehen Freigaben | Als Inhaber/Bearbeiter prüfen oder in Google Drive selbst nachsehen |
 | Google-Verzeichnis: nur ein Konto bzw. „People API … disabled“ | „Mitglieder“ zeigt dann nur das eigene Konto | Admin-Konsole → Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen → **Kontaktfreigabe** einschalten bzw. in der Cloud Console die People API aktivieren. Neue Konten erscheinen teils erst nach einigen Stunden |
 | Google Chat: „Google Chat app not found“ | Die Chat-Schnittstelle ist im Cloud-Projekt nicht konfiguriert | Cloud Console → Google Chat API → Konfiguration: App-Name, Avatar, Beschreibung (B1, Schritt 4) |
+| Liedermappe: weitere Dateien bzw. ohne Liednummer (Hinweis) | Word-, MuseScore- oder HEIC-Dateien zeigt die App nicht an; Lieder ohne Nummer stehen nach Titel am Ende | Als PDF oder JPG ablegen; Dateiname mit Nummer, z. B. „012 Titel.pdf“ |
 | Google Chat: keine Räume | Jeder sieht nur Unterhaltungen, in denen er Mitglied ist | In der App „Neue Nachricht“ bzw. „Neue Gruppe“ – oder in einer Gruppe unter „Personen“ neue Konten hinzufügen |
 
 Die Rechte sehen danach so aus:
@@ -162,6 +164,7 @@ Die Rechte sehen danach so aus:
 | Tabelle Adressverzeichnis | nur Lesen | Admins / Schriftwart in Google Tabellen |
 | Tabelle News | nur Lesen | Redaktion in Google Tabellen (in Drive als „Bearbeiter“ hinzufügen) |
 | Ordner Bundesbote | nur Lesen | Redaktion lädt PDFs in Google Drive hoch |
+| Ordner Liedermappe | nur Lesen | Liederwart legt Noten in Google Drive ab |
 | Ordner Galerie | nur Lesen | Admins / Fotowart legen Alben in Google Drive an |
 | Profil und Forumsbeiträge | Lesen | jedes Mitglied seine eigenen: kleine Dateien im eigenen Drive, die die App anlegt |
 | Einwilligung (je Mitglied) | **kein Zugriff** – nur das Mitglied selbst und die Datenschutz-Verantwortlichen | jedes Mitglied seine eigene, in der App |
@@ -208,6 +211,7 @@ Alles Gemeinsame wird direkt bei Google gepflegt. Die App zeigt Änderungen nach
 | **News** | In der App: Neuigkeiten → **„News schreiben“** (nur Admins und Redaktion, siehe Optionen) – mit Kategorie, „oben anheften“ und Foto vom Handy. Bearbeiten und löschen kann jeder nur seine eigenen. Zusätzlich weiterhin möglich: Tabelle „News“ | Neue Zeile in der Tabelle: *Titel*, *Text* (Absätze, `**fett**`, Links möglich), *Datum*, *Kategorie*; *Bild* = Link zu einem Bild in Google Drive; *Angeheftet* = `ja` hält die Meldung oben; *Gelöscht* = `ja` blendet sie aus. Die *ID* ist ein beliebiges eindeutiges Kürzel (z. B. `n12`) |
 | **Adressen, Geburtstage** | Tabelle „Adressverzeichnis“ | Zeilen ergänzen oder korrigieren; Geburtstag als Datum (z. B. `03.04.1970`). Die nächsten drei Geburtstage erscheinen auf der Startseite. Mitglieder prüfen ihre Angaben unter „Mein Profil“; Abweichungen kommen als vorbereitete E-Mail an das Postfach für Adressänderungen, der Schriftwart übernimmt sie hier. Damit die App jemanden zuordnet, sollte die Spalte *E-Mail* das Google-Konto der Verbindung enthalten (sonst wird über den Namen gesucht) |
 | **Bundesbote** | Drive-Ordner des Bundesboten | PDF hochladen, am besten mit Dateiname `JJJJ-N Titel.pdf`, z. B. `2026-2 Bundesbote SoSe 2026.pdf` (Jahr, Nummer der Ausgabe im Jahr). Die App zeigt immer eine Seite; Doppelseiten im PDF (Querformat-Seiten, z. B. aus Scans) teilt sie selbst in zwei Einzelseiten. Jahresordner (`2019/…`, auch `Archiv/2003/…`, bis zwei Ebenen tief) sind möglich; fehlt das Jahr im Dateinamen, zählt der Ordner, „Nr. 3“ oder „Heft 3“ im Namen gilt als Nummer. Neueste Ausgabe steht oben |
+| **Liedermappe** | Drive-Ordner der Liedermappe | Noten als **PDF** oder Bild (JPG, PNG) hineinlegen, am besten mit Liednummer vorn: `012 Gaudeamus igitur.pdf` (auch `12 - Titel`, `Nr. 12 Titel`). Unterordner werden zu Rubriken (`Kommerslieder/…`, bis drei Ebenen tief). Laufen die Nummern durch die ganze Mappe, zeigt die App eine Liste nach Nummer; fängt jede Rubrik wieder bei 1 an, gliedert sie nach Rubriken. Die Beschreibung einer Datei in Drive erscheint als Untertitel. Andere Dateien (Word, MuseScore, iPhone-Fotos im HEIC-Format) zeigt die App nicht an – bitte als PDF bzw. JPG ablegen. Querformat-Seiten bleiben ganz |
 | **Fotos** | Drive-Ordner „Galerie“ | Pro Anlass einen **Unterordner** anlegen, Name `JJJJ-MM Name`, z. B. `2026-06 Stiftungsfest`, und die Fotos hineinladen. Auch Jahresordner mit Alben darin gehen (`2023/Stiftungsfest`, bis zwei Ebenen tief). Fotos direkt im Galerie-Ordner erscheinen als Album „Allgemein“. Neueste Alben stehen oben; Kameranamen wie `IMG_2041` blendet die App aus |
 | **Chat** | In der App oder in Google Chat | Jedes Mitglied kann in der App private Nachrichten schreiben („Nachricht“ im Profil, „Neue Nachricht“), Gruppen gründen („Neue Gruppe“) und in Gruppen und Räumen, in denen es ist, Personen hinzufügen. Die App zeigt alle Unterhaltungen, in denen man Mitglied ist |
 | **Profile** | jedes Mitglied selbst | In der App unter Mehr → Mein Profil (u. a. Tätigkeit und „Das kann ich jüngeren Bundesbrüdern anbieten“). Foto und Name im eigenen Google-Konto. Profile sind bewusst getrennt vom Adressverzeichnis (siehe ENTSCHEIDUNGEN.md, E7) |
@@ -352,5 +356,6 @@ terminKategorien: [{ name: 'Kneipe', farbe: '#88bb2a', googleFarbe: '10' }, …]
 forumKategorien: ['Allgemeines', 'Aktivitas', …],
 newsKategorien: ['Allgemein', 'Aktivitas', …],
 ausgeblendeteKonten: ['info@…', 'kasse@…'],      // Funktionskonten nicht als Mitglied zeigen
+links: [{ titel: 'Wiki', url: 'https://…' }],   // weitere Links im Schnellzugriff und unter „Mehr“ (nur https; symbol optional, z. B. 'book')
 demoErlaubt: false,                              // Demo-Knopf auf der Anmeldeseite ausblenden
 ```

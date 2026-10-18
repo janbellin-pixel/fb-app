@@ -4,7 +4,7 @@
 // Meldet: seitlich überstehende Inhalte, abgeschnittene obere Navigation, welche Navigation sichtbar ist
 // und wie viele Spalten die Startseite nutzt.
 
-const ROUTES = ['#/', '#/termine', '#/chat', '#/mitglieder', '#/mehr', '#/zeitung', '#/galerie', '#/news', '#/forum',
+const ROUTES = ['#/', '#/termine', '#/chat', '#/mitglieder', '#/mehr', '#/zeitung', '#/lieder', '#/galerie', '#/news', '#/forum',
   '#/adressen', '#/profil', '#/einstellungen', '#/datenschutz', '#/datenschutz/uebersicht', '#/installieren'];
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

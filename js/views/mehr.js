@@ -2,7 +2,8 @@
 import {
   html, raw, setHtml, icon, hero, avatar, toast, confirmDialog, isStandalone, isIos, loadScript, copyText, notice,
 } from '../ui.js';
-import { config, appBaseUrl, hasOverride, clearOverride, isGoogleConfigured } from '../config.js';
+import { config, appBaseUrl, hasOverride, clearOverride, isGoogleConfigured, hasSongbook, extraLinks } from '../config.js';
+import { ICON_NAMES } from '../icons.js';
 import * as auth from '../auth.js';
 import { schriftAuswahl, bindSchriftAuswahl } from '../lib/schrift.js';
 
@@ -35,9 +36,11 @@ export default async function mehr(ctx) {
         ${menuItem('#/news', 'news', 'Neuigkeiten', 'Aus dem Bundesleben')}
         ${menuItem('#/forum', 'forum', 'Forum', 'Diskussionen und Fragen')}
         ${menuItem('#/zeitung', 'paper', 'Bundesbote', 'Alle Ausgaben zum Blättern')}
+        ${app.mode === 'demo' || hasSongbook() ? menuItem('#/lieder', 'music', 'Liedermappe', 'Noten und Texte zum Mitsingen') : ''}
         ${menuItem('#/galerie', 'image', 'Galerie', 'Fotos aus dem Bundesleben')}
         ${menuItem('#/adressen', 'book', 'Adressverzeichnis', 'Nachschlagen, anrufen, in Kontakte übernehmen')}
         ${menuItem('#/termine?abo=1', 'calendarPlus', 'Kalender abonnieren', 'Termine im eigenen Kalender')}
+        ${extraLinks().map((l) => html`<a class="menu-item" href="${l.url}" target="_blank" rel="noopener">${icon(ICON_NAMES.includes(l.symbol) ? l.symbol : 'globe')}<span class="grow">${l.titel}<small>${l.host} – öffnet sich außerhalb der App</small></span>${icon('external', 'icon-sm chev')}</a>`)}
       </div>
       <div class="card menu-list">
         ${menuItem('#/profil', 'user', 'Mein Profil', 'Kneipname, Status, Ämter, Über mich')}
@@ -90,7 +93,7 @@ export async function settings(ctx) {
         </div>
         <div class="card card-pad">
           <h2 style="margin:0 0 .75rem;font-weight:300;font-size:1.375rem">Daten auf diesem Gerät</h2>
-          <p class="small">Damit die App schnell startet und auch ohne Netz funktioniert, merkt sie sich den zuletzt geladenen Stand (Termine, Mitglieder, gelesene Ausgaben des Bundesboten).</p>
+          <p class="small">Damit die App schnell startet und auch ohne Netz funktioniert, merkt sie sich den zuletzt geladenen Stand (Termine, Mitglieder, gelesene Ausgaben des Bundesboten, geöffnete Lieder).</p>
           <div class="row wrap">
             <button class="btn" data-action="clear-cache">${icon('trash', 'icon-sm')}Zwischenspeicher leeren</button>
             <button class="btn" data-action="update">${icon('refresh', 'icon-sm')}Nach Updates suchen</button>

@@ -1,6 +1,6 @@
 # Die Mitglieder-App der Frankonia-Brunonia – so geht's
 
-**Termine, Zu- und Absagen, Mitglieder, Chat, Adressen, Bundesbote und Fotos – alles in einer App. Kostenlos und ohne App-Store.**
+**Termine, Zu- und Absagen, Mitglieder, Chat, Adressen, Bundesbote, Liedermappe und Fotos – alles in einer App. Kostenlos und ohne App-Store.**
 
 > Diese Anleitung gibt es auch als PDF mit QR-Code zum Verschicken oder Ausdrucken: [Anleitung-Mitglieder-App.pdf](Anleitung-Mitglieder-App.pdf), den QR-Code allein als [qr-code.png](qr-code.png). Neu erzeugt wird beides mit `python tools/make_anleitung.py https://janbellin-pixel.github.io/fb-app/ --domain frankonia-brunonia.de`.
 
@@ -43,15 +43,16 @@ Unten in der App gibt es fünf Bereiche:
 |---|---|
 | **Start** | Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos. |
 | **Termine** | Alle Veranstaltungen als Liste oder Monat. Termin antippen › **Zusagen, Vielleicht oder Absagen**, Gäste und Kommentar angeben, sehen wer kommt. „Kalender abonnieren“ holt alle Termine in den eigenen Kalender. |
-| **Chat** | Direktnachrichten und Gruppen (Google Chat): „Neue Nachricht“ bzw. „Neue Gruppe“, oder im Profil eines Bundesbruders auf „Nachricht“. Für Benachrichtigungen aufs Handy zusätzlich die App „Google Chat“ installieren. |
+| **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Für Benachrichtigungen aufs Handy die App „Google Chat“ installieren. |
 | **Mitglieder** | Alle Bundesbrüder mit Foto und Profil. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
-| **Mehr** | **Bundesbote** zum Durchblättern · **Galerie** mit Fotos · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
+| **Mehr** | **Bundesbote** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
 
 ## Gut zu wissen
 
 - **Schrift zu klein?** Mehr › Schriftgröße › „Groß“ oder „Sehr groß“.
 - **Abmelden oder Konto wechseln:** Mehr › oben **„Abmelden“**. Beim nächsten „Mit Google anmelden“ fragt Google, welches Konto du nehmen willst.
 - **Bitte dein Profil ausfüllen und deine Anschrift prüfen:** Mehr › Mein Profil (Kneipname, Tätigkeit, was du Jüngeren anbieten kannst …). Stimmt etwas im Adressverzeichnis nicht, schickst du mit einem Tipp eine vorbereitete E-Mail an den Schriftwart. Dein Foto änderst du in deinem Google-Konto.
-- **Keine Sorge:** Termine, Adressen, Bundesbote und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge.
+- **Liedermappe:** Liednummer ins Suchfeld tippen und Enter – schon ist das Lied offen. Der Bildschirm bleibt an, solange ein Lied offen ist. Mit „Alle Lieder speichern“ geht es auch ohne Netz, z. B. auf der Kneipe.
+- **Keine Sorge:** Termine, Adressen, Bundesbote, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge.
 - **iPhone:** Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt.
 - **Fragen?** Einfach im Chat fragen oder den Admins der App schreiben.
