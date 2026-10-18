@@ -193,9 +193,18 @@ export class GoogleBackend {
 
   /* ================================================================ Mitglieder */
 
+  /** Google-Verzeichnis der Domain; this.directoryInfo hält fest, warum es ggf. leer bleibt (Hinweis für Admins) */
   async directory() {
-    if (!this.isWorkspace || !hasScope(SCOPE_DIRECTORY)) return [];
-    return this.cached('directory', 30 * 60_000, () => people.listDirectory());
+    if (!this.isWorkspace) { this.directoryInfo = { ok: false, reason: 'no-workspace' }; return []; }
+    if (!hasScope(SCOPE_DIRECTORY)) { this.directoryInfo = { ok: false, reason: 'scope' }; return []; }
+    try {
+      const list = await this.cached('directory', 30 * 60_000, () => people.listDirectory());
+      this.directoryInfo = { ok: true, count: list.length };
+      return list;
+    } catch (e) {
+      this.directoryInfo = { ok: false, reason: 'error', error: e.message || String(e) };
+      throw e;
+    }
   }
 
   async profileFiles() {

@@ -150,6 +150,9 @@ Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browse
 | Spalten sehen vertraulich aus | z. B. IBAN, Beitrag, Bemerkung – wer die Tabelle lesen darf, sieht sie | Eigene Tabelle nur mit den freigebbaren Spalten anlegen (siehe unten) und diese verbinden |
 | Termine ohne Einladung an die Mitglieder-Gruppe (Hinweis) | Zu- und Absagen laufen dort über die App, im Google Kalender sind sie nicht sichtbar | Nur falls gewünscht: Gruppe als Gast hinzufügen, automatisch mit B4 |
 | Freigaben nicht einsehbar | Nur Inhaber und Bearbeiter sehen Freigaben | Als Inhaber/Bearbeiter prüfen oder in Google Drive selbst nachsehen |
+| Google-Verzeichnis: nur ein Konto bzw. „People API … disabled“ | „Mitglieder“ zeigt dann nur das eigene Konto | Admin-Konsole → Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen → **Kontaktfreigabe** einschalten bzw. in der Cloud Console die People API aktivieren. Neue Konten erscheinen teils erst nach einigen Stunden |
+| Google Chat: „Google Chat app not found“ | Die Chat-Schnittstelle ist im Cloud-Projekt nicht konfiguriert | Cloud Console → Google Chat API → Konfiguration: App-Name, Avatar, Beschreibung (B1, Schritt 4) |
+| Google Chat: keine Räume | Jeder sieht nur Räume, in denen er Mitglied ist | In Google Chat Räume anlegen und neue Konten hinzufügen |
 
 Die Rechte sehen danach so aus:
 

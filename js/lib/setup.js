@@ -7,6 +7,8 @@ import * as auth from '../auth.js';
 import * as drive from '../google/drive.js';
 import * as sheets from '../google/sheets.js';
 import * as cal from '../google/calendar.js';
+import * as people from '../google/people.js';
+import * as chat from '../google/chat.js';
 import { beginSetup, endSetup, registerSetupResource } from '../google/guard.js';
 import { SHEETS, SHEET_HEADERS, appLinkBlock, addressesFromRows, addressTab, issueFromFile } from '../backend/common.js';
 import { buildMembers, buildAddressRows, buildNews, buildGallery, DEMO_ISSUES } from '../backend/demo-data.js';
@@ -562,6 +564,40 @@ export async function checkSetup() {
     const access = readers.length ? `lesbar für ${readers.length === 1 ? 'eine weitere verantwortliche Person' : `${readers.length} weitere Verantwortliche`}` : 'nur für den Inhaber lesbar';
     c.detail = `„${meta.properties.title}“${perms ? ` · ${access}, nicht für Gruppe oder Domain` : ''}`;
   });
+  await add('Google-Verzeichnis (Mitgliederliste)', async (c) => {
+    if (!d) { c.detail = 'Nur mit Google Workspace (Workspace-Domain eintragen)'; return; }
+    if (!auth.hasScope('https://www.googleapis.com/auth/directory.readonly')) throw new Error('Die Berechtigung „Verzeichnis lesen“ fehlt – einmal ab- und wieder anmelden.');
+    let list;
+    try {
+      list = await people.listDirectory();
+    } catch (e) {
+      throw new Error(`${e.message}${/disabled|has not been used|not been enabled/i.test(e.message) ? ' – Abhilfe: in der Google Cloud Console die „People API“ aktivieren.' : ''}`);
+    }
+    c.detail = `${list.length} ${list.length === 1 ? 'Konto' : 'Konten'} im Verzeichnis von ${d}`;
+    if (list.length <= 1) {
+      c.warn.push('Nur ein Konto sichtbar – dann zeigt „Mitglieder“ nur dich. In der Admin-Konsole unter Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen die „Kontaktfreigabe“ einschalten. Neue Konten erscheinen manchmal erst nach einigen Stunden.');
+    }
+  });
+
+  await add('Google Chat', async (c) => {
+    if (!d) { c.detail = 'Nur mit Google Workspace (Workspace-Domain eintragen)'; return; }
+    if (config.chat?.aktiv === false) { c.detail = 'In der App ausgeschaltet (chat.aktiv)'; return; }
+    if (!auth.hasScope('https://www.googleapis.com/auth/chat.spaces.readonly')) throw new Error('Die Berechtigung für Google Chat fehlt – einmal ab- und wieder anmelden.');
+    let spaces;
+    try {
+      spaces = await chat.listSpaces();
+    } catch (e) {
+      const hint = /chat app not found|configure the app/i.test(e.message)
+        ? ' – Abhilfe: in der Google Cloud Console unter „Google Chat API → Konfiguration“ App-Name, Avatar und Beschreibung eintragen und speichern.'
+        : /disabled|has not been used/i.test(e.message) ? ' – Abhilfe: in der Google Cloud Console die „Google Chat API“ aktivieren.' : '';
+      throw new Error(`${e.message}${hint}`);
+    }
+    const rooms = spaces.filter((s) => (s.spaceType || s.type) !== 'DIRECT_MESSAGE');
+    c.detail = `${rooms.length} ${rooms.length === 1 ? 'Raum, in dem' : 'Räume, in denen'} du Mitglied bist`;
+    c.lines.push('Jeder sieht in der App nur die Räume, in denen er Mitglied ist – neue Konten in Google Chat zu den Räumen hinzufügen.');
+    if (!rooms.length) c.warn.push('Noch keine Räume: in Google Chat Räume anlegen (z. B. „Allgemein“) und die Mitglieder hinzufügen.');
+  });
+
   checks.push({ label: 'Schreibschutz', ok: true, detail: 'aktiv – die App ändert nur eigene Daten (Zusage, Profil, eigene Beiträge, Einwilligung, Chat-Nachrichten)', lines: [], warn: [] });
   return checks;
 }

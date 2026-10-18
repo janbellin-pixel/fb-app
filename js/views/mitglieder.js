@@ -1,5 +1,5 @@
 // Mitgliederverzeichnis und Profilansicht
-import { html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, loading, toast, showError } from '../ui.js';
+import { html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, loading, toast, showError, notice } from '../ui.js';
 import { matchesQuery, linkify } from '../lib/text.js';
 import { config, statusGroup } from '../config.js';
 import { local } from '../lib/store.js';
@@ -35,13 +35,29 @@ export default async function mitglieder(ctx) {
   setHtml(el, html`
     ${hero('Mitglieder', 'Bundesbrüder im Überblick', html`<a class="btn" href="#/profil">${icon('user', 'icon-sm')}Mein Profil bearbeiten</a>`)}
     <div class="search" style="margin-bottom:.625rem">${icon('search')}<input class="input" type="search" id="q" placeholder="Name, Kneipname, Studium, Tätigkeit, Wohnort …" value="${q}" aria-label="Mitglieder durchsuchen" autocomplete="off"></div>
+    <div id="dir-hint"></div>
     <div class="chips" id="groups"></div>
     <div id="list">${skeletonList(4)}</div>`);
   const listEl = el.querySelector('#list');
   const ANGEBOTE = 'Angebote für Jüngere';
   const inGroup = (m, g) => g === 'Alle' || (g === ANGEBOTE ? !!m.angebot : statusGroup(m.status) === g);
 
+  /** Admins: erklären, warum nur das eigene Konto zu sehen ist (meist eine Einstellung bei Google) */
+  function renderDirectoryHint() {
+    const box = el.querySelector('#dir-hint');
+    const info = b.directoryInfo;
+    // nur nach einer echten Abfrage und nur, wenn das Verzeichnis höchstens ein Konto liefert
+    if (app.mode !== 'google' || !app.isAdmin() || !info || info.reason === 'no-workspace' || (info.ok && info.count > 1)) { setHtml(box, ''); return; }
+    const why = info.reason === 'error' ? `Google meldet: „${info.error}“. `
+      : info.reason === 'scope' ? 'Die Berechtigung für das Verzeichnis fehlt – einmal ab- und wieder anmelden. '
+        : info.ok ? `Das Google-Verzeichnis liefert ${info.count} ${info.count === 1 ? 'Konto' : 'Konten'}. ` : '';
+    setHtml(box, html`<div style="margin-bottom:1rem">${notice('gold', 'Für Admins: Das Google-Verzeichnis zeigt nur dein Konto',
+      `${why}Häufige Ursachen: In der Admin-Konsole ist unter Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen die „Kontaktfreigabe“ aus, oder die People API ist im Google-Cloud-Projekt nicht aktiviert. Neue Konten erscheinen manchmal erst nach einigen Stunden.`,
+      html`<p style="margin-top:.5rem"><a class="btn btn-sm" href="#/einrichtung">${icon('tool', 'icon-sm')}Verbindung prüfen</a></p>`)}</div>`);
+  }
+
   function render() {
+    renderDirectoryHint();
     const groups = ['Alle', ...Object.keys(config.statusGruppen || {}), ANGEBOTE];
     const counts = Object.fromEntries(groups.map((g) => [g, list.filter((m) => inGroup(m, g)).length]));
     setHtml(el.querySelector('#groups'), html`${groups.filter((g) => g === 'Alle' || counts[g]).map((g) => html`
