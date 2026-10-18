@@ -1,7 +1,7 @@
 {
   "name": "Frankonia-Brunonia",
   "short_name": "Fr.-Brunonia",
-  "description": "Mitglieder-App der Frankonia-Brunonia: Termine, Mitglieder, Chat, Adressen, Verbindungszeitung, Fotos, News und Forum.",
+  "description": "Mitglieder-App der Frankonia-Brunonia: Termine, Mitglieder, Chat, Adressen, Bundesbote, Fotos, News und Forum.",
   "lang": "de",
   "dir": "ltr",
   "id": "./",
@@ -21,6 +21,6 @@
   "shortcuts": [
     { "name": "Termine", "url": "./#/termine", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Chat", "url": "./#/chat", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Verbindungszeitung", "url": "./#/zeitung", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Bundesbote", "url": "./#/zeitung", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

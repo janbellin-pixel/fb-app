@@ -14,7 +14,7 @@ export default async function login(ctx) {
       <div class="login-main">
         <img class="login-crest" src="assets/wappen-voll.webp" alt="Wappen der ${config.appName}" width="330" height="402">
         <h1>Mitglieder-App</h1>
-        <p class="lead">Termine, Mitglieder, Chat, Adressen und die Verbindungszeitung – alles an einem Ort.</p>
+        <p class="lead">Termine, Mitglieder, Chat, Adressen und der Bundesbote – alles an einem Ort.</p>
         ${err ? notice('red', err.title, err.text) : ''}
         ${configured ? html`
           <button class="google-btn" data-action="login">${GOOGLE_G}<span>Mit Google anmelden</span></button>

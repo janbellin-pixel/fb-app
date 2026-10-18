@@ -44,7 +44,7 @@ function createBox(google) {
     <p class="small">Neu angelegt wird: <strong>${labelsOf(missing).join(', ')}</strong>.</p>
     <p class="small muted">Alles entsteht neu in deinem eigenen Google-Konto. Mitglieder bekommen nur Leserechte; die Einwilligungsliste sehen nur die Datenschutz-Verantwortlichen. Bereits verbundene Dateien werden <strong>nicht verändert und nicht neu freigegeben</strong>.</p>
     ${sampleKinds.length ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-samples" ${fresh ? 'checked' : ''}> Beispieldaten in die neuen Dateien eintragen (${sampleKinds.join(', ')})</label>` : ''}
-    ${missing.includes('zeitung') ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-issues" ${fresh ? 'checked' : ''}> Drei Beispielausgaben der Zeitung hochladen</label>` : ''}
+    ${missing.includes('zeitung') ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-issues" ${fresh ? 'checked' : ''}> Drei Beispielausgaben des Bundesboten hochladen</label>` : ''}
     ${missing.includes('galerie') ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-photos" ${fresh ? 'checked' : ''}> Beispielbilder für die Galerie hochladen</label>` : ''}
     <p style="margin:.75rem 0 0"><button class="btn btn-primary" data-action="create" ${google ? '' : 'disabled'}>${icon('sparkle', 'icon-sm')}Fehlendes neu anlegen</button></p>
     ${google && missing.includes('kalender') && !auth.hasScope(auth.SCOPES.setup[0]) ? html`<p class="tiny muted">Für den neuen Kalender fragt Google einmal nach der zusätzlichen Berechtigung „Kalender verwalten“.</p>` : ''}`;
@@ -102,7 +102,7 @@ export default async function einrichtung(ctx) {
       <section class="card step ${google ? 'done' : ''}">
         <h3>Mit Google anmelden</h3>
         ${google ? html`<p class="small">Angemeldet als <strong>${me.email}</strong>${me.hd ? html` (Workspace ${me.hd})` : ' (privates Google-Konto)'}.</p>`
-          : html`<p class="small">Melde dich mit dem Konto an, in dem Kalender, Tabellen und Zeitungsordner liegen sollen.</p>
+          : html`<p class="small">Melde dich mit dem Konto an, in dem Kalender, Tabellen und die Ordner für Bundesbote und Fotos liegen sollen.</p>
             <button class="google-btn" data-action="login" ${isGoogleConfigured() && !demo ? '' : 'disabled'}>${GOOGLE_G}<span>Mit Google anmelden</span></button>
             <p class="tiny muted">Bei einem Test-Projekt zeigt Google den Hinweis „App wurde nicht überprüft“ – dann „Erweitert → Weiter zu …“ wählen. Mit Google Workspace und Zielgruppe „Intern“ entfällt das.</p>`}
       </section>
@@ -154,7 +154,7 @@ export default async function einrichtung(ctx) {
 
       <section class="card step ${resourcesDone ? 'done' : ''}">
         <h3>Kalender, Tabellen und Ordner</h3>
-        <p class="small">Was es schon gibt – etwa euren Kalender, die Mitgliederliste und die Ordner mit Zeitung und Fotos –, unter <strong>1.</strong> verbinden. <strong>2.</strong> legt danach nur noch an, was dann fehlt. Vorhandenes liest die App nur.</p>
+        <p class="small">Was es schon gibt – etwa euren Kalender, die Mitgliederliste und die Ordner mit dem Bundesboten und den Fotos –, unter <strong>1.</strong> verbinden. <strong>2.</strong> legt danach nur noch an, was dann fehlt. Vorhandenes liest die App nur.</p>
         <ul class="res-status" id="res-status">${resourceStatus()}</ul>
         <div class="grid-2">
           <form id="manual-form" novalidate>
@@ -165,7 +165,7 @@ export default async function einrichtung(ctx) {
             <div class="field"><label for="m-tab">Tabellenblatt des Adressverzeichnisses (optional)</label><input class="input" id="m-tab" name="adressenBlatt" value="${config.adressenBlatt}" placeholder="leer = „Adressen“ bzw. das erste Blatt">
               <span class="hint">Nur nötig, wenn die Tabelle mehrere Blätter hat. Andere Blätter liest die App nicht.</span></div>
             <div class="field"><label for="m-news">Tabelle News</label><input class="input" id="m-news" name="news" value="${config.tabellen?.news}" placeholder="leer lassen – wird unter 2. neu angelegt"></div>
-            <div class="field"><label for="m-z">Ordner Verbindungszeitung (PDFs, auch in Jahresordnern)</label><input class="input" id="m-z" name="zeitung" value="${config.zeitungOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
+            <div class="field"><label for="m-z">Ordner Bundesbote (PDFs, auch in Jahresordnern)</label><input class="input" id="m-z" name="zeitung" value="${config.zeitungOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
             <div class="field"><label for="m-g">Ordner Galerie (Unterordner = Alben)</label><input class="input" id="m-g" name="galerie" value="${config.galerieOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
             <div class="field"><label for="m-ew">Tabelle Einwilligungen (vertraulich)</label><input class="input" id="m-ew" name="einwilligungen" value="${config.tabellen?.einwilligungen}" placeholder="leer lassen – wird unter 2. neu angelegt">
               <span class="hint">Nur eine Tabelle, die die App selbst angelegt hat.</span></div>

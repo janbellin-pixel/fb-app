@@ -75,6 +75,8 @@ const CORE = [
 const DEV = ['localhost', '127.0.0.1'].includes(self.location.hostname);
 
 self.addEventListener('install', (event) => {
+  // neue Version sofort aktivieren – unbedenklich, weil ohnehin zuerst das Netz gefragt wird
+  self.skipWaiting();
   event.waitUntil(
     caches.open(VERSION).then((cache) => Promise.all(CORE.map((url) => cache.add(url).catch(() => null)))),
   );
@@ -96,6 +98,17 @@ function timeout(ms) {
   return new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
 }
 
+// App-Code (Seiten, Skripte, Stile, config.js) immer beim Server nachfragen: GitHub Pages erlaubt
+// Browsern sonst, eine Datei 10 Minuten lang ungeprüft weiterzuverwenden – Updates kämen verspätet an.
+// Ist nichts geändert, antwortet der Server kurz mit „304“. Bilder, Schriften und vendor/ dürfen im
+// Browser-Zwischenspeicher bleiben.
+function freshFetch(req, url) {
+  const code = req.mode === 'navigate' || (/\.(js|mjs|css|html|webmanifest)$/.test(url.pathname) && !url.pathname.includes('/vendor/'));
+  if (!code) return fetch(req);
+  if (req.mode === 'navigate') return fetch(url.href, { cache: 'no-cache', credentials: 'same-origin' });
+  return fetch(new Request(req, { cache: 'no-cache' }));
+}
+
 // Netzwerk zuerst (immer aktuell), bei Funkloch der zuletzt gespeicherte Stand
 self.addEventListener('fetch', (event) => {
   const req = event.request;
@@ -107,7 +120,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(VERSION);
     try {
-      const res = await (DEV ? fetch(req) : Promise.race([fetch(req), timeout(4000)]));
+      const res = await (DEV ? fetch(req) : Promise.race([freshFetch(req, url), timeout(4000)]));
       if (res.ok && res.type === 'basic' && !url.pathname.endsWith('.pdf')) cache.put(req, res.clone());
       return res;
     } catch (err) {

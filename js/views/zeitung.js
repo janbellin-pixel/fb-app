@@ -1,4 +1,4 @@
-// Verbindungszeitung: Archiv aller Ausgaben und Leseansicht mit Umblätter-Animation
+// Bundesbote (Zeitung der Verbindung): Archiv aller Ausgaben und Leseansicht mit Umblätter-Animation
 import { html, setHtml, icon, hero, skeletonList, emptyState, errorBox, toast, loadScript, isIos } from '../ui.js';
 import { fDateShort } from '../lib/dates.js';
 import { kv } from '../lib/store.js';
@@ -41,14 +41,53 @@ function closePdf(pdf) {
 
 const coverKey = (issue) => `cover:${issue.id}:${issue.version || ''}`;
 
+/** Ab diesem Seitenverhältnis (Breite : Höhe) gilt eine PDF-Seite als Doppelseite */
+export const SPREAD_RATIO = 1.25;
+const isSpread = (vp) => vp.width >= vp.height * SPREAD_RATIO;
+
+/**
+ * Leseseiten aus den PDF-Seiten. Der Leser zeigt immer EINE Seite (E11): Querformat-Seiten sind
+ * meist gescannte Doppelseiten und werden in linke („L“) und rechte („R“) Hälfte geteilt.
+ * Ist schon die erste PDF-Seite eine Doppelseite (Umschlag: Rückseite | Titel), kommt der Titel
+ * zuerst und die Rückseite ans Ende.
+ */
+export async function layoutPages(pdf) {
+  const out = [];
+  let back = null;
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const vp = (await pdf.getPage(p)).getViewport({ scale: 1 });
+    if (!isSpread(vp)) {
+      out.push({ p, part: 'F', w: vp.width, h: vp.height });
+    } else if (p === 1 && pdf.numPages > 1) {
+      out.push({ p, part: 'R', w: vp.width / 2, h: vp.height });
+      back = { p, part: 'L', w: vp.width / 2, h: vp.height };
+    } else {
+      out.push({ p, part: 'L', w: vp.width / 2, h: vp.height }, { p, part: 'R', w: vp.width / 2, h: vp.height });
+    }
+  }
+  if (back) out.push(back);
+  return out;
+}
+
+/** Ganze PDF-Seite („F“) oder eine Hälfte einer Doppelseite („L“/„R“) in der gewünschten Breite zeichnen */
+export async function drawPart(page, part, width) {
+  const vp = page.getViewport({ scale: 1 });
+  const w = part === 'F' ? vp.width : vp.width / 2;
+  const scale = width / w;
+  const viewport = page.getViewport({ scale, offsetX: part === 'R' ? -w * scale : 0 });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(vp.height * scale);
+  const c2d = canvas.getContext('2d');
+  c2d.fillStyle = '#fff';
+  c2d.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: c2d, canvas, viewport }).promise;
+  return canvas;
+}
+
 async function renderCover(pdf, issue) {
   const page = await pdf.getPage(1);
-  const vp1 = page.getViewport({ scale: 1 });
-  const viewport = page.getViewport({ scale: 420 / vp1.width });
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(viewport.width);
-  canvas.height = Math.round(viewport.height);
-  await page.render({ canvasContext: canvas.getContext('2d'), canvas, viewport }).promise;
+  const canvas = await drawPart(page, isSpread(page.getViewport({ scale: 1 })) ? 'R' : 'F', 420);
   const url = canvas.toDataURL('image/jpeg', 0.82);
   await kv.set(coverKey(issue), url);
   return url;
@@ -66,7 +105,7 @@ export default async function zeitung(ctx) {
   const b = app.backend;
   const folderUrl = config.zeitungOrdnerId && app.mode === 'google' ? `https://drive.google.com/drive/folders/${config.zeitungOrdnerId}` : '';
   setHtml(el, html`
-    ${hero('Verbindungszeitung', 'Alle Ausgaben zum Durchblättern', folderUrl ? html`<a class="btn" href="${folderUrl}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Ordner in Google Drive</a>` : '')}
+    ${hero('Bundesbote', 'Alle Ausgaben zum Durchblättern', folderUrl ? html`<a class="btn" href="${folderUrl}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Ordner in Google Drive</a>` : '')}
     <div id="c">${skeletonList(2)}</div>`);
   const c = el.querySelector('#c');
   let issues = [];
@@ -96,7 +135,7 @@ export default async function zeitung(ctx) {
             <span class="title">${i.title}</span>
             <span class="sub">${i.ausgabe || (i.date ? fDateShort(i.date) : '')}</span>
           </a>`)}</div>` : ''}
-      <p class="small muted" style="margin-top:1.375rem">${icon('info', 'icon-sm')} Neue Ausgaben erscheinen automatisch, sobald die Redaktion das PDF in den Zeitungsordner legt. Dateiname am besten nach dem Muster „2026-2 Titel.pdf“ (Jahr-Nummer).</p>`);
+      <p class="small muted" style="margin-top:1.375rem">${icon('info', 'icon-sm')} Neue Ausgaben erscheinen automatisch, sobald die Redaktion das PDF in den Ordner des Bundesboten legt. Dateiname am besten nach dem Muster „2026-2 Titel.pdf“ (Jahr-Nummer).</p>`);
   }
 
   // Im Demo-Modus Titelseiten selbst erzeugen (lokale Dateien, geht schnell)
@@ -119,7 +158,7 @@ export default async function zeitung(ctx) {
       issues = list;
       if (!ctx.alive()) return;
       if (!issues.length) {
-        setHtml(c, html`<div class="card">${emptyState('paper', 'Noch keine Ausgaben', 'Sobald die erste Ausgabe als PDF im Zeitungsordner liegt, erscheint sie hier.')}</div>`);
+        setHtml(c, html`<div class="card">${emptyState('paper', 'Noch keine Ausgaben', 'Sobald die erste Ausgabe als PDF im Ordner des Bundesboten liegt, erscheint sie hier.')}</div>`);
         return;
       }
       render();
@@ -142,10 +181,10 @@ export async function reader(ctx) {
   document.body.classList.add('reader-open');
   const canFullscreen = !!document.documentElement.requestFullscreen && !isIos();
   setHtml(el, html`
-    <div class="reader" role="dialog" aria-label="Verbindungszeitung lesen">
+    <div class="reader" role="dialog" aria-label="Bundesbote lesen">
       <div class="reader-bar">
         <a class="btn btn-on-dark btn-icon btn-sm" href="#/zeitung" data-back aria-label="Schließen">${icon('x')}</a>
-        <h1 id="r-title">Verbindungszeitung</h1>
+        <h1 id="r-title">Bundesbote</h1>
         <button class="btn btn-on-dark btn-icon btn-sm" data-action="zoom" title="Seite vergrößern" aria-label="Seite vergrößern" disabled>${icon('zoom')}</button>
         <a class="btn btn-on-dark btn-icon btn-sm" id="r-open" target="_blank" rel="noopener" title="PDF öffnen" aria-label="PDF öffnen">${icon('download')}</a>
         ${canFullscreen ? html`<button class="btn btn-on-dark btn-icon btn-sm" data-action="fullscreen" title="Vollbild" aria-label="Vollbild">${icon('maximize')}</button>` : ''}
@@ -170,6 +209,7 @@ export async function reader(ctx) {
   const rendered = new Map(); // Seitenindex → { url, width }
   let queue = Promise.resolve();
   let n = 0;
+  let pages = []; // Leseseiten: { p: PDF-Seite, part: 'F' | 'L' | 'R', w, h }
 
   const cleanup = () => {
     destroyed = true;
@@ -202,7 +242,8 @@ export async function reader(ctx) {
     prog.style.width = '55%';
     status.textContent = 'Seiten werden vorbereitet …';
     pdf = await openPdf(data);
-    n = pdf.numPages;
+    pages = await layoutPages(pdf);
+    n = pages.length;
   } catch (err) {
     console.error(err);
     if (!destroyed) {
@@ -213,9 +254,7 @@ export async function reader(ctx) {
   }
   if (destroyed || !ctx.alive()) return cleanup;
 
-  const first = await pdf.getPage(1);
-  const vp1 = first.getViewport({ scale: 1 });
-  const ratio = vp1.height / vp1.width;
+  const ratio = pages[0].h / pages[0].w;
   prog.style.width = '80%';
 
   // Seiten-Gerüst anlegen; Inhalte werden nach Bedarf gerendert
@@ -271,16 +310,8 @@ export async function reader(ctx) {
     const target = Math.round(Math.max(300, pageWidth() * dpr));
     const have = rendered.get(i);
     if (have && have.width >= target * 0.8) return;
-    const page = await pdf.getPage(i + 1);
-    const vp = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({ scale: Math.min(target, 2600) / vp.width });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    const c2d = canvas.getContext('2d');
-    c2d.fillStyle = '#fff';
-    c2d.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: c2d, canvas, viewport }).promise;
+    const page = await pdf.getPage(pages[i].p);
+    const canvas = await drawPart(page, pages[i].part, Math.min(target, 2600));
     if (destroyed) return;
     const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.9));
     if (!blob || destroyed) return;
@@ -349,7 +380,7 @@ export async function reader(ctx) {
   window.addEventListener('resize', onResize);
 
   async function zoom() {
-    const pages = [flip.getCurrentPageIndex()];
+    const shown = [flip.getCurrentPageIndex()];
     const view = document.createElement('div');
     view.className = 'zoom-view';
     view.innerHTML = `<button class="btn btn-primary btn-icon close" aria-label="Schließen"><svg class="icon" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button><div class="center-load" style="color:#fff"><span class="spinner"></span></div>`;
@@ -358,14 +389,9 @@ export async function reader(ctx) {
     view.querySelector('.close').addEventListener('click', close);
     const width = Math.min(2400, Math.round(Math.max(window.innerWidth, 800) * Math.min(window.devicePixelRatio || 1, 2) * 1.6));
     const urls = [];
-    for (const i of pages) {
-      const page = await pdf.getPage(i + 1);
-      const vp = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: width / vp.width });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
-      await page.render({ canvasContext: canvas.getContext('2d'), canvas, viewport }).promise;
+    for (const i of shown) {
+      const page = await pdf.getPage(pages[i].p);
+      const canvas = await drawPart(page, pages[i].part, width);
       const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.9));
       urls.push(URL.createObjectURL(blob));
     }

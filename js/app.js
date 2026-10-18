@@ -14,7 +14,7 @@ const NAV = [
   { id: 'chat', path: 'chat', label: 'Chat' },
   { id: 'mitglieder', path: 'mitglieder', label: 'Mitglieder' },
   { id: 'adressen', path: 'adressen', label: 'Adressen' },
-  { id: 'zeitung', path: 'zeitung', label: 'Zeitung' },
+  { id: 'zeitung', path: 'zeitung', label: 'Bundesbote' },
   { id: 'galerie', path: 'galerie', label: 'Galerie' },
   { id: 'news', path: 'news', label: 'News' },
   { id: 'forum', path: 'forum', label: 'Forum' },

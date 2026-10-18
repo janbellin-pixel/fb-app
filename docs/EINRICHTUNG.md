@@ -82,7 +82,7 @@ So bleibt es dabei:
 5. **Kalender, Tabellen und Ordner → „2. Fehlendes neu anlegen“.** Ist noch nichts verbunden, legt die App alles neu an – in deinem Google Drive den Ordner *„Frankonia-Brunonia – Mitglieder-App“* mit
    - Tabelle **Adressverzeichnis**,
    - Tabelle **News**,
-   - Ordner **Verbindungszeitung** (auf Wunsch mit drei Beispielausgaben),
+   - Ordner **Bundesbote** (auf Wunsch mit drei Beispielausgaben),
    - Ordner **Galerie** (auf Wunsch mit drei Beispielalben),
    - und einen neuen Google-Kalender **„Frankonia-Brunonia“** mit Beispielterminen.
 
@@ -97,7 +97,7 @@ So bleibt es dabei:
 - Mit dem zweiten Test-Konto die App öffnen (z. B. im privaten Fenster oder auf dem Handy) und anmelden. Beim ersten Öffnen erscheint die Datenschutz-Abfrage.
 - Einen Termin öffnen und **Zusagen**. Im Google Kalender des Test-Kontos erscheint der Termin als „Zugesagt“.
 - Im Google Kalender selbst zu- oder absagen; die App zeigt die Antwort an.
-- Profil ausfüllen, im Forum schreiben, Zeitung durchblättern, Galerie ansehen.
+- Profil ausfüllen, im Forum schreiben, im Bundesboten blättern, Galerie ansehen.
 - Unter **Mehr → Schriftgröße** die Stufen „Groß“ und „Sehr groß“ ausprobieren.
 
 ---
@@ -132,7 +132,7 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 In der App unter **Einrichtung** (als Admin angemeldet):
 
 1. **Optionen:** Workspace-Domain (z. B. `frankonia-brunonia.de`), Mitglieder-Gruppe (`mitglieder@…`, falls vorhanden), **Admins** (nur sie sehen die Einrichtung) und die Angaben zum **Datenschutz** eintragen → „Optionen speichern“.
-2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit der Zeitung und mit den Fotos → „Übernehmen“. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
+2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit dem Bundesboten und mit den Fotos → „Übernehmen“. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
 3. **„Verbindung prüfen (nur lesend)“** und die Hinweise abarbeiten (siehe unten). Die Prüfung ändert nichts.
 4. **„2. Fehlendes neu anlegen“:** legt nur noch an, was nicht verbunden ist – typischerweise die **News-Tabelle** und die **Einwilligungsliste**. Was verbunden ist, wird dabei weder verändert noch neu freigegeben; Beispieldaten sind hier nicht vorausgewählt.
 5. Noch einmal prüfen, dann **config.js** herunterladen (siehe unten).
@@ -158,7 +158,7 @@ Die Rechte sehen danach so aus:
 | Kalender | nur Lesen + eigene Antwort | Inhaber; Chargen per Kalender-Freigabe „Änderungen an Terminen vornehmen“ |
 | Tabelle Adressverzeichnis | nur Lesen | Admins / Schriftwart in Google Tabellen |
 | Tabelle News | nur Lesen | Redaktion in Google Tabellen (in Drive als „Bearbeiter“ hinzufügen) |
-| Ordner Verbindungszeitung | nur Lesen | Redaktion lädt PDFs in Google Drive hoch |
+| Ordner Bundesbote | nur Lesen | Redaktion lädt PDFs in Google Drive hoch |
 | Ordner Galerie | nur Lesen | Admins / Fotowart legen Alben in Google Drive an |
 | Profil und Forumsbeiträge | Lesen | jedes Mitglied seine eigenen: kleine Dateien im eigenen Drive, die die App anlegt |
 | Einwilligung (je Mitglied) | **kein Zugriff** – nur das Mitglied selbst und die Datenschutz-Verantwortlichen | jedes Mitglied seine eigene, in der App |
@@ -204,7 +204,7 @@ Alles Gemeinsame wird direkt bei Google gepflegt. Die App zeigt Änderungen nach
 | **Termine** | Google Kalender „Frankonia-Brunonia“ | Termin wie gewohnt anlegen, Mitglieder-Gruppe als Gast hinzufügen (oder Automatik, B4). Die Kategorie errät die App aus dem Titel (Kneipe, Convent, Vortrag, Stammtisch …). Optional je eine eigene Zeile in die Beschreibung: `Kategorie: Kneipe`, `Kleidung: Vollcouleur`, `Pflichttermin` |
 | **News** | Tabelle „News“ | Neue Zeile: *Titel*, *Text* (Absätze, `**fett**`, Links möglich), *Datum*, *Kategorie*; *Bild* = Link zu einem Bild in Google Drive; *Angeheftet* = `ja` hält die Meldung oben; *Gelöscht* = `ja` blendet sie aus. Die *ID* ist ein beliebiges eindeutiges Kürzel (z. B. `n12`) |
 | **Adressen, Geburtstage** | Tabelle „Adressverzeichnis“ | Zeilen ergänzen oder korrigieren; Geburtstag als Datum (z. B. `03.04.1970`). Die nächsten drei Geburtstage erscheinen auf der Startseite. Mitglieder prüfen ihre Angaben unter „Mein Profil“; Abweichungen kommen als vorbereitete E-Mail an das Postfach für Adressänderungen, der Schriftwart übernimmt sie hier. Damit die App jemanden zuordnet, sollte die Spalte *E-Mail* das Google-Konto der Verbindung enthalten (sonst wird über den Namen gesucht) |
-| **Verbindungszeitung** | Drive-Ordner „Verbindungszeitung“ | PDF hochladen, am besten mit Dateiname `JJJJ-N Titel.pdf`, z. B. `2026-2 Verbindungszeitung SoSe 2026.pdf` (Jahr, Nummer der Ausgabe im Jahr). Jahresordner (`2019/…`, auch `Archiv/2003/…`, bis zwei Ebenen tief) sind möglich; fehlt das Jahr im Dateinamen, zählt der Ordner, „Nr. 3“ oder „Heft 3“ im Namen gilt als Nummer. Neueste Ausgabe steht oben |
+| **Bundesbote** | Drive-Ordner des Bundesboten | PDF hochladen, am besten mit Dateiname `JJJJ-N Titel.pdf`, z. B. `2026-2 Bundesbote SoSe 2026.pdf` (Jahr, Nummer der Ausgabe im Jahr). Die App zeigt immer eine Seite; Doppelseiten im PDF (Querformat-Seiten, z. B. aus Scans) teilt sie selbst in zwei Einzelseiten. Jahresordner (`2019/…`, auch `Archiv/2003/…`, bis zwei Ebenen tief) sind möglich; fehlt das Jahr im Dateinamen, zählt der Ordner, „Nr. 3“ oder „Heft 3“ im Namen gilt als Nummer. Neueste Ausgabe steht oben |
 | **Fotos** | Drive-Ordner „Galerie“ | Pro Anlass einen **Unterordner** anlegen, Name `JJJJ-MM Name`, z. B. `2026-06 Stiftungsfest`, und die Fotos hineinladen. Auch Jahresordner mit Alben darin gehen (`2023/Stiftungsfest`, bis zwei Ebenen tief). Fotos direkt im Galerie-Ordner erscheinen als Album „Allgemein“. Neueste Alben stehen oben; Kameranamen wie `IMG_2041` blendet die App aus |
 | **Chat-Räume** | Google Chat | Räume anlegen und Mitglieder hinzufügen; die App zeigt alle Räume, in denen man Mitglied ist |
 | **Profile** | jedes Mitglied selbst | In der App unter Mehr → Mein Profil (u. a. Tätigkeit und „Das kann ich jüngeren Bundesbrüdern anbieten“). Foto und Name im eigenen Google-Konto. Profile sind bewusst getrennt vom Adressverzeichnis (siehe ENTSCHEIDUNGEN.md, E7) |
@@ -238,7 +238,7 @@ Die App erhält keine dauerhaften Schlüssel (kein Refresh-Token). Ein bereits a
 
 Beim **ersten Öffnen** der App erscheint die Datenschutzerklärung mit zwei Einwilligungen. Sie sind getrennt und jeweils mit **Ja** oder **Nein** zu beantworten:
 
-1. **Nutzung zu vereinsüblichen Zwecken** – Einladungen und Rundschreiben, Zusendung der Verbindungszeitung, Glückwünsche zu Geburtstagen und Jubiläen (auch auf der Startseite der App), internes Mitglieder- und Adressverzeichnis, Fotos und Berichte von Veranstaltungen (Galerie, Zeitung, Chronik), Kontaktpflege zwischen Aktiven und Alten Herren, Archiv.
+1. **Nutzung zu vereinsüblichen Zwecken** – Einladungen und Rundschreiben, Zusendung des Bundesboten, Glückwünsche zu Geburtstagen und Jubiläen (auch auf der Startseite der App), internes Mitglieder- und Adressverzeichnis, Fotos und Berichte von Veranstaltungen (Galerie, Zeitung, Chronik), Kontaktpflege zwischen Aktiven und Alten Herren, Archiv.
 2. **Weitergabe an die Deutsche Sängerschaft (DS)** – zur Kontaktaufnahme, zum Versand der Verbandszeitung, zur Bestimmung des DS-Beitrags und für allgemeine verbands- und vereinsbezogene Zwecke.
 
 Erst nach der Entscheidung geht es in die App. Beide Einwilligungen sind freiwillig; auch mit „Nein“ funktioniert die App ganz normal. Unter **Mehr → Datenschutz** kann jedes Mitglied seine Entscheidung jederzeit ändern oder widerrufen und sieht seine bisherigen Entscheidungen. Die Erklärung ist auch ohne Anmeldung lesbar (Link auf der Anmeldeseite und unten in jeder Seite).

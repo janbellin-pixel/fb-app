@@ -52,7 +52,7 @@ export const RESOURCES = [
   { key: 'kalender', label: 'Kalender', id: (c) => c.kalenderId },
   { key: 'adressen', label: 'Adressverzeichnis', id: (c) => c.tabellen?.adressen },
   { key: 'news', label: 'News-Tabelle', id: (c) => c.tabellen?.news },
-  { key: 'zeitung', label: 'Ordner Verbindungszeitung', id: (c) => c.zeitungOrdnerId },
+  { key: 'zeitung', label: 'Ordner Bundesbote', id: (c) => c.zeitungOrdnerId },
   { key: 'galerie', label: 'Ordner Galerie', id: (c) => c.galerieOrdnerId },
   { key: 'einwilligungen', label: 'Einwilligungsliste (vertraulich)', id: (c) => c.tabellen?.einwilligungen },
 ];
@@ -215,10 +215,10 @@ export async function createMissing({
     let zeitung = null;
     let galerie = null;
     if (want.has('zeitung')) {
-      zeitung = await newFolder('Verbindungszeitung', root.id);
+      zeitung = await newFolder('Bundesbote', root.id);
       out.zeitungOrdnerId = zeitung.id;
       out.created.push('zeitung');
-      log('Ordner „Verbindungszeitung“ angelegt', 'ok');
+      log('Ordner „Bundesbote“ angelegt', 'ok');
     }
     if (want.has('galerie')) {
       galerie = await newFolder('Galerie', root.id);
@@ -318,7 +318,7 @@ export async function createMissing({
     }
 
     if (withIssues && zeitung) {
-      log('Beispielausgaben der Zeitung hochladen …');
+      log('Beispielausgaben des Bundesboten hochladen …');
       for (const issue of DEMO_ISSUES) {
         try {
           await uploadFromApp(issue.url, { name: issue.name, mimeType: 'application/pdf', parents: [zeitung.id] }, 'application/pdf');
@@ -546,7 +546,7 @@ export async function checkSetup() {
     }
     await addSharing(c, id);
   };
-  await add('Ordner Verbindungszeitung', (c) => folderCheck(c, config.zeitungOrdnerId, 'zeitung'));
+  await add('Ordner Bundesbote', (c) => folderCheck(c, config.zeitungOrdnerId, 'zeitung'));
   await add('Ordner Galerie', (c) => folderCheck(c, config.galerieOrdnerId, 'galerie'));
 
   await add('Einwilligungsliste (vertraulich)', async (c) => {

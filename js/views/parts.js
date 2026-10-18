@@ -81,7 +81,7 @@ export function issueCover(issue, coverUrl = '') {
   return html`<div class="cover">
     ${coverUrl ? html`<img src="${coverUrl}" alt="" loading="lazy" referrerpolicy="no-referrer" data-cover-fallback>` : ''}
     <div class="cover-fallback" ${coverUrl ? html`style="display:none"` : ''}>
-      <div class="t">Verbindungs&shy;zeitung</div>
+      <div class="t">Bundes&shy;bote</div>
       <img src="assets/wappen.webp" alt="">
       <div class="band">${label}</div>
     </div>

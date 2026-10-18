@@ -55,9 +55,9 @@ const mailOf = (v, n) => `${v}.${n}`.toLowerCase()
 
 // [Titel, Vorname, Nachname, Kneipname, Status, Ämter, Studium/Beruf, Wohnort, Rezeption, Aussehen, Über mich]
 const RAW_MEMBERS = [
-  ['', 'Felix', 'Fiktiv', 'Merlin', 'Aktiver Bursch', 'Schriftwart (xxx), Redaktion Verbindungszeitung', 'Maschinenbau (M.Sc.)', 'Verbindungshaus', 'WiSe 2022/23',
+  ['', 'Felix', 'Fiktiv', 'Merlin', 'Aktiver Bursch', 'Schriftwart (xxx), Redaktion Bundesbote', 'Maschinenbau (M.Sc.)', 'Verbindungshaus', 'WiSe 2022/23',
     { skin: 0, hair: 'braun', style: 'side', glasses: true, bg: 0, jacket: 0 },
-    'Schriftwart und Redakteur unserer Verbindungszeitung. Ich koche gern für das ganze Haus und spiele Posaune.'],
+    'Schriftwart und Redakteur unseres Bundesboten. Ich koche gern für das ganze Haus und spiele Posaune.'],
   ['', 'Jonas', 'Beispiel', 'Sokrates', 'Aktiver Bursch', 'Sprecher (x)', 'Physik (B.Sc.)', 'Verbindungshaus', 'WiSe 2022/23',
     { skin: 1, hair: 'dunkel', style: 'short', bg: 1, jacket: 1 },
     'Sprecher im Wintersemester. Fragen zum Semesterprogramm gern jederzeit an mich.'],
@@ -309,7 +309,7 @@ ab sofort haben wir eine eigene **Mitglieder-App**. Sie läuft auf dem iPhone, a
 - **Profile** aller Bundesbrüder mit Foto, Kneipname und Ämtern ansehen
 - im **Chat** schreiben (Google Chat)
 - im **Adressverzeichnis** nachschlagen
-- in allen Ausgaben der **Verbindungszeitung** blättern
+- in allen Ausgaben des **Bundesboten** blättern
 - im **Forum** diskutieren
 
 ## So geht's
@@ -325,7 +325,7 @@ Bitte pflegt als Erstes euer Profil – danke!`,
 
 > Tradition heißt nicht, die Asche aufzubewahren, sondern das Feuer weiterzugeben.
 
-Ein ausführlicher Bericht mit allen Ehrungen steht in der neuen Ausgabe der Verbindungszeitung. Danke an alle Helfer!`,
+Ein ausführlicher Bericht mit allen Ehrungen steht in der neuen Ausgabe des Bundesboten. Danke an alle Helfer!`,
     },
     {
       id: 'n3', date: ago(16), category: 'Haus', image: 'assets/demo/news-kueche.webp',
@@ -409,7 +409,7 @@ export function buildChat(now = new Date()) {
       [who('Max', 'Mustermann'), t(1500), 'Guten Morgen zusammen! Kurze Erinnerung: Der Vortragsabend zu KI ist jetzt im Kalender – Anmeldung über die App.'],
       [who('Jonas', 'Beispiel'), t(1460), 'Danke! Wir rechnen mit vielen Gästen, also gern früh zusagen.'],
       [who('Stefan', 'Stichprobe'), t(700), 'Gibt es schon Fotos vom Begrüßungsabend?'],
-      [who('Felix', 'Fiktiv'), t(690), 'Kommen in die nächste Ausgabe der Zeitung – ein paar lade ich vorher hier hoch 📸'],
+      [who('Felix', 'Fiktiv'), t(690), 'Kommen in den nächsten Bundesboten – ein paar lade ich vorher hier hoch 📸'],
       [who('Hans', 'Exempel'), t(95), 'Die neue Küche ist übrigens wunderbar geworden. Respekt an alle, die mitgeholfen haben!'],
       [who('Paul', 'Platzhalter'), t(60), 'Danke, Goethe! Ohne die Spenden der Altherrenschaft wäre das nicht gegangen.'],
       [who('Niklas', 'Neu'), t(12), 'Kann mir jemand sagen, wo ich für die Antrittskneipe ein Band herbekomme?'],
@@ -440,9 +440,9 @@ export function buildChat(now = new Date()) {
 
 /* ------------------------------------------------------------------ Zeitung */
 export const DEMO_ISSUES = [
-  { id: 'z2026-2', name: '2026-2 Verbindungszeitung SoSe 2026.pdf', createdTime: '2026-10-05T10:00:00Z', size: 1150000, url: 'assets/demo/2026-2 Verbindungszeitung SoSe 2026.pdf' },
-  { id: 'z2026-1', name: '2026-1 Verbindungszeitung WiSe 2025-26.pdf', createdTime: '2026-04-10T10:00:00Z', size: 1150000, url: 'assets/demo/2026-1 Verbindungszeitung WiSe 2025-26.pdf' },
-  { id: 'z2025-2', name: '2025-2 Verbindungszeitung SoSe 2025.pdf', createdTime: '2025-10-08T10:00:00Z', size: 1150000, url: 'assets/demo/2025-2 Verbindungszeitung SoSe 2025.pdf' },
+  { id: 'z2026-2', name: '2026-2 Bundesbote SoSe 2026.pdf', createdTime: '2026-10-05T10:00:00Z', modifiedTime: '2026-10-18T12:00:00Z', size: 1150000, url: 'assets/demo/2026-2 Bundesbote SoSe 2026.pdf' },
+  { id: 'z2026-1', name: '2026-1 Bundesbote WiSe 2025-26.pdf', createdTime: '2026-04-10T10:00:00Z', modifiedTime: '2026-10-18T12:00:00Z', size: 1150000, url: 'assets/demo/2026-1 Bundesbote WiSe 2025-26.pdf' },
+  { id: 'z2025-2', name: '2025-2 Bundesbote SoSe 2025.pdf', createdTime: '2025-10-08T10:00:00Z', modifiedTime: '2026-10-18T12:00:00Z', size: 1150000, url: 'assets/demo/2025-2 Bundesbote SoSe 2025.pdf' },
 ];
 
 /* ------------------------------------------------------------------ Galerie */

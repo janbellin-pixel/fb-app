@@ -1,4 +1,4 @@
-// Startseite: Begrüßung, nächste Termine, Neuigkeiten, Zeitung, Forum, Geburtstage
+// Startseite: Begrüßung, nächste Termine, Neuigkeiten, Bundesbote, Forum, Geburtstage
 import { html, setHtml, icon, avatar, sectionTitle, skeletonList, toast, showError, isStandalone, emptyState } from '../ui.js';
 import { fDateLong, fDateNoYear, semesterLabel, addDays, startOfDay, nextBirthday, toDate, relDay } from '../lib/dates.js';
 import { eventCard, memberMap, newsCard, threadRow, issueCover, bindCardLinks, isUnread, forumSeen } from './parts.js';
@@ -47,14 +47,14 @@ export default async function home(ctx) {
           <a class="tile" href="#/chat">${icon('chat')}Chat</a>
           <a class="tile" href="#/mitglieder">${icon('users')}Mitglieder</a>
           <a class="tile" href="#/adressen">${icon('book')}Adressen</a>
-          <a class="tile" href="#/zeitung">${icon('paper')}Zeitung</a>
+          <a class="tile" href="#/zeitung">${icon('paper')}Bundesbote</a>
           <a class="tile" href="#/galerie">${icon('image')}Galerie</a>
           <a class="tile" href="#/forum">${icon('forum')}Forum</a>
           <a class="tile" href="#/news">${icon('news')}News</a>
           <a class="tile" href="#/profil">${icon('user')}Profil</a>
           <a class="tile" href="#/termine?abo=1">${icon('calendarPlus')}Kalender</a>
         </div>
-        ${sectionTitle('Verbindungszeitung', { href: '#/zeitung', label: 'Archiv' })}
+        ${sectionTitle('Bundesbote', { href: '#/zeitung', label: 'Archiv' })}
         <div id="h-zeitung"><div class="skeleton" style="height:7.5rem"></div></div>
         <div id="h-photos"></div>
         ${sectionTitle('Aus dem Forum', { href: '#/forum', label: 'Zum Forum' })}
@@ -188,7 +188,7 @@ export default async function home(ctx) {
             <span class="btn btn-sm btn-primary" style="margin-top:.625rem">${icon('paper', 'icon-sm')}Jetzt lesen</span></div>
           </a>`
         : html`<div class="card">${emptyState('paper', 'Noch keine Ausgaben')}</div>`);
-    }, { maxAge: 30 * 60_000 }).catch(failed('#h-zeitung', 'Zeitung nicht verfügbar')),
+    }, { maxAge: 30 * 60_000 }).catch(failed('#h-zeitung', 'Bundesbote nicht verfügbar')),
     app.load('forum', () => b.listForum(), renderForum, { maxAge: 2 * 60_000 }).catch(failed('#h-forum', 'Forum nicht verfügbar')),
     app.load('addresses', () => b.listAddresses(), renderBirthdays, { maxAge: 60 * 60_000 }).catch(() => {}),
     app.load('gallery', () => b.listGallery(), (data) => {

@@ -328,6 +328,7 @@ async function run() {
   /* ---------------------------------------------------------------- Datenschutz */
   section('Datenschutz: eigene Einwilligung');
   const dsLib = await import('../js/lib/datenschutz.js');
+  const FASSUNG = config.datenschutz.fassung; // aktuelle Fassung der Einwilligungstexte
   config.datenschutz = { ...config.datenschutz, empfaenger: ['vorstand@beispiel.de', me.email] };
   check(dsLib.consentRecipients(me.email).join() === 'vorstand@beispiel.de', 'Empfänger: Verantwortliche ohne mich selbst');
   check((await b.getMyConsent()) === null, 'noch keine Entscheidung → Abfrage beim ersten Öffnen');
@@ -336,7 +337,7 @@ async function run() {
   const cf = consentFiles()[0];
   check(consentFiles().length === 1 && cf.parents.includes(folder.id), 'als eigene Datei im eigenen App-Ordner gespeichert');
   const cRec = JSON.parse(cf?.description || '{}');
-  check(cRec.vereinszwecke === true && cRec.dachverband === false && cRec.fassung === '1' && cRec.pruefsumme === dsLib.textPruefsumme() && cRec.konto === me.email && cRec.geraet,
+  check(cRec.vereinszwecke === true && cRec.dachverband === false && cRec.fassung === FASSUNG && cRec.pruefsumme === dsLib.textPruefsumme() && cRec.konto === me.email && cRec.geraet,
     'Entscheidung mit Zeitpunkt, Fassung, Prüfsumme, Konto und Gerät', cf?.description);
   check(cf?.content && new TextDecoder().decode(cf.content).includes('"vereinszwecke": true'), 'lesbarer Nachweis als Dateiinhalt');
   check(cf?.properties?.fbTyp === 'einwilligung', 'auffindbar für das optionale Apps-Script');
@@ -352,12 +353,12 @@ async function run() {
   await step('ensureConsentSharing', () => b.ensureConsentSharing(cf.id, cf.appProperties.fbEmpf));
   const cPerms2 = fake.state.permissions.filter((p) => p.file === cf?.id).map((p) => p.emailAddress);
   check(cPerms2.join() === 'schriftwart@beispiel.de', 'Freigabe folgt dem Wechsel der Verantwortlichen (alter Zugriff entfernt)', cPerms2.join());
-  config.datenschutz = { ...config.datenschutz, fassung: '2' };
+  config.datenschutz = { ...config.datenschutz, fassung: String(Number(FASSUNG) + 1) };
   check(dsLib.needsDecision(await b.getMyConsent()) === true, 'neue Fassung → alle werden erneut gefragt');
-  config.datenschutz = { ...config.datenschutz, fassung: '1' };
+  config.datenschutz = { ...config.datenschutz, fassung: FASSUNG };
 
   section('Datenschutz: Einwilligungen anderer');
-  const annaV = { zeitpunkt: '2026-10-01T10:00:00.000Z', fassung: '1', pruefsumme: dsLib.textPruefsumme(), vereinszwecke: false, dachverband: true, geraet: 'Android · Chrome' };
+  const annaV = { zeitpunkt: '2026-10-01T10:00:00.000Z', fassung: FASSUNG, pruefsumme: dsLib.textPruefsumme(), vereinszwecke: false, dachverband: true, geraet: 'Android · Chrome' };
   const annaConsent = fake.addFile({ name: 'Datenschutz-Einwilligung (Mitglieder-App).json', appProperties: { fbTyp: 'einwilligung' }, description: JSON.stringify({ konto: ANNA, ...annaV, verlauf: [annaV] }), ownerEmail: ANNA, ownerName: 'Anna Andere', createdTime: annaV.zeitpunkt, modifiedTime: annaV.zeitpunkt });
   // Fälschungsversuch: Anna legt eine Datei an, die angeblich Theos Einwilligung ist
   fake.addFile({ name: 'x.json', appProperties: { fbTyp: 'einwilligung' }, description: JSON.stringify({ konto: me.email, vereinszwecke: false, dachverband: false, fassung: '1', zeitpunkt: '2026-01-01T00:00:00.000Z' }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-01-01T00:00:00.000Z' });
@@ -387,7 +388,7 @@ async function run() {
   check(stand.some((r) => r[0] === me.email && r[2] === 'Ja' && r[3] === 'Nein'), 'Stand: Theos aktuelle Entscheidung');
   check(stand.some((r) => r[0] === 'karl@beispiel.de' && r[9] === 'keine Rückmeldung'), 'Stand: wer noch nicht geantwortet hat');
   check(tab('Verlauf').length - 1 === 4 && s1?.neueEintraege === 4, 'Verlauf: alle 4 Erklärungen (3 von Theo, 1 von Anna)', JSON.stringify(tab('Verlauf')));
-  check(tab('Fassungen').length - 1 === 2 && tab('Fassungen')[1][4].includes('Verbindungszeitung'), 'Fassungen: Wortlaut beider Einwilligungen festgehalten');
+  check(tab('Fassungen').length - 1 === 2 && tab('Fassungen')[1][4].includes('Bundesbote'), 'Fassungen: Wortlaut beider Einwilligungen festgehalten');
   const tPerms = fake.state.permissions.filter((p) => p.file === tId);
   check(tPerms.length === 1 && tPerms[0].emailAddress === 'schriftwart@beispiel.de' && tPerms[0].role === 'reader', 'Tabelle lesbar für die aktuellen Verantwortlichen – und nur für sie', JSON.stringify(tPerms));
   const s2 = await step('syncConsentTable (unverändert)', () => b.syncConsentTable());
@@ -522,7 +523,7 @@ async function run() {
   check(ca?.lines.some((l) => l.includes('Zeile 3')) && ca.lines.some((l) => l.includes('Verstorbene')), 'Kopfzeile unter einer Titelzeile gefunden, weiteres Blatt genannt', JSON.stringify(ca?.lines));
   check(ca?.warn.some((w) => w.includes('Jeder mit dem Link') && w.includes('öffentlichen config.js')), 'Warnung: „Jeder mit dem Link“ (die IDs sind öffentlich)', JSON.stringify(ca?.warn));
   check(ca?.warn.some((w) => w.includes('IBAN') && w.includes('Bemerkung')), 'Warnung: vertraulich wirkende Spalten');
-  const cz = by('Ordner Verbindungszeitung');
+  const cz = by('Ordner Bundesbote');
   check(cz?.ok && cz.detail.includes('3 Ausgaben') && !cz.warn.length, 'Zeitung: 3 PDFs in Jahresordnern, Freigabe in Ordnung', JSON.stringify(cz));
   check(fake.state.queries.some((q) => q.driveId === SD.driveId && q.corpora === 'drive'), 'geteilte Ablage gezielt durchsucht');
   const cg = by('Ordner Galerie');

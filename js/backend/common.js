@@ -125,7 +125,7 @@ export function appLinkBlock(link) {
 
 /* ---------------------------------------------------------- Zeitung */
 /**
- * "2026-2 Verbindungszeitung SoSe 2026.pdf" → Jahr, Nummer, Titel.
+ * "2026-2 Bundesbote SoSe 2026.pdf" → Jahr, Nummer, Titel.
  * Andere Namen („Zeitung Nr. 3 2019.pdf“) werden so gut wie möglich gelesen; fehlt das Jahr im Namen,
  * zählt ein Jahresordner („2019/…“, siehe f.path aus drive.listTree).
  */

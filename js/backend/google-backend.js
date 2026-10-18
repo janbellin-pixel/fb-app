@@ -691,7 +691,7 @@ export class GoogleBackend {
 
   async listIssues() {
     const folder = (config.zeitungOrdnerId || '').trim();
-    if (!folder) throw notConfigured('Der Zeitungsordner');
+    if (!folder) throw notConfigured('Der Ordner des Bundesboten');
     // auch Jahresordner („2019“, „Archiv/2003“): bis zwei Ebenen tief
     const { files } = await drive.listTree(folder, {
       depth: 2, filter: "mimeType = 'application/pdf'", fields: drive.FILE_FIELDS, orderBy: 'name desc', ...(await this.folderScope(folder)),

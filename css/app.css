@@ -174,6 +174,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1.25rem 0; }
 }
 .topnav a:hover { color: var(--ink); }
 .topnav a.active { color: var(--ink); border-bottom-color: var(--ink); }
+/* bei „Sehr groß“ etwas enger, damit alle Einträge (auch „Bundesbote“) ab 1280 px nebeneinander passen */
+html[data-schrift="sehr-gross"] .topnav a { padding-left: .5rem; padding-right: .5rem; }
 .topbar-user {
   margin-left: auto;
   flex: none;
@@ -258,7 +260,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1.25rem 0; }
 .back-link + .hero { margin-top: .625rem; }
 
 .section-title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem .75rem; margin: 1.875rem 0 .75rem; }
-/* lange Wörter („Verbindungszeitung“) dürfen in schmalen Spalten trennen statt überzustehen */
+/* lange Wörter (z. B. „Adressverzeichnis“) dürfen in schmalen Spalten trennen statt überzustehen */
 .section-title h2 { margin: 0; font-weight: 300; font-size: 1.5rem; letter-spacing: .2px; min-width: 0; overflow-wrap: anywhere; }
 .section-title a, .section-title button.link { font-size: .875rem; font-weight: 600; }
 .section-title:first-child { margin-top: .5rem; }

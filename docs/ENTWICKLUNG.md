@@ -8,7 +8,7 @@ Leitfaden für alle, die die App weiterentwickeln – Menschen wie KI-Assistente
 
 ## 1. Was die App ist
 
-Eine **Progressive Web App** für die Mitglieder der Frankonia-Brunonia. Sie bietet Termine mit Zu- und Absage, Mitglieder mit Profilen, Chat, Adressverzeichnis, Verbindungszeitung, Fotogalerie, News und Forum, dazu Datenschutz mit Einwilligungen. Sie läuft ohne eigenen Server direkt gegen **Google Workspace**; jedes Mitglied meldet sich mit seinem Google-Konto an.
+Eine **Progressive Web App** für die Mitglieder der Frankonia-Brunonia. Sie bietet Termine mit Zu- und Absage, Mitglieder mit Profilen, Chat, Adressverzeichnis, Bundesbote (Zeitung der Verbindung), Fotogalerie, News und Forum, dazu Datenschutz mit Einwilligungen. Sie läuft ohne eigenen Server direkt gegen **Google Workspace**; jedes Mitglied meldet sich mit seinem Google-Konto an.
 
 Drei Grundsätze bestimmen alles:
 
@@ -94,7 +94,7 @@ python tools/serve.py            # lokaler Server auf http://localhost:8080 (ohn
 | News | `listNews()`, `canEditNews()` (false), `newsSheetUrl()`, `imageUrl(ref)` |
 | Forum | `forumEnabled()`, `listForum()` → `{threads, posts}` mit `own`, `createThread()`, `reply()`, `editPost()`, `deletePost()`, `deleteThread()` – nur Eigenes |
 | Adressen | `listAddresses()` → `{items, hasBirthdays, sheetUrl, …}` |
-| Zeitung | `listIssues()`, `loadIssue(issue)`, `issueOpenUrl(issue)` |
+| Bundesbote (Zeitung) | `listIssues()`, `loadIssue(issue)`, `issueOpenUrl(issue)` |
 | Galerie | `listGallery()` → `{albums, folderUrl}`, `photoUrl(photo, size)`, `photoFullUrl(photo)` |
 | Chat | `chatStatus()`, `listSpaces()`, `listMessages(space)`, `sendMessage(space, text)`, `findDirectChat(email)`, `chatOpenUrl()` |
 | Datenschutz | `getMyConsent()`, `saveMyConsent({vereinszwecke, dachverband, zeitpunkt?})`, `isConsentManager()`, `listConsents()`, `consentTable()`, `createConsentTable()`, `syncConsentTable()`, `autoSyncConsents()` |
@@ -111,7 +111,7 @@ Nur Google (intern): `cached(key, ttl, fn)` und `invalidate(key)` (Speicher-Cach
 | Forum | `fbTyp=forum`, `fbRolle=thema\|antwort`, `fbThema=<Datei-ID>`, `fbKategorie` | `{ titel, text, bearbeitet }` | Gruppe/Domain/Testkonten: Leser |
 | Einwilligung | `fbTyp=einwilligung`, `fbVz`, `fbDv` (`Ja`/`Nein`), `fbFassung`, `fbEmpf` (Prüfsumme der Empfänger); öffentlich `properties.fbTyp=einwilligung` | `{ typ, version, konto, name, zeitpunkt, fassung, pruefsumme, vereinszwecke, dachverband, geraet, stand, erstmals, verlauf:[…max. 10] }`, zusätzlich als lesbarer Dateiinhalt | nur einzelne Verantwortliche: Leser |
 
-**Gemeinsame Daten** (nur lesen): Kalender (`extendedProperties.shared.fbKategorie/fbKleidung/fbPflicht` oder Zeilen in der Beschreibung), Tabelle „News“ (Spalten aus `NEWS_SCHEMA`), Tabelle „Adressverzeichnis“ (Spalten frei; Erkennung über `ADDRESS_FIELDS` in `common.js`; Kopfzeile in den ersten zehn Zeilen; Blatt aus `adressenBlatt`, sonst „Adressen“, sonst das erste), Ordner „Verbindungszeitung“ (`JJJJ-N Titel.pdf`, auch in Jahresordnern bis zwei Ebenen tief), Ordner „Galerie“ (Unterordner `JJJJ-MM Name` = Alben, auch in Jahresordnern bis zwei Ebenen tief). Unterordner liest `drive.listTree()` je Ebene gebündelt (bis 25 Ordner pro Abfrage), in geteilten Ablagen mit `corpora=drive&driveId` (E25).
+**Gemeinsame Daten** (nur lesen): Kalender (`extendedProperties.shared.fbKategorie/fbKleidung/fbPflicht` oder Zeilen in der Beschreibung), Tabelle „News“ (Spalten aus `NEWS_SCHEMA`), Tabelle „Adressverzeichnis“ (Spalten frei; Erkennung über `ADDRESS_FIELDS` in `common.js`; Kopfzeile in den ersten zehn Zeilen; Blatt aus `adressenBlatt`, sonst „Adressen“, sonst das erste), Ordner des Bundesboten (`JJJJ-N Titel.pdf`, auch in Jahresordnern bis zwei Ebenen tief; der Leser zeigt immer eine Seite und teilt Querformat-Seiten als Doppelseiten: `layoutPages()`/`drawPart()` in `views/zeitung.js`), Ordner „Galerie“ (Unterordner `JJJJ-MM Name` = Alben, auch in Jahresordnern bis zwei Ebenen tief). Unterordner liest `drive.listTree()` je Ebene gebündelt (bis 25 Ordner pro Abfrage), in geteilten Ablagen mit `corpora=drive&driveId` (E25).
 
 **Einwilligungsliste** (`appProperties.fbTyp = einwilligungen-tabelle`, im Drive der Verantwortlichen): Blätter „Stand“, „Verlauf“ (Schlüssel: Datei-ID + Zeitstempel UTC, nur anhängen) und „Fassungen“; Aufbau in `js/lib/einwilligungsliste.js`, Gegenstück in `apps-script/Einwilligungen.gs`.
 
@@ -139,7 +139,7 @@ Nur Google (intern): `cached(key, ttl, fn)` und `invalidate(key)` (Speicher-Cach
 
 - **Design-Tokens** in `:root` (`--bg`, `--ink`, `--green`, `--line` …). Stil der Website: hellgrau, schwarze Titelkästen, Raleway, Grün aus dem Wappen; Wappen klein oben, Skyline unten.
 - **Nur `rem`** für Größen (Schriftstufen in `html[data-schrift]`). Ausnahmen in `px` nur dort, wo bewusst nicht mitskaliert wird (Kopfzeilenhöhe, Wappen oben, Avatar oben).
-- **Raster** mit `minmax(0, 1fr)`; lange Wörter mit `hyphens: auto`, in engen Spalten zusätzlich `overflow-wrap: anywhere` (z. B. „Verbindungszeitung“).
+- **Raster** mit `minmax(0, 1fr)`; lange Wörter mit `hyphens: auto`, in engen Spalten zusätzlich `overflow-wrap: anywhere` (z. B. „Adressverzeichnis“).
 - **Breakpoints:** 480/520/560 (kleine Handys), 600 (Dialoge mittig), 640, 700 (Abstände, Formulare zweispaltig, Tab-Leiste mittig), **768** (zweispaltige Seiten), 900 (größere Skyline), 1000/1100. Die **Navigation** hängt nur an `(min-width: 1280px) and (hover: hover) and (pointer: fine)` (E17). Bei `(orientation: landscape) and (max-height: 500px)` ist die Ansicht kompakt.
 - **Safe Areas:** `--safe-t/-b/-l/-r` und `--pad-l/-r` (Rand + Aussparung) für alles, was bis an den Rand reicht.
 - **Hover-Effekte** mit Bewegung nur in `@media (hover: hover)`.
@@ -186,7 +186,7 @@ Benötigt: Python 3 mit Pillow, numpy, scipy, reportlab, pyphen, fonttools.
 
 Repository: <https://github.com/janbellin-pixel/fb-app> (öffentlich, Hauptzweig `main`) · App: <https://janbellin-pixel.github.io/fb-app/>
 
-GitHub Actions (`.github/workflows/pages.yml`) kopiert `index.html`, `manifest.webmanifest`, `sw.js`, `config.js`, `css/`, `js/`, `assets/`, `vendor/` nach `_site` und setzt die Versionskennung im Service Worker auf den Commit. Neue Ordner, die ausgeliefert werden sollen, dort ergänzen. Nach dem Hochladen zeigen installierte Apps „Neue Version verfügbar“.
+Der Service Worker fragt App-Code bei jedem Start beim Server nach und aktiviert neue Versionen sofort (E27). GitHub Actions (`.github/workflows/pages.yml`) kopiert `index.html`, `manifest.webmanifest`, `sw.js`, `config.js`, `css/`, `js/`, `assets/`, `vendor/` nach `_site` und setzt die Versionskennung im Service Worker auf den Commit. Neue Ordner, die ausgeliefert werden sollen, dort ergänzen. Nach dem Hochladen zeigen installierte Apps „Neue Version verfügbar“.
 
 Der Workflow läuft nur bei Uploads in `main` und bei manuellem Start, nicht bei Pull Requests aus fremden Kopien. Schreiben können nur Inhaber und eingeladene Mitarbeiter. Absicherung des Kontos (Zwei-Faktor, Regeln für `main`, Notfall-Sperre): EINRICHTUNG.md, Abschnitt A3.
 
@@ -208,6 +208,7 @@ Der Workflow läuft nur bei Uploads in `main` und bei manuellem Start, nicht bei
 - **Einwilligungsliste nach Eigentümerwechsel:** `drive.file` erlaubt das Schreiben nur dem Konto, das die Tabelle mit der App angelegt hat. Nach einer Übertragung schreibt die App sie nicht mehr; dann übernimmt `Einwilligungen.gs` im Konto des neuen Eigentümers (vollständige Drive-Rechte des Skripts), oder es wird eine neue Liste angelegt (EINRICHTUNG, Teil D).
 - **iPhone:** Links aus dem Kalender öffnen Safari statt der installierten App (iOS).
 - **Touch-Tablets** mit Maus/Trackpad zeigen je nach Gerät die Tab-Leiste oder die Textleiste; beides funktioniert.
+- **Doppelseiten-Erkennung:** Querformat-Seiten im PDF gelten als Doppelseiten und werden geteilt (E11). Eine echte Querformat-Einzelseite (z. B. eine Tabelle) würde ebenfalls geteilt.
 - **Große Fotoarchive:** Die Galerie lädt die Angaben aller Fotos auf einmal (je Ordnerebene bis 4000). Bei sehr großen Archiven wäre Nachladen je Album besser. Verknüpfungen (Drive-Shortcuts) in den Ordnern werden nicht verfolgt.
 - **Kalender-Freigaben** prüft die Einrichtung nur, wenn die Berechtigung „Kalender verwalten“ schon erteilt ist (sonst Hinweis, selbst in Google Kalender nachzusehen). Ein neuer Scope dafür ist bewusst nicht vorgesehen (AGENTS.md, Regel 2).
 - **Vertrauliche Spalten** erkennt die Prüfung nur an typischen Spaltennamen – ein Hinweis, keine Garantie.

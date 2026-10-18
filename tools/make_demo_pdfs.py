@@ -1,5 +1,5 @@
 """
-Erzeugt drei Beispielausgaben der Verbindungszeitung (fiktive Inhalte)
+Erzeugt drei Beispielausgaben des Bundesboten, der Zeitung der Verbindung (fiktive Inhalte),
 für den Demo-Modus und den Einrichtungs-Assistenten der App.
 
 Aufruf (im Projektordner):
@@ -156,7 +156,7 @@ def draw_cover(c, issue):
     c.rect(0, 0, W, H, fill=1, stroke=0)
     c.setFillColor(BLACK)
     c.setFont("Fraktur", 50)
-    c.drawCentredString(W / 2, H - 40 * mm, "Verbindungszeitung")
+    c.drawCentredString(W / 2, H - 40 * mm, "Bundesbote")
     c.setFont("Raleway-Light", 12.5)
     c.drawCentredString(W / 2, H - 49 * mm, "Mitteilungen der Frankonia-Brunonia")
     iw, ih = CREST_FULL.getSize()
@@ -204,7 +204,7 @@ def draw_content(c, doc, issue):
     c.saveState()
     c.setFillColor(BLACK)
     c.setFont("Fraktur", 14)
-    c.drawString(M, H - 14 * mm, "Verbindungszeitung")
+    c.drawString(M, H - 14 * mm, "Bundesbote")
     c.setFont("Raleway", 8)
     c.setFillColor(GREY)
     c.drawRightString(W - M, H - 13.6 * mm, f'{issue["ausgabe"]} · {issue["semester"]}')
@@ -245,9 +245,9 @@ def draw_back(c, doc, issue):
 
 def build_issue(issue):
     doc = BaseDocTemplate(str(OUT / issue["file"]), pagesize=A4,
-                          title=f'Verbindungszeitung {issue["ausgabe"]} – {issue["semester"]}',
+                          title=f'Bundesbote {issue["ausgabe"]} – {issue["semester"]}',
                           author="Frankonia-Brunonia (Beispiel)",
-                          subject="Beispielausgabe der Verbindungszeitung (fiktive Inhalte)",
+                          subject="Beispielausgabe des Bundesboten (fiktive Inhalte)",
                           leftMargin=M, rightMargin=M, topMargin=22 * mm, bottomMargin=24 * mm)
     gap = 7 * mm
     colw = (W - 2 * M - gap) / 2
@@ -329,7 +329,7 @@ def story_2026_2(colw, fullw):
         "haben, und nicht zuletzt der Aktivitas, die das Semesterprogramm mit Leben gefüllt hat.",
         "Eine Neuerung möchte ich besonders hervorheben: Ab diesem Semester gibt es unsere "
         "<b>Mitglieder-App</b>. Termine mit Zu- und Absage, das Adressverzeichnis, der Chat und das "
-        "Archiv dieser Zeitung sind damit für jeden Bundesbruder mit wenigen Fingertipps erreichbar. "
+        "Archiv des Bundesboten sind damit für jeden Bundesbruder mit wenigen Fingertipps erreichbar. "
         "Ich bitte euch herzlich: Installiert die App und pflegt euer Profil. Je mehr mitmachen, desto "
         "lebendiger wird unser Bund auch zwischen den Kneipen.",
         "Für das kommende Wintersemester wünsche ich uns viele schöne Stunden auf dem Haus, spannende "
@@ -433,7 +433,7 @@ def story_2026_2(colw, fullw):
         "sind.")
 
     s += article_page("In eigener Sache", "Neu: Die Mitglieder-App",
-                     "Termine, Zusagen, Chat, Adressen und diese Zeitung – ab sofort alles an einem Ort.")
+                     "Termine, Zusagen, Chat, Adressen und der Bundesbote – ab sofort alles an einem Ort.")
     s += paras(
         "Mit der neuen Mitglieder-App haben wir einen lang gehegten Wunsch umgesetzt. Die App läuft "
         "auf iPhone, Android-Smartphones und am Computer. Angemeldet wird man einmalig mit dem "
@@ -445,7 +445,7 @@ def story_2026_2(colw, fullw):
         "• <b>Mitglieder:</b> Profile mit Foto, Kneipname, Status und Ämtern.<br/>"
         "• <b>Chat:</b> die Räume aus Google Chat direkt in der App.<br/>"
         "• <b>Adressen:</b> das Adressverzeichnis zum Nachschlagen.<br/>"
-        "• <b>Zeitung:</b> alle Ausgaben zum Durchblättern – mit echtem Umblätter-Effekt.<br/>"
+        "• <b>Bundesbote:</b> alle Ausgaben zum Durchblättern – mit echtem Umblätter-Effekt.<br/>"
         "• <b>News und Forum</b> für Neuigkeiten und Diskussionen.")
     s += h2("So geht's")
     s += paras(
@@ -626,15 +626,15 @@ def story_2025_2(colw, fullw):
 
 
 ISSUES = [
-    dict(file="2026-2 Verbindungszeitung SoSe 2026.pdf", ausgabe="Ausgabe 2/2026",
+    dict(file="2026-2 Bundesbote SoSe 2026.pdf", ausgabe="Ausgabe 2/2026",
          semester="Sommersemester 2026",
          cover_topics=["Stiftungsfest 2026", "Neue Küche im Haus", "Sechs neue Füxe", "Die Mitglieder-App"],
          story=story_2026_2, impressum=impressum()),
-    dict(file="2026-1 Verbindungszeitung WiSe 2025-26.pdf", ausgabe="Ausgabe 1/2026",
+    dict(file="2026-1 Bundesbote WiSe 2025-26.pdf", ausgabe="Ausgabe 1/2026",
          semester="Wintersemester 2025/26",
          cover_topics=["Weihnachtskneipe", "Neue Heizung", "Generalversammlung"],
          story=story_2026_1, impressum=impressum()),
-    dict(file="2025-2 Verbindungszeitung SoSe 2025.pdf", ausgabe="Ausgabe 2/2025",
+    dict(file="2025-2 Bundesbote SoSe 2025.pdf", ausgabe="Ausgabe 2/2025",
          semester="Sommersemester 2025",
          cover_topics=["Stiftungsfest 2025", "Garten und Grillplatz"],
          story=story_2025_2, impressum=impressum()),

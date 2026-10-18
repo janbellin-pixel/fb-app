@@ -45,7 +45,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
   1. Google-Freigaben: Mitglieder haben auf Kalender, Tabellen und Ordner nur Leserechte.
   2. Minimale OAuth-Scopes: `drive.readonly` und `drive.file`, kein Tabellen-Schreib-Scope.
   3. Sperre im Code (`js/google/guard.js`): Jede ändernde Anfrage wird vor dem Senden geprüft. Nur ausdrücklich erlaubte Fälle gehen durch.
-- **Folgen:** Termine, News, Adressen, Zeitung und Fotos werden **direkt bei Google** gepflegt, nicht in der App (siehe E9–E12). Jede neue Schreibfunktion braucht eine Regel im Wächter **und** einen Test in `tests/google-mock.js`. Der Test zählt unerlaubte Schreibzugriffe; das Ergebnis muss 0 sein. Frühere Funktionen (Termine und News in der App bearbeiten, gemeinsame Tabelle „Mitgliederdaten“, Forum-Moderation) wurden dafür entfernt.
+- **Folgen:** Termine, News, Adressen, Bundesbote und Fotos werden **direkt bei Google** gepflegt, nicht in der App (siehe E9–E12). Jede neue Schreibfunktion braucht eine Regel im Wächter **und** einen Test in `tests/google-mock.js`. Der Test zählt unerlaubte Schreibzugriffe; das Ergebnis muss 0 sein. Frühere Funktionen (Termine und News in der App bearbeiten, gemeinsame Tabelle „Mitgliederdaten“, Forum-Moderation) wurden dafür entfernt.
 
 ## E6 · Eigene Daten liegen im eigenen Drive; Identität = Dateieigentümer
 *2026-10-17*
@@ -81,11 +81,11 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Entscheidung:** Die Redaktion pflegt die Tabelle „News“ direkt. Die ID ist optional (sonst Zeilennummer). Datumsangaben werden in allen üblichen Schreibweisen erkannt, weil Google von Hand eingetippte Daten als „16.10.2026“ liefert.
 - **Folgen:** Kein Editor in der App nötig. Bilder per Drive-Link oder URL.
 
-## E11 · Verbindungszeitung als PDFs mit Umblätter-Ansicht
+## E11 · Bundesbote (Zeitung der Verbindung) als PDFs mit Umblätter-Ansicht
 *2026-10-16*
 
 - **Entscheidung:** PDFs liegen in einem Drive-Ordner (Dateiname `JJJJ-N Titel.pdf`). PDF.js rendert die Seiten, StPageFlip blättert sie. Geöffnete Ausgaben werden offline zwischengespeichert.
-- **Geändert 2026-10-18 (Wunsch der Verbindung):** immer nur **eine Seite**, keine Doppelseite – auch quer und auf Tablets/Computern. Umsetzung: `minWidth` von StPageFlip wird nach dem Aufbau auf 1e6 gesetzt, damit die Bibliothek stets „portrait“ wählt (`js/views/zeitung.js`). Vorher: hochkant Einzelseite, quer Doppelseite.
+- **Geändert 2026-10-18 (Wunsch der Verbindung):** immer nur **eine Seite**, keine Doppelseite – auch quer und auf Tablets/Computern. Umsetzung: `minWidth` von StPageFlip wird nach dem Aufbau auf 1e6 gesetzt, damit die Bibliothek stets „portrait“ wählt (`js/views/zeitung.js`). Vorher: hochkant Einzelseite, quer Doppelseite. Zusätzlich gelten PDF-Seiten im Querformat (Breite ≥ 1,25 × Höhe) als Doppelseiten, z. B. aus Scans, und werden in linke und rechte Hälfte geteilt; ist schon die erste PDF-Seite eine Doppelseite, gilt sie als Umschlag (Titel zuerst, Rückseite ans Ende). Grenze: Eine echte Querformat-Einzelseite würde ebenfalls geteilt.
 - **Folgen:** Die Redaktion lädt nur PDFs hoch. Große PDFs brauchen beim ersten Öffnen etwas Ladezeit.
 - **Ergänzt durch E25** (Jahresordner, andere Dateinamen).
 
@@ -168,7 +168,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 ## E23 · Einrichtung: Vorhandenes verbinden, nur Fehlendes neu anlegen
 *2026-10-17 – Anlass: Einrichtung im echten Workspace*
 
-- **Kontext:** Im Workspace gibt es schon den Kalender, die Mitgliederliste und die Ordner mit Zeitung und Fotos. „Neu anlegen“ ging bisher nur vor jeder Einrichtung und legte dann alles neu an – auch das, was es schon gibt.
+- **Kontext:** Im Workspace gibt es schon den Kalender, die Mitgliederliste und die Ordner mit dem Bundesboten und den Fotos. „Neu anlegen“ ging bisher nur vor jeder Einrichtung und legte dann alles neu an – auch das, was es schon gibt.
 - **Entscheidung:** Die Einrichtung trennt **verbinden** (nur die ID eintragen; die App liest) und **„Fehlendes neu anlegen“** (`createMissing`, nur Datenquellen ohne Eintrag). Verbundenes wird dabei weder gelesen noch verändert noch neu freigegeben. Beispieldaten kommen nur in Neues und sind nur beim Start von Grund auf vorausgewählt. Die Berechtigung „Kalender verwalten“ wird nur angefragt, wenn ein neuer Kalender nötig ist. Der Schreibschutz bleibt unverändert: Während des Klicks sind nur die gerade angelegten Ressourcen beschreibbar.
 - **Folgen:** Ein erneuter Klick legt nichts doppelt an. Freigaben vorhandener Dateien richten die Verantwortlichen selbst in Google ein; die Prüfung (E24) zeigt, was fehlt.
 
@@ -189,3 +189,16 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
   - **Galerie:** Alben sind Ordner mit Fotos bis zwei Ebenen tief; übergeordnete Ordner erscheinen als Zusatz („Stiftungsfest · 2023“).
   - **Abruf:** gebündelt je Ebene, geteilte Ablagen gezielt mit `corpora=drive&driveId`.
 - **Folgen:** Vorhandenes muss nicht umgebaut werden. Grenze: Sehr große Fotoarchive laden alle Angaben auf einmal (ENTWICKLUNG.md, Offene Punkte).
+
+## E26 · Die Zeitung heißt „Bundesbote“
+*2026-10-18 – Wunsch der Verbindung*
+
+- **Entscheidung:** Überall, wo Mitglieder es sehen, heißt die Zeitung „Bundesbote“ (mit Beugung: des Bundesboten, im Bundesboten): Menü, Startseite, Titel, Einrichtung, Datenschutzerklärung, App-Beschreibung, Verknüpfung im Startbildschirm-Menü, Mitglieder-Anleitung und Demo-Ausgaben. Technische Namen bleiben `zeitung` (Route `#/zeitung`, `zeitungOrdnerId`, `views/zeitung.js`), damit Links, Einstellungen und Lesezeichen weiter funktionieren.
+- **Folgen:** Der Wortlaut der Einwilligung „vereinsübliche Zwecke“ hat sich dadurch geändert. Deshalb steigt `datenschutz.fassung` auf 2, und wer schon geantwortet hat, wird einmal erneut gefragt. „Verbandszeitung“ (die Zeitung der Deutschen Sängerschaft) ist etwas anderes und bleibt.
+
+## E27 · Updates ohne Wartezeit
+*2026-10-18*
+
+- **Kontext:** GitHub Pages liefert Dateien mit `Cache-Control: max-age=600`. Browser dürfen eine Datei also zehn Minuten lang ungeprüft weiterverwenden – auch über den „Netz zuerst“-Weg des Service Workers. Eine Korrektur kam deshalb auf dem iPhone zunächst nicht an.
+- **Entscheidung:** Der Service Worker fragt App-Code (Seiten, Skripte, Stile, `config.js`, Manifest) immer beim Server nach (`cache: 'no-cache'`; unverändert = kurze 304-Antwort). Bilder, Schriften und `vendor/` dürfen im Zwischenspeicher bleiben. Eine neue Service-Worker-Version übernimmt sofort (`skipWaiting`).
+- **Folgen:** Nach dem Neustart der App ist die neueste Version da. Pro Start eine kurze Nachfrage je Code-Datei.

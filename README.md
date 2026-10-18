@@ -1,6 +1,6 @@
 # Frankonia-Brunonia – Mitglieder-App
 
-Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile, Geburtstage, Chat, Adressverzeichnis, Verbindungszeitung zum Durchblättern, Fotogalerie, News und Forum**. Sie lässt sich auf iPhone, Android und PC installieren, ohne App-Store. Alle Daten liegen im **Google Workspace der Verbindung**; angemeldet wird einmalig mit dem Verbindungskonto.
+Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile, Geburtstage, Chat, Adressverzeichnis, den Bundesboten (Zeitung der Verbindung) zum Durchblättern, Fotogalerie, News und Forum**. Sie lässt sich auf iPhone, Android und PC installieren, ohne App-Store. Alle Daten liegen im **Google Workspace der Verbindung**; angemeldet wird einmalig mit dem Verbindungskonto.
 
 **Grundsatz:** Die App dient der Information und dem Austausch. Gemeinsame Daten zeigt sie nur an und ändert sie nie. Jedes Mitglied ändert ausschließlich seine eigenen Daten: die eigene Zu-/Absage, das eigene Profil, eigene Forumsbeiträge, die eigene Datenschutz-Einwilligung und eigene Chat-Nachrichten (siehe [Schreibschutz](#schreibschutz)).
 
@@ -17,7 +17,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Geburtstage** | Die nächsten drei Geburtstage auf der Startseite, aus dem Adressverzeichnis. |
 | **Chat** | Google Chat: die Räume der Verbindung direkt in der App, Direktnachricht aus dem Profil. |
 | **Adressverzeichnis** | Google-Tabelle, nur lesbar. Suche, anrufen, E-Mail, Karte, in Kontakte übernehmen (vCard). |
-| **Verbindungszeitung** | PDFs aus einem Drive-Ordner mit allen Ausgaben, **realistische Umblätter-Animation**, Zoom, offline verfügbar. |
+| **Bundesbote** | Die Zeitung der Verbindung: PDFs aus einem Drive-Ordner mit allen Ausgaben, immer eine Seite (Doppelseiten aus Scans werden geteilt), **realistische Umblätter-Animation**, Zoom, offline verfügbar. |
 | **Fotogalerie** | Fotos aus einem festen Drive-Ordner. Jeder Unterordner ist ein Album (z. B. „2026-06 Stiftungsfest“), Vollbild mit Wischen. |
 | **News** | Meldungen mit Bildern aus einer Google-Tabelle, die die Redaktion direkt in Google Tabellen pflegt. |
 | **Forum** | Kategorien, Themen und Antworten. Jeder Beitrag liegt im eigenen Drive des Verfassers, nur er kann ihn ändern oder löschen. |
@@ -26,7 +26,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Geräte** | Handy, Phablet und Tablet in jeder Ausrichtung sowie PC. Auf Touch-Geräten gibt es immer die große Leiste unten, ab iPad-Breite zweispaltig, mit Schutzabständen für Kameraaussparungen im Querformat. |
 | **Gestaltung** | Im Stil der Website: hellgrau, schwarze Titelkästen, Raleway, Grün aus dem Wappen. Wappen klein oben, Skyline unten. |
 
-![Umblättern in der Verbindungszeitung](docs/screenshots/zeitung-umblaettern.jpg)
+![Umblättern im Bundesboten](docs/screenshots/zeitung-umblaettern.jpg)
 
 ## Schreibschutz
 
