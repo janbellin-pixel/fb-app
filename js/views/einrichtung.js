@@ -116,7 +116,7 @@ export default async function einrichtung(ctx) {
               <span class="hint">Nur Konten dieser Domain dürfen sich anmelden. Für den Test mit privatem Konto leer lassen.</span></div>
             <div class="field"><label for="o-group">Mitglieder-Gruppe (empfohlen)</label>
               <input class="input" id="o-group" name="mitgliederGruppe" placeholder="z. B. mitglieder@frankonia-brunonia.de" value="${config.mitgliederGruppe}">
-              <span class="hint">Google-Gruppe aller Mitglieder. Für die Anmeldung nicht nötig, aber für Zu- und Absagen: Google lässt nur Eingeladene antworten, und über die Gruppe sind alle mit einer Einladung erreicht.</span></div>
+              <span class="hint">Google-Gruppe aller Mitglieder. Nicht nötig: Anmelden kann jedes Konto der Domain, und zu- oder absagen kann jeder (ohne Einladung über die App). Mit der Gruppe als Gast stehen die Termine aber auch in den Kalendern der Mitglieder, und die Antworten erscheinen im Google Kalender.</span></div>
             <div class="field"><label for="o-test">Test-Mitglieder (optional)</label>
               <input class="input" id="o-test" name="testMitglieder" placeholder="freund@gmail.com, zweitkonto@gmail.com" value="${(config.testMitglieder || []).join(', ')}">
               <span class="hint">Für den Prototyp ohne Gruppe: diese Konten bekommen Zugriff und Einladungen.</span></div>

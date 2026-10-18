@@ -20,9 +20,9 @@ window.FB_CONFIG = {
   // Domain des Google Workspace: nur Konten dieser Domain können sich anmelden.
   workspaceDomain: 'frankonia-brunonia.de',
 
-  // Google-Gruppe mit allen Mitgliedern, z. B. 'mitglieder@frankonia-brunonia.de' (empfohlen).
-  // Für die Anmeldung nicht nötig – aber Zu- und Absagen gehen nur bei Terminen, zu denen man
-  // eingeladen ist, und über die Gruppe sind alle mit einer Einladung erreicht.
+  // Google-Gruppe mit allen Mitgliedern, z. B. 'mitglieder@frankonia-brunonia.de' (optional).
+  // Zu- und absagen kann jeder auch ohne Einladung (über die App). Wird die Gruppe zu Terminen
+  // eingeladen, stehen sie zusätzlich in den Kalendern der Mitglieder und die Antworten im Google Kalender.
   mitgliederGruppe: '',
 
   // Diese Konten sehen die Einrichtungsseite und Hinweise zur Pflege der Daten

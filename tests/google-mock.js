@@ -195,11 +195,34 @@ async function run() {
   check(ev2?.myStatus === 'accepted' && ev2?.myGuests === 1 && ev2?.myComment === 'Freue mich', 'Antwort mit Gast und Kommentar sichtbar');
   const lonely = { id: 'fbohneeinladung000', summary: 'Spontaner Stammtisch', start: { dateTime: new Date(now.getTime() + 5 * 86400_000).toISOString() }, end: { dateTime: new Date(now.getTime() + 5 * 86400_000 + 7200_000).toISOString() } };
   fbCal.events.set(lonely.id, lonely);
-  const writesBefore = fake.state.writes.length;
-  const err = await b.rsvp(lonely.id, { status: 'accepted' }).then(() => null).catch((e) => e);
-  check(err?.code === 'not_invited' && fake.state.writes.length === writesBefore, 'nicht eingeladen: freundlicher Hinweis, nichts geschrieben', err?.message);
   const ev3 = await step('getEvent (nicht eingeladen)', () => b.getEvent(lonely.id));
-  check(ev3?.invited === false && ev3?.myStatus === null, 'als „nicht eingeladen“ erkannt');
+  check(ev3?.invited === false && ev3?.myStatus === 'needsAction', 'nicht eingeladen erkannt – antworten kann man trotzdem', JSON.stringify({ invited: ev3?.invited, myStatus: ev3?.myStatus }));
+  const calBefore = JSON.stringify([...fbCal.events.values()]);
+  const zusageFiles = () => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'zusage' && f.ownerEmail === me.email);
+  const rz = await step('rsvp ohne Einladung', () => b.rsvp(lonely.id, { status: 'accepted', guests: 2, comment: 'Komme gern', title: lonely.summary, start: lonely.start.dateTime }));
+  check(rz?.via === 'app', 'Antwort ohne Einladung über die App', JSON.stringify(rz));
+  const zf = zusageFiles()[0];
+  check(zusageFiles().length === 1 && zf.parents.includes(folder.id) && zf.appProperties.fbTermin === lonely.id, 'als eigene Datei im eigenen App-Ordner gespeichert');
+  const zPerms = fake.state.permissions.filter((p) => p.file === zf?.id);
+  check(zPerms.length > 0 && zPerms.every((p) => p.role === 'reader'), 'für Mitglieder nur lesbar freigegeben', JSON.stringify(zPerms));
+  check(JSON.stringify([...fbCal.events.values()]) === calBefore, 'Verbindungskalender unverändert');
+  const ev4 = await step('getEvent (Antwort aus der App)', () => b.getEvent(lonely.id));
+  const meA = ev4?.attendees.find((a) => a.email === me.email);
+  check(ev4?.myStatus === 'accepted' && ev4?.myGuests === 2 && ev4?.myComment === 'Komme gern' && meA?.source === 'app', 'eigene Antwort mit Gästen und Kommentar sichtbar', JSON.stringify(meA));
+  await step('rsvp ohne Einladung (Schnellabsage)', () => b.rsvp(lonely.id, { status: 'declined' }));
+  const zd = JSON.parse(zusageFiles()[0]?.description || '{}');
+  check(zusageFiles().length === 1 && zd.status === 'declined' && zd.gaeste === 2 && zd.kommentar === 'Komme gern', 'Änderung in derselben Datei; Gäste und Kommentar bleiben', JSON.stringify(zd));
+  // Anna antwortet ebenfalls ohne Einladung (Datei in IHREM Drive) – und versucht, für Theo zuzusagen
+  const annaZ = fake.addFile({ name: 'Zusage.json', appProperties: { fbTyp: 'zusage', fbTermin: lonely.id }, description: JSON.stringify({ termin: lonely.id, status: 'accepted', gaeste: 1, kommentar: 'Bis dann' }), ownerEmail: ANNA, ownerName: 'Anna Andere' });
+  fake.addFile({ name: 'x.json', appProperties: { fbTyp: 'zusage', fbTermin: lonely.id }, description: JSON.stringify({ termin: lonely.id, konto: me.email, status: 'accepted' }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-01-01T00:00:00Z' });
+  const ev5 = await step('getEvent (Antworten anderer)', () => b.getEvent(lonely.id));
+  const annaAnt = ev5?.attendees.find((a) => a.email === ANNA);
+  check(annaAnt?.status === 'accepted' && annaAnt?.guests === 1 && annaAnt?.comment === 'Bis dann', 'Annas Antwort unter „Wer kommt?“', JSON.stringify(ev5?.attendees));
+  check(ev5?.myStatus === 'declined' && ev5.attendees.filter((a) => a.email === me.email).length === 1, 'fremde Datei ändert nichts an meiner Antwort (Inhaber zählt)');
+  const list2 = await step('listEvents (mit App-Antworten)', () => b.listEvents(range));
+  const l2 = list2?.events.find((x) => x.id === lonely.id);
+  check(l2?.myStatus === 'declined' && l2?.attendees.some((a) => a.email === ANNA && a.status === 'accepted'), 'auch in der Terminliste');
+  await blocked('Annas Zusage ändern', fake, () => drive.updateFile(annaZ.id, { description: '{"status":"declined"}' }));
 
   /* ---------------------------------------------------------------- News */
   section('News (nur lesen)');
@@ -516,7 +539,7 @@ async function run() {
   const c2 = await step('checkSetup (vorhandene Daten)', () => setup.checkSetup());
   const by = (l) => c2?.find((c) => c.label === l);
   const ck = by('Kalender');
-  check(ck?.ok && ck.detail.includes('2 Termine') && ck.warn.some((w) => w.startsWith('1 Termin ohne Einladung')), 'Kalender: Termin ohne Einladung der Gruppe gemeldet', JSON.stringify(ck));
+  check(ck?.ok && ck.detail.includes('2 Termine') && !ck.warn.length && ck.lines.some((l) => l.startsWith('1 Termin ohne Einladung') && l.includes('über die App')), 'Kalender: Termin ohne Einladung als Hinweis (Zusagen laufen über die App)', JSON.stringify(ck));
   check(ck?.lines.some((l) => l.includes('lesbar für alle in beispiel.de')), 'Kalender-Freigaben gelesen (nur lesend)', JSON.stringify(ck?.lines));
   const ca = by('Adressverzeichnis');
   check(ca?.ok && ca.detail.includes('Blatt „Aktive“') && ca.detail.includes('2 Einträge'), 'Adressen: eingetragenes Blatt, 2 Einträge', JSON.stringify(ca));

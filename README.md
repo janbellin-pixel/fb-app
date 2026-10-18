@@ -34,7 +34,7 @@ Die App ändert **keine** gemeinsamen Daten, weder Termine noch News, Adressen, 
 
 1. **Google-Freigaben:** Mitglieder haben auf Kalender, Tabellen und Ordner nur Leserechte.
 2. **Angefragte Berechtigungen:** Die App fragt bei Google für Drive nur „lesen“ und „eigene, von der App angelegte Dateien“ an (`drive.readonly` und `drive.file`), für Tabellen gar keine Schreibberechtigung. Damit kann sie fremde Dateien technisch nicht ändern.
-3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Einwilligung) und eigene Chat-Nachrichten. Alles andere wird blockiert.
+3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung) und eigene Chat-Nachrichten. Alles andere wird blockiert.
 
 Ausnahmen gibt es zwei, beide betreffen nur eigene Dateien:
 - Der Knopf **„Fehlendes neu anlegen“** in der Einrichtung ist nur für Admins sichtbar und legt nur an, was noch nicht verbunden ist – ausschließlich neue Dateien im eigenen Drive. Verbundenes (vorhandener Kalender, Mitgliederliste, Ordner) wird nie verändert oder neu freigegeben.

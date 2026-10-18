@@ -194,10 +194,16 @@ export class DemoBackend {
     return false;
   }
 
-  async rsvp(eventId, { status, guests, comment }) {
+  async rsvp(eventId, { status, guests, comment } = {}) {
     await wait(350);
     const r = this.bucket('rsvps', {});
-    r[eventId] = { status, guests: Number(guests) || 0, comment: comment || '' };
+    // nicht angegebene Gäste/Kommentare bleiben erhalten (z. B. beim schnellen Zusagen auf der Startseite)
+    const prev = r[eventId] || {};
+    r[eventId] = {
+      status,
+      guests: guests !== undefined ? Number(guests) || 0 : prev.guests || 0,
+      comment: comment !== undefined ? comment || '' : prev.comment || '',
+    };
     this.save();
     return { via: 'calendar' };
   }

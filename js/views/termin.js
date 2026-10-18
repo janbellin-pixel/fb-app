@@ -1,7 +1,7 @@
 // Termin: Details, eigene Zu-/Absage, wer kommt.
 // Termine selbst werden in der App nicht geändert – das geschieht im Google Kalender.
 import {
-  html, setHtml, icon, hero, backLink, loading, avatar, toast, showError, errorBox, shareLink, notice,
+  html, setHtml, icon, hero, backLink, loading, avatar, toast, showError, errorBox, shareLink,
 } from '../ui.js';
 import { fEventWhen, toDate } from '../lib/dates.js';
 import { linkify } from '../lib/text.js';
@@ -72,10 +72,6 @@ export default async function termin(ctx) {
   }
 
   function rsvpSection() {
-    if (!ev.invited) {
-      return notice('gold', 'Nicht eingeladen',
-        'Zu- und Absagen sind nur für eingeladene Mitglieder möglich (normalerweise über die Mitglieder-Gruppe). Du kannst den Termin aber in deinen eigenen Kalender übernehmen – rechts unter „In den eigenen Kalender“.');
-    }
     const st = ev.myStatus;
     const btn = (status, cls, label, ic) => html`<button class="${cls}" data-status="${status}" aria-pressed="${st === status}">${icon(ic)}${label}</button>`;
     return html`
@@ -102,6 +98,7 @@ export default async function termin(ctx) {
 
   function rsvpInfo() {
     if (app.mode === 'demo') return 'Demo: Antworten werden nur in diesem Browser gespeichert.';
+    if (!ev.invited) return 'Du bist zu diesem Termin nicht eingeladen. Deine Antwort speichert die App deshalb als kleine Datei in deinem eigenen Google Drive – alle Mitglieder sehen sie hier unter „Wer kommt?“, im Google Kalender erscheint sie nicht.';
     return 'Deine Antwort wird in deinem eigenen Google Kalender gespeichert – genau wie bei einer normalen Einladung. Die App ändert sonst nichts am Termin.';
   }
 
@@ -159,10 +156,10 @@ export default async function termin(ctx) {
     ev.myComment = comment;
     const mine = ev.attendees.find((a) => a.email === me.email);
     if (mine) Object.assign(mine, { status, guests, comment });
-    else ev.attendees.push({ email: me.email, name: me.name, status, guests, comment, source: 'calendar' });
+    else ev.attendees.push({ email: me.email, name: me.name, status, guests, comment, source: ev.invited ? 'calendar' : 'app' });
     render();
     try {
-      await b.rsvp(ev.id, { status, guests, comment });
+      await b.rsvp(ev.id, { status, guests, comment, title: ev.title, start: ev.start });
       toast(status === 'accepted' ? 'Zugesagt – wir freuen uns!' : status === 'tentative' ? 'Als „Vielleicht“ gespeichert' : 'Abgesagt – schade!');
     } catch (err) {
       Object.assign(ev, { myStatus: prev.status, myGuests: prev.guests, myComment: prev.comment });

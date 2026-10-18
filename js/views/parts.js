@@ -55,7 +55,7 @@ export function eventCard(ev, { members = new Map(), past = false, quick = false
         ${ev.mandatory ? html`<span class="badge badge-black">Pflicht</span>` : ''}
         ${ev.dresscode ? html`<span class="badge">${ev.dresscode}</span>` : ''}
       </div>
-      ${quick && ev.invited && (!ev.myStatus || ev.myStatus === 'needsAction') ? html`
+      ${quick && (!ev.myStatus || ev.myStatus === 'needsAction') ? html`
         <div class="rsvp-quick" style="margin-top:.625rem">
           <button class="btn btn-sm btn-green" data-rsvp="accepted" data-id="${ev.id}">${icon('check', 'icon-sm')}Zusagen</button>
           <button class="btn btn-sm" data-rsvp="declined" data-id="${ev.id}">Absagen</button>

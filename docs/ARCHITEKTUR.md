@@ -14,7 +14,7 @@ Handy / PC (PWA)  ──OAuth 2.0──▶  Google-Konto des Mitglieds
        ├─ Google Calendar API   Termine lesen; eigene Antwort im eigenen Kalender
        ├─ Google Sheets API     nur lesen: News, Adressverzeichnis
        ├─ Google Drive API      lesen: Zeitungs-PDFs, Galerie, News-Bilder
-       │                        eigene Dateien: Profil, Forumsbeiträge, Einwilligung
+       │                        eigene Dateien: Profil, Forum, Zusagen, Einwilligung
        ├─ People API            Workspace-Verzeichnis (Namen, Fotos)
        └─ Google Chat API       Räume lesen, eigene Nachrichten
 GitHub Pages: liefert nur die statischen App-Dateien aus
@@ -55,7 +55,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Funktion | Speicherort | Rechte der Mitglieder | Gepflegt von |
 |---|---|---|---|
 | Termine | Google-Kalender „Frankonia-Brunonia“ | lesen | Chargen direkt im Google Kalender |
-| Zu-/Absagen | Teilnehmerstatus im Termin (`attendees[].responseStatus`, `additionalGuests`, `comment`), gesetzt über den **eigenen** Kalender (`calendars/primary`) | eigene Antwort | jedes Mitglied selbst |
+| Zu-/Absagen | Eingeladen: Teilnehmerstatus im Termin (`attendees[].responseStatus`, `additionalGuests`, `comment`), gesetzt über den **eigenen** Kalender (`calendars/primary`). Nicht eingeladen: eigene Datei im eigenen Drive (`fbTyp=zusage`, E28) | eigene Antwort | jedes Mitglied selbst |
 | Kategorie, Kleidung, Pflicht | `extendedProperties.shared` (`fbKategorie`, `fbKleidung`, `fbPflicht`) oder Zeilen in der Beschreibung (`Kategorie: …`, `Kleidung: …`, `Pflichttermin`); sonst Kategorie aus dem Titel geraten | lesen | Chargen |
 | Profilfoto, Name | Google-Konto bzw. Workspace-Verzeichnis | – | jedes Mitglied im Google-Konto |
 | Profil-Zusatzangaben | JSON in der Beschreibung einer kleinen Datei im **eigenen** Drive (`appProperties.fbTyp = profil`), Ordner „Frankonia-Brunonia App – meine Beiträge und Profil“. Felder: Kneipname, Status, Rezeption, Ämter, Studium/Beruf, aktuelle bzw. letzte Tätigkeit, Wohnort, Über mich, Angebot für Jüngere, Telefon, Instagram, LinkedIn | lesen (Freigabe Gruppe/Domain) | jedes Mitglied selbst |

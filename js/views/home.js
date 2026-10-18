@@ -128,9 +128,9 @@ export default async function home(ctx) {
     if (btn) {
       btn.disabled = true;
       try {
-        await b.rsvp(btn.dataset.id, { status: btn.dataset.rsvp });
-        toast(btn.dataset.rsvp === 'accepted' ? 'Zugesagt – bis dann!' : 'Abgesagt');
         const ev = lastEvents?.events.find((x) => x.id === btn.dataset.id);
+        await b.rsvp(btn.dataset.id, { status: btn.dataset.rsvp, title: ev?.title, start: ev?.start });
+        toast(btn.dataset.rsvp === 'accepted' ? 'Zugesagt – bis dann!' : 'Abgesagt');
         if (ev) {
           ev.myStatus = btn.dataset.rsvp;
           const mine = ev.attendees.find((a) => a.email === me.email);

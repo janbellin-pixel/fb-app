@@ -47,12 +47,16 @@ function notConfigured(what) {
   return Object.assign(new Error(`${what} ist noch nicht eingerichtet. Ein Admin muss das unter „Einrichtung“ erledigen.`), { code: 'not_configured' });
 }
 
-function notInvited() {
-  return Object.assign(new Error('Du bist zu diesem Termin nicht eingeladen. Zu- und Absagen sind nur bei einer Einladung möglich (normalerweise über die Mitglieder-Gruppe).'), { code: 'not_invited' });
-}
-
 const nowIso = () => new Date().toISOString();
 const clip = (v, n) => String(v ?? '').trim().slice(0, n);
+
+const ANTWORTEN = ['accepted', 'tentative', 'declined'];
+
+/** Schlüssel eines Termins für appProperties (Google erlaubt höchstens 124 Byte je Eintrag) */
+export function terminKey(eventId) {
+  const id = String(eventId || '');
+  return id.length <= 100 && /^[\w-]+$/.test(id) ? id : `h${pruefsumme(id)}`;
+}
 
 function parseJson(s) {
   try {
@@ -136,7 +140,11 @@ export class GoogleBackend {
 
   /** Alle für mich sichtbaren App-Dateien eines Typs (eigene und von anderen freigegebene) */
   async listAppFiles(typ) {
-    const q = `appProperties has { key='fbTyp' and value='${typ}' } and trashed = false`;
+    return this.queryAppFiles(`appProperties has { key='fbTyp' and value='${typ}' } and trashed = false`);
+  }
+
+  /** App-Dateien zu einer beliebigen Drive-Abfrage – im eigenen Drive und in der Domain */
+  async queryAppFiles(q) {
     const lists = await Promise.all([
       drive.listFiles(q, { fields: OWN_FIELDS, orderBy: 'createdTime' }),
       this.isWorkspace && config.workspaceDomain
@@ -464,12 +472,18 @@ export class GoogleBackend {
   /* ================================================================ Termine (lesen + eigene Antwort) */
 
   async listEvents({ from, to }) {
-    const res = await cal.listEvents(this.calendarId(), { timeMin: from.toISOString(), timeMax: to.toISOString() });
-    const events = res.items.filter((e) => e.status !== 'cancelled').map((e) => this.mapEvent(e));
+    // Antworten aus der App: zu Terminen im Zeitraum, abgegeben höchstens 120 Tage vorher
+    const since = new Date(from.getTime() - 120 * 86400_000).toISOString();
+    const [res, answers] = await Promise.all([
+      cal.listEvents(this.calendarId(), { timeMin: from.toISOString(), timeMax: to.toISOString() }),
+      this.appResponses({ since }).catch(() => new Map()),
+    ]);
+    const events = res.items.filter((e) => e.status !== 'cancelled').map((e) => this.mapEvent(e, answers.get(terminKey(e.id))));
     return { events, canEdit: false, calendarName: res.summary };
   }
 
   async getEvent(id) {
+    const answersP = this.appResponses({ eventId: id }).catch(() => new Map());
     let raw;
     try {
       raw = await cal.getEvent(this.calendarId(), id);
@@ -477,14 +491,42 @@ export class GoogleBackend {
       if (e.status !== 404) throw e;
       raw = await cal.getEvent('primary', id).catch(() => { throw e; });
     }
-    return this.mapEvent(raw);
+    return this.mapEvent(raw, (await answersP).get(terminKey(id)));
+  }
+
+  /**
+   * Zu-/Absagen, die über die App ohne Einladung abgegeben wurden: je Mitglied und Termin eine kleine
+   * eigene Datei (fbTyp=zusage). Wer geantwortet hat, bestimmt der Dateieigentümer laut Google.
+   * Liefert Map Terminschlüssel → Map E-Mail → Antwort (je Mitglied die neueste).
+   */
+  async appResponses({ eventId, since } = {}) {
+    let q = "appProperties has { key='fbTyp' and value='zusage' } and trashed = false";
+    if (eventId) q += ` and appProperties has { key='fbTermin' and value='${terminKey(eventId)}' }`;
+    if (since) q += ` and modifiedTime > '${since}'`;
+    const files = await this.queryAppFiles(q);
+    const hidden = new Set((config.ausgeblendeteKonten || []).map((e) => String(e).toLowerCase()));
+    const out = new Map();
+    for (const f of files) {
+      const owner = this.ownerOf(f);
+      const key = f.appProperties?.fbTermin;
+      const d = parseJson(f.description);
+      if (!owner.email || hidden.has(owner.email) || !key || !ANTWORTEN.includes(d.status)) continue;
+      if (!out.has(key)) out.set(key, new Map());
+      const prev = out.get(key).get(owner.email);
+      if (prev && String(prev.time) > String(f.modifiedTime)) continue;
+      out.get(key).set(owner.email, {
+        email: owner.email, name: owner.name, status: d.status, guests: Math.max(0, Math.min(9, Number(d.gaeste) || 0)),
+        comment: clip(d.kommentar, 200), time: f.modifiedTime, source: 'app',
+      });
+    }
+    return out;
   }
 
   async canEditEvents() {
     return false;
   }
 
-  mapEvent(e) {
+  mapEvent(e, appAnswers = null) {
     const me = this.myEmail;
     const group = String(config.mitgliederGruppe || '').toLowerCase();
     const calId = String(config.kalenderId || '').toLowerCase();
@@ -499,8 +541,15 @@ export class GoogleBackend {
       if (email === calId) continue;
       attendees.push({ email, name: a.displayName || '', status: a.responseStatus || 'needsAction', guests: a.additionalGuests || 0, comment: a.comment || '', source: 'calendar' });
     }
+    // eingeladen = laut Google Kalender (persönlich oder über die Mitglieder-Gruppe)
+    const invited = attendees.some((a) => a.email === me) || groupInvited;
+    // Antworten aus der App ergänzen; eine offene Kalender-Antwort ersetzt die App-Antwort
+    for (const r of appAnswers?.values() || []) {
+      const cur = attendees.find((a) => a.email === r.email);
+      if (!cur) attendees.push({ ...r });
+      else if (cur.status === 'needsAction') Object.assign(cur, { status: r.status, guests: r.guests, comment: r.comment, source: 'app' });
+    }
     const mine = attendees.find((a) => a.email === me);
-    const invited = !!mine || groupInvited;
     const meta = parseEventMeta(stripAppLink(htmlToText(e.description || '')));
     return {
       id: e.id,
@@ -517,7 +566,8 @@ export class GoogleBackend {
       dresscode: props.fbKleidung || meta.kleidung,
       mandatory: props.fbPflicht === '1' || meta.pflicht,
       attendees,
-      myStatus: mine?.status || (invited ? 'needsAction' : null),
+      // zu- oder absagen kann jedes Mitglied – ohne Einladung über die App (rsvpViaApp)
+      myStatus: mine?.status || 'needsAction',
       myGuests: mine?.guests || 0,
       myComment: mine?.comment || '',
       invited,
@@ -527,17 +577,18 @@ export class GoogleBackend {
   }
 
   /**
-   * Eigene Zu-/Absage: ausschließlich im EIGENEN Kalender (calendars/primary).
-   * Google überträgt die Antwort an den Termin – genau wie beim Antworten in Google Kalender.
+   * Eigene Zu-/Absage. Eingeladen: im EIGENEN Kalender (calendars/primary) – Google überträgt die
+   * Antwort an den Termin, genau wie beim Antworten in Google Kalender. Nicht eingeladen: als eigene
+   * Datei im eigenen Drive (rsvpViaApp). Der Kalender der Verbindung wird in keinem Fall geändert.
    */
-  async rsvp(eventId, { status, guests, comment }) {
-    let own;
+  async rsvp(eventId, { status, guests, comment, title = '', start = '' } = {}) {
+    let own = null;
     try {
       own = await cal.getEvent('primary', eventId);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 404) throw notInvited();
-      throw e;
+      if (!(e instanceof ApiError && e.status === 404)) throw e;
     }
+    if (!own) return this.rsvpViaApp(eventId, { status, guests, comment, title, start });
     const me = this.myEmail;
     const attendees = (own.attendees || []).map((a) => ({ ...a }));
     let mine = attendees.find((a) => a.self || String(a.email).toLowerCase() === me);
@@ -550,6 +601,34 @@ export class GoogleBackend {
     if (comment !== undefined) mine.comment = clip(comment, 200);
     await cal.patchEvent('primary', eventId, { attendees }, 'none');
     return { via: 'calendar' };
+  }
+
+  /** Zu-/Absage ohne Einladung: eigene kleine Datei im eigenen App-Ordner, für Mitglieder nur lesbar */
+  async rsvpViaApp(eventId, { status, guests, comment, title, start }) {
+    if (!ANTWORTEN.includes(status)) throw new Error('Unbekannte Antwort');
+    const key = terminKey(eventId);
+    const found = await drive.listFiles(
+      `appProperties has { key='fbTyp' and value='zusage' } and appProperties has { key='fbTermin' and value='${key}' } and 'me' in owners and trashed = false`,
+      { fields: OWN_FIELDS, orderBy: 'modifiedTime desc' },
+    );
+    const file = found.find((f) => f.ownedByMe);
+    const prev = file ? parseJson(file.description) : {};
+    const data = {
+      termin: String(eventId),
+      titel: clip(title || prev.titel, 140),
+      beginn: String(start || prev.beginn || ''),
+      status,
+      gaeste: guests !== undefined ? Math.max(0, Math.min(9, Number(guests) || 0)) : (Number(prev.gaeste) || 0),
+      kommentar: comment !== undefined ? clip(comment, 200) : clip(prev.kommentar, 200),
+      zeitpunkt: new Date().toISOString(),
+    };
+    if (file) {
+      registerOwnFile(file.id);
+      await drive.updateFile(file.id, { description: JSON.stringify(data) });
+    } else {
+      await this.createOwnFile('zusage', data, { fbTermin: key }, `Zusage – ${clip(data.titel, 80) || 'Termin'}.json`);
+    }
+    return { via: 'app' };
   }
 
   calendarInfo() {

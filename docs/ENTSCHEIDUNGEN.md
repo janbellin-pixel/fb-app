@@ -61,12 +61,13 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Entscheidung:** Beides bleibt getrennt. Mitglieder schreiben nie ins Adressverzeichnis. Ihr Profil liegt in einer eigenen Datei (E6). Die Profilseite gleicht Anschrift und Stammdaten mit dem Adressverzeichnis ab (`js/lib/adressabgleich.js`). Bei Abweichungen bereitet sie eine E-Mail an das Postfach für Adressänderungen vor (`config.adressaenderung`), mit den neuen Angaben und dem Hinweis, dass der Eintrag falsch oder unvollständig ist. Abgeschickt wird die E-Mail vom Mitglied selbst.
 - **Folgen:** Das Adressverzeichnis bleibt verlässlich und in einer Hand (Schriftwart). Die Anschrift wird nicht im Profil gespeichert. Beim **Status** gilt immer das Adressverzeichnis; Kneipname und andere Angaben darf das Mitglied im Profil ergänzen oder überschreiben. Verworfen wurde: Mitglieder dürfen das Verzeichnis selbst bearbeiten (verletzt E5, keine Kontrolle) bzw. Profilangaben ersetzen das Verzeichnis (keine offizielle Quelle mehr).
 
-## E8 · Zu- und Absagen nur über den eigenen Kalender
+## E8 · Zu- und Absagen über den eigenen Kalender (ergänzt durch E28)
 *2026-10-17*
 
 - **Kontext:** Zu- und Absagen sollen möglichst die normale Google-Antwort sein und in den eigenen Kalender exportierbar.
 - **Entscheidung:** Die App setzt die Antwort im **eigenen** Kalender (`calendars/primary`, nur das Feld `attendees`); Google überträgt sie an den Termin. Wer nicht eingeladen ist, bekommt einen Hinweis statt einer Ersatzlösung.
 - **Folgen:** Kein Schreibzugriff auf den Verbindungskalender nötig. Die Mitglieder-Gruppe muss als Gast eingeladen sein (manuell oder per `Automatik.gs`). Eine frühere Ersatzliste in einer Tabelle wurde entfernt (E5).
+- **Geändert 2026-10-18:** Der Hinweis statt einer Ersatzlösung entfällt – wer nicht eingeladen ist, sagt über eine eigene Datei zu (E28).
 
 ## E9 · Termine werden im Google Kalender gepflegt
 *2026-10-17*
@@ -202,3 +203,10 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Kontext:** GitHub Pages liefert Dateien mit `Cache-Control: max-age=600`. Browser dürfen eine Datei also zehn Minuten lang ungeprüft weiterverwenden – auch über den „Netz zuerst“-Weg des Service Workers. Eine Korrektur kam deshalb auf dem iPhone zunächst nicht an.
 - **Entscheidung:** Der Service Worker fragt App-Code (Seiten, Skripte, Stile, `config.js`, Manifest) immer beim Server nach (`cache: 'no-cache'`; unverändert = kurze 304-Antwort). Bilder, Schriften und `vendor/` dürfen im Zwischenspeicher bleiben. Eine neue Service-Worker-Version übernimmt sofort (`skipWaiting`).
 - **Folgen:** Nach dem Neustart der App ist die neueste Version da. Pro Start eine kurze Nachfrage je Code-Datei.
+
+## E28 · Zu- und Absagen auch ohne Einladung
+*2026-10-18 – Wunsch der Verbindung: „Es sollen alle zusagen können, egal, ob sie eingeladen sind.“*
+
+- **Kontext:** Google Kalender lässt nur Eingeladene antworten. Eine Mitglieder-Gruppe gibt es (noch) nicht, und die App darf den Kalender der Verbindung nicht ändern (E5) – Mitglieder können sich also nicht selbst als Gast eintragen.
+- **Entscheidung:** Ist ein Mitglied eingeladen, bleibt alles wie in E8 (Antwort im eigenen Kalender). Sonst speichert die App die Antwort als kleine eigene Datei im eigenen App-Ordner (`fbTyp=zusage`, `fbTermin=<Termin-ID>`, Beschreibung `{ termin, titel, beginn, status, gaeste, kommentar, zeitpunkt }`), für Mitglieder nur lesbar – wie Profil und Forum (E6). „Wer kommt?“ führt Kalender-Antworten und App-Antworten zusammen; wer geantwortet hat, bestimmt der Dateieigentümer laut Google. Eine offene Kalender-Antwort („keine Antwort“) wird durch eine App-Antwort ersetzt. Je Termin und Mitglied gibt es eine Datei, Änderungen überschreiben sie.
+- **Folgen:** Jedes Mitglied kann antworten, ohne neue Berechtigungen und ohne Schreibzugriff auf gemeinsame Daten. App-Antworten sieht man nur in der App, nicht im Google Kalender des Organisators. Die Mitglieder-Gruppe ist damit optional (bringt aber Termine in die eigenen Kalender und Antworten in Google Kalender). Die Terminliste liest App-Antworten der letzten 120 Tage vor Beginn des angezeigten Zeitraums.

@@ -117,7 +117,7 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 
 | Einstellung | Wo | Wozu |
 |---|---|---|
-| **Gruppe „mitglieder@…“** mit allen Mitgliedern anlegen (empfohlen) | Verzeichnis → Gruppen | Für die Anmeldung nicht nötig – anmelden kann sich jedes Konto der Domain. Aber zu- und absagen kann man bei Google nur, wenn man zum Termin eingeladen ist; mit der Gruppe genügt eine Einladung für alle. Lesefreigaben gehen ohne Gruppe auch an die ganze Domain |
+| **Gruppe „mitglieder@…“** mit allen Mitgliedern anlegen (optional) | Verzeichnis → Gruppen | Nicht nötig: Anmelden kann jedes Konto der Domain, und zu- oder absagen kann jeder auch ohne Einladung (über die App). Lädt man die Gruppe zu Terminen ein, stehen sie zusätzlich in den Kalendern der Mitglieder und die Antworten im Google Kalender. Lesefreigaben gehen ohne Gruppe auch an die ganze Domain |
 | Gruppe: „Wer kann Beiträge posten“ → mindestens **Organisation** | Gruppeneinstellungen | Kalendereinladungen an die Gruppe kommen an |
 | **Kontaktfreigabe / Verzeichnis sichtbar** | Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen | Mitgliederliste mit Fotos in der App |
 | Nutzer dürfen **Profilfoto ändern** | Konto → Kontoeinstellungen → Profil | Jeder pflegt sein Foto selbst |
@@ -148,7 +148,7 @@ Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browse
 | Keine Lesefreigabe für Gruppe/Domain | Die Mitglieder sehen die Daten in der App nicht | Gruppe bzw. Domain als „Betrachter“ hinzufügen |
 | Gehört einem Konto außerhalb der Domain | Die Datei liegt z. B. in einem privaten Google-Konto | Eigentum an ein Konto der Verbindung übertragen (oder in eine geteilte Ablage verschieben) |
 | Spalten sehen vertraulich aus | z. B. IBAN, Beitrag, Bemerkung – wer die Tabelle lesen darf, sieht sie | Eigene Tabelle nur mit den freigebbaren Spalten anlegen (siehe unten) und diese verbinden |
-| Termine ohne Einladung an die Mitglieder-Gruppe | Dort ist keine Zu-/Absage möglich | Gruppe als Gast hinzufügen, automatisch mit B4 |
+| Termine ohne Einladung an die Mitglieder-Gruppe (Hinweis) | Zu- und Absagen laufen dort über die App, im Google Kalender sind sie nicht sichtbar | Nur falls gewünscht: Gruppe als Gast hinzufügen, automatisch mit B4 |
 | Freigaben nicht einsehbar | Nur Inhaber und Bearbeiter sehen Freigaben | Als Inhaber/Bearbeiter prüfen oder in Google Drive selbst nachsehen |
 
 Die Rechte sehen danach so aus:
@@ -228,7 +228,7 @@ Zugriff auf E-Mails, fremde Dateien oder Einstellungen gibt es nicht. Zusätzlic
 
 Die App erhält keine dauerhaften Schlüssel (kein Refresh-Token). Ein bereits ausgegebener Zugangsschlüssel endet spätestens nach einer Stunde.
 
-**Braucht die App einen für Mitglieder beschreibbaren Ordner?** Nein. Gemeinsame Ordner und Tabellen sind für Mitglieder nur lesbar. Was ein Mitglied selbst speichert (Profil, Forumsbeiträge, Datenschutz-Einwilligung), legt die App in einem eigenen kleinen Ordner in **seinem eigenen** Google Drive an. Voraussetzung ist, dass Google Drive für die Mitglieder eingeschaltet ist und Freigaben innerhalb der Organisation erlaubt sind (B2). Die Einwilligungsliste schreibt nur das Konto der Verantwortlichen.
+**Braucht die App einen für Mitglieder beschreibbaren Ordner?** Nein. Gemeinsame Ordner und Tabellen sind für Mitglieder nur lesbar. Was ein Mitglied selbst speichert (Profil, Forumsbeiträge, Zusagen ohne Einladung, Datenschutz-Einwilligung), legt die App in einem eigenen kleinen Ordner in **seinem eigenen** Google Drive an. Voraussetzung ist, dass Google Drive für die Mitglieder eingeschaltet ist und Freigaben innerhalb der Organisation erlaubt sind (B2). Die Einwilligungsliste schreibt nur das Konto der Verantwortlichen.
 
 ---
 
@@ -291,7 +291,7 @@ Die App setzt die Entscheidung nicht selbst um: Gemeinsame Daten ändert sie ja 
 ## Wie funktionieren die Zu- und Absagen?
 
 - **Eingeladen** (Mitglieder-Gruppe oder einzeln als Gast im Termin): Die App setzt die ganz normale Google-Antwort „Ja / Vielleicht / Nein“ **im eigenen Kalender**, inklusive Anzahl mitgebrachter Gäste und Kommentar. Google überträgt die Antwort an den Termin, genau wie beim Antworten in Google Kalender. Umgekehrt zeigt die App Antworten an, die jemand direkt in Google Kalender gibt.
-- **Nicht eingeladen:** Die App zeigt den Hinweis „Nicht eingeladen“ und ändert nichts. Lösung: die Mitglieder-Gruppe als Gast zum Termin hinzufügen (oder Automatik, B4).
+- **Nicht eingeladen:** Zu- und absagen geht trotzdem. Die App speichert die Antwort (mit Gästen und Kommentar) als kleine Datei im eigenen Google Drive des Mitglieds, für die anderen Mitglieder nur lesbar; unter „Wer kommt?“ erscheint sie zusammen mit den Kalender-Antworten. Im Google Kalender des Organisators ist sie nicht zu sehen. Am Termin selbst ändert die App nichts.
 
 Jeder Termin enthält in der Beschreibung den Link `…/#/termin/<ID>`, auch in exportierten Kalendern. Ein Tipp darauf öffnet die App direkt beim Termin (nach ggf. Anmeldung).
 
@@ -305,7 +305,7 @@ Die App ist so gebaut, dass Mitglieder damit **nichts außer ihren eigenen Daten
 2. **Berechtigungen beim Anmelden:** Die App fragt für Google Drive nur „Dateien ansehen“ (`drive.readonly`) und „von dieser App angelegte Dateien“ (`drive.file`) an, für Google Tabellen gar keine Schreibberechtigung. Fremde Dateien kann sie damit technisch nicht ändern, auch nicht im Konto eines Admins.
 3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird vor dem Absenden geprüft. Erlaubt sind nur:
    - die eigene Antwort auf einen Termin, nur im eigenen Kalender und nur die Teilnehmerliste;
-   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Einwilligung), und deren Lese-Freigaben;
+   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung), und deren Lese-Freigaben;
    - eigene Chat-Nachrichten;
    - für die Datenschutz-Verantwortlichen: die **eigene**, von der App angelegte Einwilligungsliste.
 
@@ -326,7 +326,6 @@ Der automatische Test `tests/google-mock.html` spielt alle Funktionen gegen eine
 | `access_denied` / „Zugriff blockiert“ | Konto ist kein Testnutzer (Teil A) bzw. App nicht vertrauenswürdig (Teil B) | Testnutzer eintragen bzw. App in der Admin-Konsole freigeben |
 | „Google-Schnittstelle nicht aktiviert“ | Eine API fehlt im Cloud-Projekt | Die fünf Schnittstellen aus A2 aktivieren |
 | „Kein Zugriff“ bei Tabellen, Kalender oder Ordnern | Freigabe fehlt | In Google Drive bzw. in den Kalender-Einstellungen für die Gruppe als „Betrachter“ freigeben |
-| „Nicht eingeladen“ beim Zusagen | Mitglieder-Gruppe ist nicht Gast des Termins | Gruppe zum Termin hinzufügen oder Automatik (B4) einrichten |
 | „Schreibschutz: …“ | Die App sollte etwas Gemeinsames ändern; das ist absichtlich gesperrt | Direkt bei Google pflegen (Teil C) |
 | „Die Einwilligungsliste führt das Konto …“ | Die Tabelle gehört einer anderen Person | Normal: nur deren Konto aktualisiert sie (oder ihr Apps-Script) |
 | Verantwortliche sehen keine Einwilligungen | Sie stehen nicht unter „Wer darf die Einwilligungen sehen?“ bzw. sind keine Admins | Eintragen, `config.js` neu verteilen; die Freigaben passen sich beim nächsten Öffnen der Mitglieder an |

@@ -472,15 +472,15 @@ export async function checkSetup() {
     if (!config.kalenderId) throw new Error('Keine Kalender-ID eingetragen');
     const r = await cal.listEvents(config.kalenderId, { timeMin: new Date().toISOString(), timeMax: addDays(new Date(), 90).toISOString() });
     c.detail = `${r.summary ? `„${r.summary}“ · ` : ''}${r.items.length} Termine in den nächsten 90 Tagen`;
+    // Zu- und Absagen gehen immer (ohne Einladung über die App). Mit Einladung der Mitglieder-Gruppe stehen die
+    // Termine zusätzlich in den Kalendern der Mitglieder und die Antworten auch im Google Kalender.
     if (g) {
       const invited = r.items.filter((e) => (e.attendees || []).some((a) => String(a.email).toLowerCase() === g)).length;
-      if (r.items.length) c.lines.push(`${invited} davon mit Einladung an ${g} – nur dort sind Zu- und Absagen möglich`);
       const without = r.items.length - invited;
-      if (without) {
-        c.warn.push(`${without} ${without === 1 ? 'Termin' : 'Termine'} ohne Einladung an die Mitglieder-Gruppe – dort ist keine Zu-/Absage möglich. Abhilfe: Gruppe als Gast hinzufügen, automatisch mit apps-script/Automatik.gs.`);
-      }
+      if (r.items.length) c.lines.push(`${invited} davon mit Einladung an ${g}`);
+      if (without) c.lines.push(`${without} ${without === 1 ? 'Termin' : 'Termine'} ohne Einladung an die Gruppe – Zu- und Absagen laufen dort über die App (im Google Kalender nicht sichtbar). Wer sie auch im Kalender haben will: Gruppe als Gast hinzufügen, automatisch mit apps-script/Automatik.gs.`);
     } else {
-      c.warn.push('Keine Mitglieder-Gruppe eingetragen: Zu- und Absagen gehen nur bei Terminen, zu denen man persönlich eingeladen ist. Empfehlung: eine Google-Gruppe aller Mitglieder anlegen, hier eintragen und mit apps-script/Automatik.gs zu allen Terminen einladen lassen.');
+      c.lines.push('Ohne Mitglieder-Gruppe laufen Zu- und Absagen über die App (im Google Kalender nicht sichtbar). Optional: Google-Gruppe aller Mitglieder anlegen, hier eintragen und mit apps-script/Automatik.gs einladen lassen – dann stehen die Termine auch im eigenen Kalender.');
     }
     if (auth.hasScope(auth.SCOPES.setup[0])) {
       const rules = await cal.listAcl(config.kalenderId).catch(() => null);

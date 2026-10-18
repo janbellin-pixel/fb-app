@@ -5,7 +5,7 @@
 // Ändern darf jedes Mitglied ausschließlich seine EIGENEN Daten:
 //   • die eigene Zu-/Absage – im eigenen Kalender (calendars/primary)
 //   • eigene Dateien, die die App im eigenen Google Drive angelegt hat (Profil, Forenbeiträge,
-//     Datenschutz-Einwilligung) und deren Lese-Freigaben
+//     Zusagen ohne Einladung, Datenschutz-Einwilligung) und deren Lese-Freigaben
 //   • eigene Chat-Nachrichten (Google lässt ohnehin nur eigene zu)
 //   • die eigene, von der App angelegte Einwilligungs-Sammeltabelle (nur das Konto des
 //     Datenschutz-Verantwortlichen, das sie angelegt hat)
