@@ -34,7 +34,9 @@ export default async function login(ctx) {
   el.addEventListener('click', (e) => {
     if (e.target.closest('[data-action=login]')) {
       auth.clearSilentAttempt();
-      auth.login({ returnTo: location.hash && location.hash !== '#' ? location.hash : '#/', selectAccount: !!err?.selectAccount });
+      // Kontoauswahl immer anzeigen: sonst meldet Google nach dem Abmelden still wieder das zuletzt
+      // genutzte Konto an, und man kann nicht zu einem anderen Konto wechseln
+      auth.login({ returnTo: location.hash && location.hash !== '#' ? location.hash : '#/', selectAccount: true });
     }
     if (e.target.closest('[data-action=demo]')) app.startDemo();
   });

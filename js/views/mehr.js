@@ -16,11 +16,16 @@ export default async function mehr(ctx) {
   const admin = app.isAdmin();
   setHtml(el, html`
     ${hero('Mehr', config.appName)}
-    <a class="card account-card" href="#/profil" style="color:inherit;text-decoration:none">
-      ${avatar(me, 56)}
-      <div class="grow" style="min-width:0"><div style="font-weight:700;font-size:1.125rem" class="ellipsis">${me.name}</div><div class="small muted ellipsis">${me.email}</div></div>
-      <span class="btn btn-sm">${icon('edit', 'icon-sm')}Profil</span>
-    </a>
+    <div class="card account-card">
+      <a class="account-who" href="#/profil">
+        ${avatar(me, 56)}
+        <div class="grow" style="min-width:0"><div style="font-weight:700;font-size:1.125rem" class="ellipsis">${me.name}</div><div class="small muted ellipsis">${me.email}</div></div>
+      </a>
+      <div class="account-actions">
+        <a class="btn btn-sm" href="#/profil">${icon('edit', 'icon-sm')}Profil</a>
+        <button class="btn btn-sm" data-action="logout">${icon('logout', 'icon-sm')}${app.mode === 'demo' ? 'Demo beenden' : 'Abmelden'}</button>
+      </div>
+    </div>
     <section class="card card-pad" style="margin-top:1rem" id="schrift-box">
       <div class="row between wrap" style="margin-bottom:.625rem"><h2 class="card-title">Schriftgröße</h2><span class="tiny muted">gilt für dieses Gerät</span></div>
       ${schriftAuswahl()}
@@ -47,7 +52,7 @@ export default async function mehr(ctx) {
   el.addEventListener('click', async (e) => {
     if (!e.target.closest('[data-action=logout]')) return;
     if (app.mode === 'demo') return app.endDemo();
-    if (await confirmDialog('Möchtest du dich auf diesem Gerät abmelden?', { ok: 'Abmelden' })) app.logout();
+    if (await confirmDialog(`Auf diesem Gerät abmelden (${me.email})? Beim nächsten Anmelden kannst du auch ein anderes Google-Konto wählen.`, { ok: 'Abmelden' })) app.logout();
   });
 }
 

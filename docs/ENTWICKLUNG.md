@@ -69,7 +69,7 @@ python tools/serve.py            # lokaler Server auf http://localhost:8080 (ohn
 1. `index.html` lädt `boot.js` (Schriftgröße), CSS, `config.js` und `app.js`.
 2. `app.js → boot()`: Service Worker registrieren und OAuth-Rückkehr auswerten (`auth.handleRedirect()`). Dann den Modus wählen: Demo (`fb.mode = demo`), Google (gültiger Zugangsschlüssel) oder stille Erneuerung.
 3. `enterGoogle()` erzeugt `new GoogleBackend(user)`, `enterDemo()` erzeugt `new DemoBackend()`. Danach ist `app.backend` gesetzt.
-4. `initConsent()` prüft die Datenschutz-Entscheidung, erst auf dem Gerät, dann bei Google. Fehlt sie, setzt die Funktion `app.consentPending = true`.
+4. `initConsent()` prüft die Datenschutz-Entscheidung, erst auf dem Gerät, dann bei Google. Fehlt sie, setzt die Funktion `app.consentPending = true`. Fehlt nur der Nachweis in Google (Datei gelöscht), obwohl das Gerät eine Entscheidung kennt, fragt die App ebenfalls neu; die Abfrage lässt dann auch dieselbe Auswahl erneut speichern (`remoteMissing` in `views/datenschutz.js`).
 5. `renderShell()` zeichnet Kopfzeile, Tab-Leiste und Fuß. `startRouter(app)` zeigt die Seite zur aktuellen Hash-Route.
 6. Bei jedem Seitenwechsel läuft `app.beforeRoute(match)`: Ist eine Datenschutz-Entscheidung offen, geht es zu `#/datenschutz?erstmals=1&weiter=…`. Läuft der Schlüssel bald ab, wird er still erneuert.
 7. Eine Seite ist ein ES-Modul in `js/views/`: `export default async function (ctx)` bzw. benannte Exporte. `ctx = { el, params, query, route, app, alive }`. `alive()` meldet, ob die Seite noch angezeigt wird (nach `await` prüfen!). Optional wird eine Aufräumfunktion zurückgegeben.
@@ -80,7 +80,7 @@ python tools/serve.py            # lokaler Server auf http://localhost:8080 (ohn
 
 `''` Start · `termine` · `termin/:id` · `mitglieder` · `mitglied/:email` · `profil` · `chat` · `chat/:space` · `adressen` · `zeitung` · `zeitung/:id` · `galerie` · `galerie/:album` · `news` · `news/:id` · `forum` · `forum-neu` · `forum/:id` · `mehr` · `einstellungen` · `datenschutz` (öffentlich) · `datenschutz/uebersicht` · `installieren` (öffentlich) · `einrichtung` (öffentlich)
 
-Öffentliche Routen funktionieren ohne Anmeldung, alle anderen zeigen sonst die Anmeldeseite.
+Öffentliche Routen funktionieren ohne Anmeldung, alle anderen zeigen sonst die Anmeldeseite. Deren Knopf verlangt bei Google immer die Kontoauswahl (`selectAccount` → `prompt=select_account`); nur die stille Erneuerung nutzt `login_hint`. Abmelden: `app.logout()` (Knöpfe in `views/mehr.js`: Kontokarte oben und Menü unten, sowie Einstellungen).
 
 ## 5. Backend-Schnittstelle
 

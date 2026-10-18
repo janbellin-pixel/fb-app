@@ -48,6 +48,9 @@ export default async function datenschutz(ctx) {
   const email = app.user.email;
   const b = app.backend;
   let current = localConsent(email);
+  // Auf dem Gerät gespeichert, aber der Nachweis in Google Drive fehlt (z. B. Datei gelöscht):
+  // dann muss erneut gespeichert werden können – auch mit derselben Auswahl
+  let remoteMissing = false;
 
   setHtml(el, html`
     ${first ? html`
@@ -116,10 +119,12 @@ export default async function datenschutz(ctx) {
   function update() {
     const c = chosen();
     const complete = Object.values(c).every((v) => typeof v === 'boolean');
-    const changed = !current || needsDecision(current) || einwilligungen().some((e) => current[e.id] !== c[e.id]);
+    // bei der Abfrage beim ersten Öffnen (first) immer speichern lassen, sonst bliebe man dort hängen
+    const changed = first || remoteMissing || !current || needsDecision(current) || einwilligungen().some((e) => current[e.id] !== c[e.id]);
     submit.disabled = !complete || !changed;
     statusEl.textContent = current?.ausstehend ? 'Noch nicht übertragen – wird gespeichert, sobald eine Verbindung besteht.'
-      : current && !needsDecision(current) && !changed ? `Gespeichert am ${when(current.zeitpunkt)}.` : '';
+      : remoteMissing ? 'Der Nachweis in deinem Google Drive fehlt – bitte deine Auswahl noch einmal speichern.'
+        : current && !needsDecision(current) && !changed ? `Gespeichert am ${when(current.zeitpunkt)}.` : '';
   }
 
   function renderHistory() {
@@ -140,7 +145,11 @@ export default async function datenschutz(ctx) {
   // aktuellen Stand von Google holen (z. B. auf einem anderen Gerät geändert)
   if (!current?.ausstehend) {
     b.getMyConsent().then((rec) => {
-      if (!ctx.alive() || !rec) return;
+      if (!ctx.alive()) return;
+      if (!rec) {
+        if (current) { remoteMissing = true; update(); }
+        return;
+      }
       const changedRemote = JSON.stringify(rec.verlauf || []) !== JSON.stringify(current?.verlauf || []);
       current = rec;
       setLocalConsent(email, rec);
@@ -157,6 +166,7 @@ export default async function datenschutz(ctx) {
     try {
       const rec = await b.saveMyConsent({ ...c, zeitpunkt });
       current = rec;
+      remoteMissing = false;
       setLocalConsent(email, rec);
       app.consentPending = false;
       toast('Danke – deine Auswahl ist gespeichert.');
