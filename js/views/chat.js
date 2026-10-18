@@ -1,13 +1,17 @@
-// Chat über Google Chat: Räume der Verbindung und Unterhaltungen
-import { html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, notice, toast, showError, loading } from '../ui.js';
+// Chat über Google Chat: Direktnachrichten, Gruppen und Räume der Verbindung (E14, E30).
+// Neue Unterhaltungen legt die App nur mit Personen an; Räume löschen oder Mitglieder entfernen kann sie nicht.
+import {
+  html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, notice, toast, showError, loading, setBusy,
+} from '../ui.js';
 import { relTime, fTime, isSameDay, addDays, fDateNoYear, toDate } from '../lib/dates.js';
-import { linkify } from '../lib/text.js';
+import { linkify, matchesQuery } from '../lib/text.js';
+import { config } from '../config.js';
 import * as auth from '../auth.js';
 import { local } from '../lib/store.js';
 
 const CHAT_HOME = 'https://chat.google.com/';
 
-function unavailable(status, app) {
+function unavailable(status) {
   if (status.reason === 'no-workspace') {
     return notice('gold', 'Chat braucht Google Workspace',
       'Der Chat der App nutzt Google Chat im Workspace der Verbindung. Mit dem aktuellen Konto ist die Einbindung nicht möglich – Google Chat selbst kannst du aber jederzeit öffnen.',
@@ -15,10 +19,31 @@ function unavailable(status, app) {
   }
   if (status.reason === 'scope') {
     return notice('gold', 'Chat noch nicht freigeschaltet',
-      'Damit die App deine Chat-Räume anzeigen und Nachrichten senden kann, braucht sie einmalig deine Zustimmung bei Google.',
+      'Damit die App deine Unterhaltungen anzeigen und Nachrichten senden kann, braucht sie einmalig deine Zustimmung bei Google.',
       html`<p style="margin-top:.625rem"><button class="btn btn-sm btn-primary" data-action="grant">${icon('key', 'icon-sm')}Chat freischalten</button></p>`);
   }
   return notice('gold', 'Chat ist deaktiviert', 'Die Chat-Funktion wurde in der Konfiguration ausgeschaltet.');
+}
+
+/** Zustimmung für Chat (inkl. neue Unterhaltungen, E30) einholen und an dieselbe Stelle zurückkehren */
+function grantChat() {
+  auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash || '#/chat' });
+}
+
+const initialOf = (name) => String(name || '').replace(/^[^A-Za-zÄÖÜäöü]*/, '').charAt(0).toUpperCase() || '#';
+const spacePath = (id) => encodeURIComponent(String(id).replace('spaces/', ''));
+const roomLink = (s) => `#/chat/${spacePath(s.id)}?name=${encodeURIComponent(s.name)}`;
+
+function spaceIcon(s) {
+  if (s.type === 'DIRECT_MESSAGE') return avatar({ name: s.name, photo: s.photo || '' }, 44);
+  if (s.type === 'GROUP_CHAT') return html`<span class="space-icon" aria-hidden="true">${icon('users')}</span>`;
+  return html`<span class="space-icon" aria-hidden="true">${initialOf(s.name)}</span>`;
+}
+
+function spaceSub(s) {
+  if (s.type === 'DIRECT_MESSAGE') return 'Direktnachricht';
+  if (s.type === 'GROUP_CHAT') return `Gruppe${s.members?.length ? ` · ${s.members.length + 1} Personen` : ''}`;
+  return s.description || 'Raum';
 }
 
 export default async function chat(ctx) {
@@ -26,16 +51,17 @@ export default async function chat(ctx) {
   const b = app.backend;
   const status = b.chatStatus();
   setHtml(el, html`
-    ${hero('Chat', 'Die Räume der Verbindung in Google Chat', html`<a class="btn" href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat öffnen</a>`)}
-    <div id="c">${status.available ? skeletonList(4, 'sk-card') : unavailable(status, app)}</div>
+    ${hero('Chat', 'Direktnachrichten, Gruppen und Räume der Verbindung', status.available ? html`
+      <a class="btn btn-primary" href="#/chat-neu">${icon('send', 'icon-sm')}Neue Nachricht</a>
+      <a class="btn" href="#/chat-neu?gruppe=1">${icon('users', 'icon-sm')}Neue Gruppe</a>` : '')}
+    <div id="c">${status.available ? skeletonList(4, 'sk-card') : unavailable(status)}</div>
     <div class="notice" style="margin-top:1.125rem">${icon('smartphone')}<div><h3>Tipp: Benachrichtigungen</h3>
-      <p>Für Push-Mitteilungen bei neuen Nachrichten die App „Google Chat“ auf dem Handy installieren und mit dem Verbindungskonto anmelden. Alle Räume sind dort und hier gleich.</p></div></div>`);
+      <p>Für Push-Mitteilungen bei neuen Nachrichten die App „Google Chat“ auf dem Handy installieren und mit dem Verbindungskonto anmelden. Alle Unterhaltungen sind dort und hier gleich.</p>
+      <p style="margin-top:.5rem"><a href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat öffnen</a></p></div></div>`);
   const c = el.querySelector('#c');
 
   el.addEventListener('click', (e) => {
-    if (e.target.closest('[data-action=grant]')) {
-      auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: '#/chat' });
-    }
+    if (e.target.closest('[data-action=grant]')) grantChat();
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
   });
@@ -46,23 +72,202 @@ export default async function chat(ctx) {
       if (!ctx.alive()) return;
       setHtml(c, spaces.length
         ? html`<div class="list">${spaces.map((s) => html`
-            <a class="card space-row" href="#/chat/${encodeURIComponent(s.id.replace('spaces/', ''))}?name=${encodeURIComponent(s.name)}">
-              <span class="space-icon" aria-hidden="true">${s.type === 'DIRECT_MESSAGE' ? icon('user') : s.name.replace(/^[^A-Za-zÄÖÜäöü]*/, '').charAt(0).toUpperCase() || '#'}</span>
+            <a class="card space-row" href="${roomLink(s)}">
+              ${spaceIcon(s)}
               <div class="grow" style="min-width:0">
                 <div class="name ellipsis">${s.name}</div>
-                <div class="sub ellipsis">${s.description || (s.type === 'DIRECT_MESSAGE' ? 'Direktnachricht' : 'Gruppenraum')}</div>
+                <div class="sub ellipsis">${spaceSub(s)}</div>
               </div>
               <span class="tiny muted nowrap">${s.lastActive ? relTime(s.lastActive) : ''}</span>
               ${icon('chevronRight', 'icon-sm')}
             </a>`)}</div>`
-        : html`<div class="card">${emptyState('chat', 'Noch keine Räume', 'Du bist noch in keinem Chat-Raum der Verbindung. Frag die Admins, dich hinzuzufügen.')}</div>`);
+        : html`<div class="card">${emptyState('chat', 'Noch keine Unterhaltungen', 'Schreib einem Bundesbruder über „Neue Nachricht“ oder gründe eine Gruppe.')}</div>`);
     }, { maxAge: 60_000 });
   } catch (err) {
     setHtml(c, errorBox(err));
   }
 }
 
-/* ===================================================================== Raum */
+/* ===================================================================== Neue Nachricht, Gruppe, Personen hinzufügen */
+
+/**
+ * #/chat-neu              Direktnachricht: Person antippen
+ * #/chat-neu?gruppe=1     Neue Gruppe: Name (optional) und Personen
+ * #/chat-neu?raum=<ID>    Personen zu einer Gruppe/einem Raum hinzufügen
+ */
+export async function newChat(ctx) {
+  const { el, app, query } = ctx;
+  const b = app.backend;
+  const mode = query.raum ? 'add' : query.gruppe ? 'group' : 'dm';
+  const roomId = query.raum ? `spaces/${query.raum}` : '';
+  const roomName = query.name || '';
+  const back = mode === 'add' ? `#/chat/${encodeURIComponent(query.raum)}?name=${encodeURIComponent(roomName)}` : '#/chat';
+  const title = mode === 'add' ? 'Personen hinzufügen' : mode === 'group' ? 'Neue Gruppe' : 'Neue Nachricht';
+  const sub = mode === 'add' ? roomName : mode === 'group' ? 'Für alle Ausgewählten – in der App und in Google Chat' : 'Wem möchtest du schreiben?';
+  setHtml(el, html`${backLink(back, mode === 'add' ? 'Zurück zur Unterhaltung' : 'Alle Unterhaltungen')}${hero(title, sub)}<div id="c">${loading()}</div>`);
+  document.title = `${title} · ${config.appName}`;
+  const c = el.querySelector('#c');
+  const status = b.chatStatus();
+  if (!status.available) {
+    setHtml(c, unavailable(status));
+    c.addEventListener('click', (e) => { if (e.target.closest('[data-action=grant]')) grantChat(); });
+    return;
+  }
+  if (!b.chatCanCreate()) {
+    setHtml(c, notice('gold', 'Einmal zustimmen',
+      'Damit die App Direktnachrichten und Gruppen anlegen und Personen hinzufügen kann, braucht sie einmalig deine Zustimmung bei Google. Räume löschen oder jemanden entfernen kann die App damit nicht.',
+      html`<p style="margin-top:.625rem"><button class="btn btn-sm btn-primary" data-action="grant">${icon('key', 'icon-sm')}Zustimmen</button></p>`));
+    c.addEventListener('click', (e) => { if (e.target.closest('[data-action=grant]')) grantChat(); });
+    return;
+  }
+
+  let members = [];
+  try {
+    members = (await b.listMembers()).filter((m) => m.email && m.email !== app.user.email);
+  } catch (err) {
+    console.warn('Mitglieder nicht geladen', err);
+  }
+  if (mode === 'add') {
+    // wer schon drin ist, wird nicht noch einmal angeboten
+    const inside = new Set((await b.listSpaceMembers(roomId).catch(() => [])).map((p) => p.email));
+    members = members.filter((m) => !inside.has(m.email));
+  }
+  if (!ctx.alive()) return;
+
+  const domain = String(config.workspaceDomain || '').toLowerCase();
+  const selected = new Map(); // E-Mail → Name
+  let q = '';
+  setHtml(c, html`
+    <form class="card card-pad" id="f" novalidate style="max-width:46rem">
+      ${mode === 'group' ? html`<div class="field"><label for="g-name">Name der Gruppe (optional)</label>
+        <input class="input" id="g-name" maxlength="128" placeholder="z. B. Stammtisch-Orga" autocomplete="off">
+        <span class="hint">Mit Namen entsteht ein Raum, ohne Namen eine Gruppenunterhaltung (dann mindestens zwei Personen).</span></div>` : ''}
+      ${mode !== 'dm' ? html`<div class="pick-chips" id="chosen"></div>` : ''}
+      <div class="search" style="margin-bottom:.625rem">${icon('search')}<input class="input" type="search" id="q" placeholder="Name suchen …" aria-label="Mitglieder durchsuchen" autocomplete="off"></div>
+      <div class="pick-list" id="people"></div>
+      <div class="field" style="margin-top:1rem"><label for="manual">Oder E-Mail-Adresse eingeben</label>
+        <div class="row" style="gap:.5rem"><input class="input grow" id="manual" type="email" inputmode="email" autocomplete="off" placeholder="${domain ? `name@${domain}` : 'name@beispiel.de'}" style="min-width:0">
+          <button type="button" class="btn" data-action="manual">${mode === 'dm' ? 'Schreiben' : 'Hinzufügen'}</button></div></div>
+      ${mode !== 'dm' ? html`<div class="form-actions">
+        <a class="btn btn-ghost" href="${back}">Abbrechen</a>
+        <button class="btn btn-primary" type="submit" id="go" disabled>${icon('check', 'icon-sm')}<span id="go-label"></span></button></div>` : ''}
+    </form>`);
+
+  const form = el.querySelector('#f');
+  const peopleEl = form.querySelector('#people');
+
+  function renderChosen() {
+    if (mode === 'dm') return;
+    setHtml(form.querySelector('#chosen'), selected.size ? html`${[...selected].map(([email, name]) => html`
+      <button type="button" class="chip" data-unpick="${email}" aria-label="${name} entfernen">${name} ${icon('x', 'icon-sm')}</button>`)}` : '');
+    const go = form.querySelector('#go');
+    go.disabled = !selected.size;
+    form.querySelector('#go-label').textContent = mode === 'group'
+      ? `Gruppe erstellen${selected.size ? ` (${selected.size + 1} Personen)` : ''}`
+      : `Hinzufügen${selected.size ? ` (${selected.size})` : ''}`;
+  }
+
+  function renderPeople() {
+    const shown = members.filter((m) => matchesQuery([m.name, m.kneipname, m.email].join(' '), q));
+    const subOf = (m) => [m.kneipname ? `v/o ${m.kneipname}` : '', m.status].filter(Boolean).join(' · ');
+    setHtml(peopleEl, shown.length ? html`${shown.map((m) => (mode === 'dm'
+      ? html`<button type="button" class="pick-row" data-email="${m.email}" data-name="${m.name}">
+          ${avatar(m, 40)}<span class="grow" style="min-width:0"><span class="name ellipsis">${m.name}</span>${subOf(m) ? html`<span class="sub ellipsis">${subOf(m)}</span>` : ''}</span>${icon('send', 'icon-sm')}</button>`
+      : html`<label class="pick-row">
+          ${avatar(m, 40)}<span class="grow" style="min-width:0"><span class="name ellipsis">${m.name}</span>${subOf(m) ? html`<span class="sub ellipsis">${subOf(m)}</span>` : ''}</span>
+          <input type="checkbox" data-pick="${m.email}" data-name="${m.name}" ${selected.has(m.email) ? 'checked' : ''}></label>`))}`
+      : html`<p class="small muted" style="margin:.25rem 0">${members.length ? 'Niemand gefunden.'
+        : mode === 'add' ? 'Alle sichtbaren Mitglieder sind schon dabei – oder das Google-Verzeichnis liefert gerade niemanden. Du kannst unten eine E-Mail-Adresse eingeben.'
+          : 'Keine anderen Mitglieder sichtbar – das Google-Verzeichnis liefert gerade nur dich. Du kannst unten eine E-Mail-Adresse eingeben.'}</p>`);
+  }
+
+  async function openDm(email, name) {
+    try {
+      const s = await b.openDirectChat(email, name);
+      await app.forget('chat-spaces');
+      app.navigate(`#/chat/${spacePath(s.id)}?name=${encodeURIComponent(name || email)}`, { replace: true });
+    } catch (err) {
+      if (err.code === 'chat_scope') grantChat();
+      else showError(err);
+    }
+  }
+
+  function manualEmail() {
+    const input = form.querySelector('#manual');
+    const v = input.value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { toast('Bitte eine gültige E-Mail-Adresse eingeben', { type: 'err' }); return null; }
+    if (domain && !v.endsWith(`@${domain}`)) { toast(`Bitte ein Konto der Verbindung (@${domain}) eingeben`, { type: 'err' }); return null; }
+    if (v === app.user.email) { toast('Das bist du selbst', { type: 'err' }); return null; }
+    input.value = '';
+    return v;
+  }
+
+  renderPeople();
+  renderChosen();
+
+  form.querySelector('#q').addEventListener('input', (e) => { q = e.target.value; renderPeople(); });
+  form.addEventListener('change', (e) => {
+    const cb = e.target.closest('[data-pick]');
+    if (!cb) return;
+    if (cb.checked) selected.set(cb.dataset.pick, cb.dataset.name);
+    else selected.delete(cb.dataset.pick);
+    renderChosen();
+  });
+  form.addEventListener('click', async (e) => {
+    const row = e.target.closest('button.pick-row');
+    if (row) {
+      row.disabled = true;
+      await openDm(row.dataset.email, row.dataset.name);
+      row.disabled = false;
+      return;
+    }
+    const un = e.target.closest('[data-unpick]');
+    if (un) {
+      selected.delete(un.dataset.unpick);
+      renderChosen();
+      renderPeople();
+      return;
+    }
+    if (e.target.closest('[data-action=manual]')) {
+      const v = manualEmail();
+      if (!v) return;
+      if (mode === 'dm') { await openDm(v, members.find((m) => m.email === v)?.name || v); return; }
+      selected.set(v, members.find((m) => m.email === v)?.name || v);
+      renderChosen();
+      renderPeople();
+    }
+  });
+  form.querySelector('#manual').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); form.querySelector('[data-action=manual]').click(); }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (mode === 'dm' || !selected.size) return;
+    const go = form.querySelector('#go');
+    setBusy(go, true, mode === 'group' ? 'Wird erstellt …' : 'Wird hinzugefügt …');
+    try {
+      if (mode === 'group') {
+        const g = await b.createGroup({ name: form.querySelector('#g-name').value, emails: [...selected.keys()] });
+        await app.forget('chat-spaces');
+        toast('Gruppe erstellt');
+        app.navigate(`#/chat/${spacePath(g.id)}?name=${encodeURIComponent(g.name || [...selected.values()].map((n) => n.split(' ')[0]).join(', '))}`, { replace: true });
+      } else {
+        const r = await b.addMembers(roomId, [...selected.keys()]);
+        const parts = [r.added.length ? `${r.added.length} hinzugefügt` : '', r.already.length ? `${r.already.length} war(en) schon dabei` : '', r.failed.length ? `${r.failed.length} nicht möglich` : ''].filter(Boolean);
+        toast(parts.join(' · ') || 'Erledigt', { type: r.failed.length ? 'err' : 'info', timeout: 6000 });
+        if (r.failed.length) console.warn('Nicht hinzugefügt', r.failed);
+        app.navigate(back, { replace: true });
+      }
+    } catch (err) {
+      setBusy(go, false);
+      if (err.code === 'chat_scope') grantChat();
+      else showError(err);
+    }
+  });
+}
+
+/* ===================================================================== Unterhaltung */
 
 function dayLabel(d) {
   const t = new Date();
@@ -78,7 +283,8 @@ export async function room(ctx) {
   const status = b.chatStatus();
   let name = query.name || 'Chat';
   if (!status.available) {
-    setHtml(el, html`${backLink('#/chat', 'Alle Räume')}<div style="margin-top:1rem">${unavailable(status, app)}</div>`);
+    setHtml(el, html`${backLink('#/chat', 'Alle Unterhaltungen')}<div style="margin-top:1rem">${unavailable(status)}</div>`);
+    el.addEventListener('click', (e) => { if (e.target.closest('[data-action=grant]')) grantChat(); });
     return;
   }
   const draftKey = `fb.chatDraft.${spaceId}`;
@@ -87,8 +293,9 @@ export async function room(ctx) {
     <div class="card chat-room">
       <div class="chat-head">
         <a class="btn btn-ghost btn-icon btn-sm" href="#/chat" data-back aria-label="Zurück">${icon('chevronLeft')}</a>
-        <span class="space-icon" style="width:2.25rem;height:2.25rem;font-size:1rem;border-radius:10px" aria-hidden="true">${name.replace(/^[^A-Za-zÄÖÜäöü]*/, '').charAt(0).toUpperCase() || '#'}</span>
+        <span class="space-icon" id="room-icon" style="width:2.25rem;height:2.25rem;font-size:1rem;border-radius:10px" aria-hidden="true">${initialOf(name)}</span>
         <h2 class="grow ellipsis" id="room-name">${name}</h2>
+        <a class="btn btn-ghost btn-sm hidden" id="add-people" href="#/chat" title="Personen hinzufügen">${icon('plus', 'icon-sm')}<span class="hide-sm">Personen</span></a>
         <a class="btn btn-ghost btn-sm" id="open-ext" href="${CHAT_HOME}" target="_blank" rel="noopener" title="In Google Chat öffnen">${icon('external', 'icon-sm')}<span class="hide-sm">Google Chat</span></a>
       </div>
       <div class="chat-scroll" id="scroll" aria-live="polite">${loading()}</div>
@@ -104,13 +311,21 @@ export async function room(ctx) {
   let timer = null;
   let stopped = false;
 
-  // Raumname und Link ergänzen, falls direkt aufgerufen
+  // Name, Art und Link der Unterhaltung ergänzen (auch wenn direkt aufgerufen)
   b.listSpaces().then((spaces) => {
     const s = spaces.find((x) => x.id === spaceId);
-    if (s && ctx.alive()) {
-      name = s.name;
-      el.querySelector('#room-name').textContent = s.name;
-      if (s.url) el.querySelector('#open-ext').href = s.url;
+    if (!s || !ctx.alive()) return;
+    name = s.name;
+    el.querySelector('#room-name').textContent = s.name;
+    if (s.url) el.querySelector('#open-ext').href = s.url;
+    if (s.type === 'DIRECT_MESSAGE') {
+      const ic = el.querySelector('#room-icon');
+      ic.outerHTML = avatar({ name: s.name, photo: s.photo || '' }, 36).toString();
+    } else {
+      // Gruppen und Räume: Personen hinzufügen (ob man darf, entscheidet Google)
+      const add = el.querySelector('#add-people');
+      add.href = `#/chat-neu?raum=${spacePath(spaceId)}&name=${encodeURIComponent(s.name)}`;
+      add.classList.remove('hidden');
     }
   }).catch(() => {});
 

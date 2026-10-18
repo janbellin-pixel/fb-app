@@ -7,7 +7,8 @@
 //   • eigene Dateien, die die App im eigenen Google Drive angelegt hat (Profil, Forenbeiträge,
 //     Zusagen ohne Einladung, News der Redaktion samt Bildern, Datenschutz-Einwilligung) und deren
 //     Lese-Freigaben
-//   • eigene Chat-Nachrichten (Google lässt ohnehin nur eigene zu)
+//   • eigene Chat-Nachrichten (Google lässt ohnehin nur eigene zu), neue Unterhaltungen mit Personen
+//     (Direktnachricht, Gruppe, benannter Raum) und Personen zu Unterhaltungen hinzufügen
 //   • die eigene, von der App angelegte Einwilligungs-Sammeltabelle (nur das Konto des
 //     Datenschutz-Verantwortlichen, das sie angelegt hat)
 //
@@ -82,7 +83,23 @@ const MESSAGES = {
   drive: 'In Google Drive dürfen nur eigene Dateien der App geändert werden.',
   sheets: 'Tabellen werden in der App nur gelesen (Ausnahme: die eigene Einwilligungsliste der Datenschutz-Verantwortlichen).',
   other: 'Diese Änderung ist in der App nicht vorgesehen.',
+  chat: 'Im Chat kann die App nur Nachrichten schreiben, neue Unterhaltungen mit Personen anlegen und Personen hinzufügen.',
 };
+
+/** Ein Mensch (kein Chat-Bot, keine Google-Gruppe) im Format users/<ID oder E-Mail> */
+function isPerson(member) {
+  return !!member && member.type === 'HUMAN' && /^users\/[^/]+$/.test(String(member.name || ''));
+}
+
+/** spaces:setup nur für Direktnachricht, Gruppe oder benannten Raum – und nur mit Personen */
+function isPeopleOnlySetup(body) {
+  const type = body?.space?.spaceType;
+  const list = body?.memberships;
+  if (!['DIRECT_MESSAGE', 'GROUP_CHAT', 'SPACE'].includes(type) || !Array.isArray(list) || !list.length || list.length > 49) return false;
+  if (!list.every((m) => isPerson(m?.member))) return false;
+  if (type === 'DIRECT_MESSAGE') return list.length === 1 && body.space.singleUserBotDm !== true;
+  return true;
+}
 
 export function assertWriteAllowed(method, url, body) {
   if (method === 'GET' || method === 'HEAD') return;
@@ -134,11 +151,14 @@ export function assertWriteAllowed(method, url, body) {
     throw new WriteBlockedError(MESSAGES.sheets);
   }
 
-  // ---- Google Chat: eigene Nachrichten schreiben, ändern, löschen
+  // ---- Google Chat: eigene Nachrichten schreiben, ändern, löschen; neue Unterhaltungen nur mit Personen;
+  //      Personen hinzufügen. Räume löschen, umbenennen oder Mitglieder entfernen geht nicht.
   if (u.hostname === 'chat.googleapis.com') {
     if (method === 'POST' && /^\/v1\/spaces\/[^/]+\/messages$/.test(path)) return;
     if ((method === 'PATCH' || method === 'DELETE') && /^\/v1\/spaces\/[^/]+\/messages\/[^/]+$/.test(path)) return;
-    throw new WriteBlockedError(MESSAGES.other);
+    if (method === 'POST' && path === '/v1/spaces:setup' && isPeopleOnlySetup(body)) return;
+    if (method === 'POST' && /^\/v1\/spaces\/[^/]+\/members$/.test(path) && isPerson(body?.member)) return;
+    throw new WriteBlockedError(MESSAGES.chat);
   }
 
   throw new WriteBlockedError(MESSAGES.other);

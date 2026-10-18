@@ -395,18 +395,72 @@ export class DemoBackend {
 
   /* ---------------------------------------------------------- Chat */
   chatStatus() {
-    return { available: true };
+    return { available: true, canCreate: true };
+  }
+
+  chatCanCreate() {
+    return true;
   }
 
   chatState() {
-    return this.bucket('chat', { messages: {}, dms: [] });
+    const c = this.bucket('chat', { messages: {}, dms: [] });
+    c.groups = c.groups || [];
+    return c;
+  }
+
+  async openDirectChat(email, name = '') {
+    await wait(200);
+    const space = await this.findDirectChat(email);
+    if (name) {
+      const dm = this.chatState().dms.find((d) => d.id === space.id);
+      if (dm && !this.member(email)) dm.name = name;
+    }
+    return space;
+  }
+
+  async createGroup({ name = '', emails = [] } = {}) {
+    await wait(300);
+    const people = [...new Set(emails.map((x) => String(x).toLowerCase()).filter((x) => x && x !== DEMO_ME_EMAIL))];
+    if (!people.length) throw new Error('Bitte mindestens eine Person auswählen.');
+    if (!name.trim() && people.length < 2) throw new Error('Für eine Gruppe ohne Namen bitte mindestens zwei Personen auswählen – oder einen Namen eingeben.');
+    const c = this.chatState();
+    const first = people.map((e) => (this.member(e)?.name || e).split(' ')[0]);
+    const group = {
+      id: `spaces/grp-${newId('g')}`,
+      name: name.trim() || first.join(', '),
+      description: name.trim() ? 'Gruppe' : '',
+      type: name.trim() ? 'SPACE' : 'GROUP_CHAT',
+      members: people,
+      lastActive: nowIso(),
+    };
+    c.groups.push(group);
+    this.save();
+    return { id: group.id, name: group.name, url: 'https://chat.google.com/' };
+  }
+
+  async addMembers(spaceId, emails = []) {
+    await wait(250);
+    const g = this.chatState().groups.find((x) => x.id === spaceId);
+    const out = { added: [], already: [], failed: [] };
+    for (const e of emails.map((x) => String(x).toLowerCase())) {
+      if (g?.members.includes(e)) out.already.push(e);
+      else { if (g) g.members.push(e); out.added.push(e); }
+    }
+    this.save();
+    return out;
+  }
+
+  async listSpaceMembers(spaceId) {
+    const g = this.chatState().groups.find((x) => x.id === spaceId);
+    const emails = g ? g.members : this.baseMembers.slice(0, 8).map((m) => m.email);
+    return emails.map((e) => { const m = this.member(e); return { email: e, name: m?.name || e, photo: m?.photo || '' }; });
   }
 
   async listSpaces() {
     await wait();
     const base = buildChat();
     const c = this.chatState();
-    const spaces = [...base.spaces, ...c.dms].map((s) => {
+    const spaces = [...base.spaces.map((s) => ({ type: 'SPACE', ...s })), ...c.groups, ...c.dms].map((s) => {
       const own = c.messages[s.id] || [];
       const last = own[own.length - 1];
       return { ...s, lastActive: last && last.created > s.lastActive ? last.created : s.lastActive, url: 'https://chat.google.com/' };
@@ -440,7 +494,10 @@ export class DemoBackend {
     const replies = ['👍', 'Danke für die Info!', 'Bin dabei.', 'Super, bis dann!', 'Gute Idee 🙂'];
     const others = this.baseMembers.filter((m) => m.email !== DEMO_ME_EMAIL);
     const dm = c.dms.find((d) => d.id === spaceId);
-    const replier = dm ? this.member(dm.with) : others[Math.floor(Math.random() * others.length)];
+    const grp = c.groups.find((g) => g.id === spaceId);
+    const replier = dm ? this.member(dm.with)
+      : grp ? this.member(grp.members[Math.floor(Math.random() * grp.members.length)])
+        : others[Math.floor(Math.random() * others.length)];
     if (replier && Math.random() < 0.7) {
       list.push({
         id: newId('m'), senderEmail: replier.email, created: new Date(Date.now() + 4000).toISOString(),

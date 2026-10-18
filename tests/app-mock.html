@@ -23,7 +23,7 @@
     try { await caches.delete('fb-zeitung'); } catch { /* egal */ }
 
     const me = { email: 'tester@beispiel.de', name: 'Theo Tester', photo: '', hd: 'beispiel.de', firstName: 'Theo' };
-    const scopes = ['openid', 'email', 'profile', 'calendar.events', 'drive.readonly', 'drive.file', 'directory.readonly', 'chat.spaces.readonly', 'chat.messages', 'calendar']
+    const scopes = ['openid', 'email', 'profile', 'calendar.events', 'drive.readonly', 'drive.file', 'directory.readonly', 'chat.spaces.readonly', 'chat.messages', 'calendar', 'chat.spaces.create', 'chat.memberships']
       .map((s) => (s.includes('.') || s === 'calendar' ? `https://www.googleapis.com/auth/${s}` : s));
     localStorage.setItem('fb.token', JSON.stringify({ access_token: 'test', expires_at: Date.now() + 3600_000, scope: scopes.join(' ') }));
     localStorage.setItem('fb.user', JSON.stringify(me));

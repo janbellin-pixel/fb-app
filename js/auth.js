@@ -30,6 +30,10 @@ export const SCOPES = {
     'https://www.googleapis.com/auth/directory.readonly',
     'https://www.googleapis.com/auth/chat.spaces.readonly',
     'https://www.googleapis.com/auth/chat.messages',
+    // Direktnachrichten und Gruppen anlegen, Personen hinzufügen (E30) – der Schreibschutz lässt
+    // damit nur das Anlegen mit Personen und das Hinzufügen von Personen zu
+    'https://www.googleapis.com/auth/chat.spaces.create',
+    'https://www.googleapis.com/auth/chat.memberships',
   ],
   // nur für Admins in der Einrichtung: neuen Kalender anlegen und freigeben
   setup: ['https://www.googleapis.com/auth/calendar'],

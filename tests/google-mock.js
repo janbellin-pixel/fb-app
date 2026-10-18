@@ -57,6 +57,7 @@ const ALL_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events', 'https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/directory.readonly', 'https://www.googleapis.com/auth/chat.spaces.readonly',
   'https://www.googleapis.com/auth/chat.messages', 'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/chat.spaces.create', 'https://www.googleapis.com/auth/chat.memberships',
 ];
 
 async function run() {
@@ -381,14 +382,44 @@ async function run() {
   check(String(full).startsWith('blob:'), 'Original über Anmeldung geladen');
 
   /* ---------------------------------------------------------------- Chat */
-  section('Chat (eigene Nachrichten)');
+  section('Chat (eigene Nachrichten, Direktnachrichten, Gruppen)');
   check(b.chatStatus().available, 'Chat verfügbar (Workspace + Berechtigung)');
   const spaces = await step('listSpaces', () => b.listSpaces());
-  check(spaces?.length === 1 && spaces[0].name === 'Allgemein', 'Räume ohne Direktnachrichten');
+  check(spaces?.length === 2 && spaces.some((s) => s.name === 'Allgemein' && s.type === 'SPACE') && spaces.some((s) => s.type === 'DIRECT_MESSAGE'), 'Räume und Direktnachrichten in der Liste', JSON.stringify(spaces?.map((s) => [s.name, s.type])));
   const msgs = await step('listMessages', () => b.listMessages('spaces/AAA'));
   check(msgs?.[0]?.sender.name === 'Anna Andere' && !msgs[0].mine, 'Absender über Verzeichnis aufgelöst');
   const sent = await step('sendMessage', () => b.sendMessage('spaces/AAA', 'Test 123'));
   check(sent?.mine && sent?.text === 'Test 123', 'eigene Nachricht gesendet');
+  const chatApi = await import('../js/google/chat.js');
+  const { api } = await import('../js/google/client.js');
+  check(b.chatCanCreate(), 'neue Unterhaltungen möglich (Zustimmung erteilt)');
+  const dm = await step('openDirectChat', () => b.openDirectChat(ANNA, 'Anna Andere'));
+  const dm2 = await step('openDirectChat (erneut)', () => b.openDirectChat(ANNA));
+  check(dm?.id && dm.id === dm2?.id && fake.state.spaces.filter((s) => s.spaceType === 'DIRECT_MESSAGE').length === 2, 'Direktnachricht wird angelegt und danach wiederverwendet');
+  const sp2 = await step('listSpaces (mit neuer Direktnachricht)', () => b.listSpaces());
+  const dmRow = sp2?.find((s) => s.id === dm?.id);
+  check(dmRow?.type === 'DIRECT_MESSAGE' && dmRow.name === 'Anna Andere' && dmRow.with === ANNA, 'Direktnachricht mit Namen der anderen Person', JSON.stringify(dmRow));
+  const sentDm = await step('sendMessage (Direktnachricht)', () => b.sendMessage(dm.id, 'Hallo Anna'));
+  check(sentDm?.mine && sentDm.text === 'Hallo Anna', 'Nachricht in der Direktnachricht gesendet');
+  const grp = await step('createGroup (mit Namen)', () => b.createGroup({ name: 'Stammtisch-Orga', emails: [ANNA] }));
+  check(fake.state.spaces.some((s) => s.name === grp?.id && s.spaceType === 'SPACE' && s.displayName === 'Stammtisch-Orga'), 'Gruppe mit Namen als Raum angelegt');
+  const grp2 = await step('createGroup (ohne Namen)', () => b.createGroup({ emails: [ANNA, 'karl@beispiel.de'] }));
+  check(fake.state.spaces.some((s) => s.name === grp2?.id && s.spaceType === 'GROUP_CHAT'), 'Gruppe ohne Namen als Gruppenunterhaltung');
+  const tooFew = await b.createGroup({ emails: [ANNA] }).then(() => null).catch((e) => e);
+  check(tooFew && /mindestens zwei/.test(tooFew.message), 'ohne Namen mindestens zwei Personen', tooFew?.message);
+  const dup = await b.createGroup({ name: 'Stammtisch-Orga', emails: [ANNA] }).then(() => null).catch((e) => e);
+  check(dup && /gibt es schon/.test(dup.message), 'Raumname schon vergeben: verständliche Meldung', dup?.message);
+  const addRes = await step('addMembers', () => b.addMembers(grp.id, ['karl@beispiel.de', ANNA]));
+  check(addRes?.added.join() === 'karl@beispiel.de' && addRes.already.join() === ANNA, 'Personen hinzugefügt, schon Vorhandene erkannt', JSON.stringify(addRes));
+  const gm = await step('listSpaceMembers', () => b.listSpaceMembers(grp.id));
+  check(gm?.length === 3 && gm.some((p) => p.email === 'karl@beispiel.de') && gm.some((p) => p.name === 'Anna Andere'), 'Mitglieder der Gruppe', JSON.stringify(gm));
+  // Angriffe: nur Personen, nichts löschen, umbenennen oder entfernen
+  await blocked('Chat-App (Bot) in eine neue Unterhaltung holen', fake, () => chatApi.setupSpace({ space: { spaceType: 'SPACE', displayName: 'X' }, memberships: [{ member: { name: 'users/app', type: 'BOT' } }] }));
+  await blocked('Direktnachricht mit einer Chat-App', fake, () => chatApi.setupSpace({ space: { spaceType: 'DIRECT_MESSAGE', singleUserBotDm: true }, memberships: [{ member: { name: `users/${ANNA}`, type: 'HUMAN' } }] }));
+  await blocked('Google-Gruppe zu einem Raum hinzufügen', fake, () => chatApi.addMember(grp.id, { name: 'groups/123', type: 'HUMAN' }));
+  await blocked('Raum umbenennen', fake, () => api('https://chat.googleapis.com/v1/spaces/AAA', { method: 'PATCH', body: { displayName: 'Hack' } }));
+  await blocked('Raum löschen', fake, () => api('https://chat.googleapis.com/v1/spaces/AAA', { method: 'DELETE' }));
+  await blocked('Mitglied entfernen', fake, () => api(`https://chat.googleapis.com/v1/${grp.id}/members/222`, { method: 'DELETE' }));
 
   /* ---------------------------------------------------------------- privates Konto */
   section('Privates Google-Konto (Prototyp)');

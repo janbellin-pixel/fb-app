@@ -83,7 +83,7 @@ Drei unabhängige Ebenen sorgen dafür, dass mit der App nur eigene Daten geänd
    - `openid`, `email`, `profile`;
    - `calendar.events` für die eigene Antwort (Google lässt Teilnehmer ohnehin nur die eigene Antwort ändern);
    - `drive.readonly` (lesen) und `drive.file` (nur von dieser App angelegte Dateien). Fremde Dateien sind damit technisch nicht änderbar, auch nicht die des Admins, der die Einrichtung gemacht hat: Für ihn sind sie zwar „von der App angelegt“, aber der Code-Schutz (Ebene 3) sperrt sie;
-   - mit Workspace zusätzlich `directory.readonly`, `chat.spaces.readonly` und `chat.messages`.
+   - mit Workspace zusätzlich `directory.readonly`, `chat.spaces.readonly`, `chat.messages` sowie `chat.spaces.create` und `chat.memberships` (Direktnachrichten und Gruppen anlegen, Personen hinzufügen – E30).
 
    Für Google Tabellen gibt es **keinen** eigenen Schreib-Scope; gelesen wird über `drive.readonly`, geschrieben (Einrichtung, Einwilligungsliste) nur in von der App selbst angelegte Tabellen über `drive.file`. Nur die Einrichtung fragt einmalig `calendar` an, um den neuen Verbindungskalender anzulegen.
 3. **Sperre im Code** (`js/google/guard.js`). Jede Anfrage außer `GET` läuft durch `assertWriteAllowed()`. Erlaubt ist nur:

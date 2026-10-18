@@ -379,12 +379,51 @@ export function createFakeGoogle({ me, workspace = true }) {
   }
 
   /* ------------------------------------------------------------ Chat & Personen */
+  // Mitglieder je Raum als Verzeichnis-IDs (users/<ID>); unbekannte Konten bleiben als E-Mail
+  const chatMembers = (state.chatMembers = {});
+  const userKey = (ref) => {
+    const v = String(ref || '').replace('users/', '').toLowerCase();
+    const p = state.directory.find((d) => (d.emailAddresses || []).some((e) => String(e.value).toLowerCase() === v));
+    return p ? p.resourceName.replace('people/', '') : v;
+  };
+  const membersOf = (space) => (chatMembers[space] = chatMembers[space] || [state.myDirectoryId]);
+
   function chatApi(url, method, body) {
     if (!workspace) return error(403, 'Google Chat API is only available to Google Workspace users.', 'PERMISSION_DENIED');
     const path = decodeURIComponent(url.pathname.replace('/v1/', ''));
     let m;
     if (path === 'spaces') return json({ spaces: state.spaces });
-    if (path === 'spaces:findDirectMessage') return error(404, 'Direct message not found', 'NOT_FOUND');
+    if (path === 'spaces:findDirectMessage') {
+      const other = userKey(url.searchParams.get('name'));
+      const dm = state.spaces.find((s) => s.spaceType === 'DIRECT_MESSAGE' && membersOf(s.name).includes(other));
+      return dm ? json(dm) : error(404, 'Direct message not found', 'NOT_FOUND');
+    }
+    if (path === 'spaces:setup' && method === 'POST') {
+      const type = body.space?.spaceType;
+      const people = (body.memberships || []).map((x) => userKey(x.member?.name));
+      if (type === 'DIRECT_MESSAGE') {
+        const dm = state.spaces.find((s) => s.spaceType === 'DIRECT_MESSAGE' && membersOf(s.name).includes(people[0]));
+        if (dm) return json(dm); // bestehende Direktnachricht (wie bei Google)
+      }
+      if (type === 'SPACE' && state.spaces.some((s) => s.displayName === body.space.displayName)) return error(409, 'A space with this name already exists.', 'ALREADY_EXISTS');
+      const space = { name: `spaces/${uid('s')}`, spaceType: type, displayName: body.space.displayName || '', lastActiveTime: new Date().toISOString() };
+      state.spaces.push(space);
+      chatMembers[space.name] = [state.myDirectoryId, ...people];
+      write('Chat-Unterhaltung anlegen', space.name, true);
+      return json(space);
+    }
+    if ((m = path.match(/^(spaces\/[^/]+)\/members$/))) {
+      const list = membersOf(m[1]);
+      if (method === 'GET') return json({ memberships: list.map((u) => ({ name: `${m[1]}/members/${u}`, member: { name: `users/${u}`, type: 'HUMAN' } })) });
+      if (method === 'POST') {
+        write('Chat-Mitglied hinzufügen', m[1], true);
+        if (!list.includes(state.myDirectoryId)) return error(403, 'The caller is not a member of the space.', 'PERMISSION_DENIED');
+        const who = userKey(body.member?.name);
+        if (list.includes(who)) return error(409, 'Membership already exists.', 'ALREADY_EXISTS');
+        list.push(who);
+        return json({ name: `${m[1]}/members/${who}`, member: { name: `users/${who}`, type: 'HUMAN' } });
+      }
+    }
     if ((m = path.match(/^(spaces\/[^/]+)\/messages$/))) {
       const list = (state.messages[m[1]] = state.messages[m[1]] || []);
       if (method === 'POST') {

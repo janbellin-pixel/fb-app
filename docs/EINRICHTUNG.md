@@ -9,7 +9,7 @@ Danach folgen **Teil C – Daten pflegen** (so kommen Termine, News, Zeitungen u
 
 Programmierkenntnisse brauchst du nicht. Die App legt Kalender, Tabellen und Ordner selbst an. Nur ein paar Klicks bei Google und GitHub kann dir aus Sicherheitsgründen niemand abnehmen.
 
-> **Grundsatz der App:** Mitglieder können mit der App nur **ihre eigenen** Daten ändern: die eigene Zu-/Absage, das eigene Profil, eigene Forumsbeiträge und eigene Chat-Nachrichten. Alles Gemeinsame wird in der App nur angezeigt und direkt bei Google gepflegt (Teil C). Wie das abgesichert ist, steht unten unter [Schreibschutz](#schreibschutz).
+> **Grundsatz der App:** Mitglieder können mit der App nur **ihre eigenen** Daten ändern: die eigene Zu-/Absage, das eigene Profil, eigene Forumsbeiträge, eigene Chat-Nachrichten und neue Chat-Unterhaltungen mit Personen. Alles Gemeinsame wird in der App nur angezeigt und direkt bei Google gepflegt (Teil C). Wie das abgesichert ist, steht unten unter [Schreibschutz](#schreibschutz).
 
 ---
 
@@ -152,7 +152,7 @@ Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browse
 | Freigaben nicht einsehbar | Nur Inhaber und Bearbeiter sehen Freigaben | Als Inhaber/Bearbeiter prüfen oder in Google Drive selbst nachsehen |
 | Google-Verzeichnis: nur ein Konto bzw. „People API … disabled“ | „Mitglieder“ zeigt dann nur das eigene Konto | Admin-Konsole → Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen → **Kontaktfreigabe** einschalten bzw. in der Cloud Console die People API aktivieren. Neue Konten erscheinen teils erst nach einigen Stunden |
 | Google Chat: „Google Chat app not found“ | Die Chat-Schnittstelle ist im Cloud-Projekt nicht konfiguriert | Cloud Console → Google Chat API → Konfiguration: App-Name, Avatar, Beschreibung (B1, Schritt 4) |
-| Google Chat: keine Räume | Jeder sieht nur Räume, in denen er Mitglied ist | In Google Chat Räume anlegen und neue Konten hinzufügen |
+| Google Chat: keine Räume | Jeder sieht nur Unterhaltungen, in denen er Mitglied ist | In der App „Neue Nachricht“ bzw. „Neue Gruppe“ – oder in einer Gruppe unter „Personen“ neue Konten hinzufügen |
 
 Die Rechte sehen danach so aus:
 
@@ -209,7 +209,7 @@ Alles Gemeinsame wird direkt bei Google gepflegt. Die App zeigt Änderungen nach
 | **Adressen, Geburtstage** | Tabelle „Adressverzeichnis“ | Zeilen ergänzen oder korrigieren; Geburtstag als Datum (z. B. `03.04.1970`). Die nächsten drei Geburtstage erscheinen auf der Startseite. Mitglieder prüfen ihre Angaben unter „Mein Profil“; Abweichungen kommen als vorbereitete E-Mail an das Postfach für Adressänderungen, der Schriftwart übernimmt sie hier. Damit die App jemanden zuordnet, sollte die Spalte *E-Mail* das Google-Konto der Verbindung enthalten (sonst wird über den Namen gesucht) |
 | **Bundesbote** | Drive-Ordner des Bundesboten | PDF hochladen, am besten mit Dateiname `JJJJ-N Titel.pdf`, z. B. `2026-2 Bundesbote SoSe 2026.pdf` (Jahr, Nummer der Ausgabe im Jahr). Die App zeigt immer eine Seite; Doppelseiten im PDF (Querformat-Seiten, z. B. aus Scans) teilt sie selbst in zwei Einzelseiten. Jahresordner (`2019/…`, auch `Archiv/2003/…`, bis zwei Ebenen tief) sind möglich; fehlt das Jahr im Dateinamen, zählt der Ordner, „Nr. 3“ oder „Heft 3“ im Namen gilt als Nummer. Neueste Ausgabe steht oben |
 | **Fotos** | Drive-Ordner „Galerie“ | Pro Anlass einen **Unterordner** anlegen, Name `JJJJ-MM Name`, z. B. `2026-06 Stiftungsfest`, und die Fotos hineinladen. Auch Jahresordner mit Alben darin gehen (`2023/Stiftungsfest`, bis zwei Ebenen tief). Fotos direkt im Galerie-Ordner erscheinen als Album „Allgemein“. Neueste Alben stehen oben; Kameranamen wie `IMG_2041` blendet die App aus |
-| **Chat-Räume** | Google Chat | Räume anlegen und Mitglieder hinzufügen; die App zeigt alle Räume, in denen man Mitglied ist |
+| **Chat** | In der App oder in Google Chat | Jedes Mitglied kann in der App private Nachrichten schreiben („Nachricht“ im Profil, „Neue Nachricht“), Gruppen gründen („Neue Gruppe“) und in Gruppen und Räumen, in denen es ist, Personen hinzufügen. Die App zeigt alle Unterhaltungen, in denen man Mitglied ist |
 | **Profile** | jedes Mitglied selbst | In der App unter Mehr → Mein Profil (u. a. Tätigkeit und „Das kann ich jüngeren Bundesbrüdern anbieten“). Foto und Name im eigenen Google-Konto. Profile sind bewusst getrennt vom Adressverzeichnis (siehe ENTSCHEIDUNGEN.md, E7) |
 
 ---
@@ -221,7 +221,7 @@ Alles Gemeinsame wird direkt bei Google gepflegt. Die App zeigt Änderungen nach
 **Verändert die OAuth-Freigabe selbst etwas im Workspace?** Nein. Der OAuth-Client ist nur die „Ausweiskarte“ der App bei Google; er ändert keine Daten und keine Einstellungen. Meldet sich ein Mitglied an, darf die App in seinem Namen höchstens das, was die angefragten Berechtigungen **und** seine eigenen Rechte erlauben:
 - Termine ansehen und im eigenen Kalender antworten (`calendar.events`),
 - Dateien ansehen (`drive.readonly`) und nur von der App selbst angelegte Dateien bearbeiten (`drive.file`),
-- das Verzeichnis lesen (`directory.readonly`) sowie Chat-Räume lesen und eigene Nachrichten schreiben (`chat.*`).
+- das Verzeichnis lesen (`directory.readonly`) sowie Chat-Unterhaltungen lesen, eigene Nachrichten schreiben, Direktnachrichten und Gruppen anlegen und Personen hinzufügen (`chat.*`, E30). Räume löschen oder umbenennen und Mitglieder entfernen sperrt der Schreibschutz.
 
 Zugriff auf E-Mails, fremde Dateien oder Einstellungen gibt es nicht. Zusätzlich sperrt der Schreibschutz im Code alles, was nicht eigene Daten betrifft. Nur wer in der Einrichtung einen neuen Kalender anlegen lässt (Admins), erteilt einmalig zusätzlich „Kalender verwalten“.
 
@@ -309,7 +309,7 @@ Die App ist so gebaut, dass Mitglieder damit **nichts außer ihren eigenen Daten
 3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird vor dem Absenden geprüft. Erlaubt sind nur:
    - die eigene Antwort auf einen Termin, nur im eigenen Kalender und nur die Teilnehmerliste;
    - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung), und deren Lese-Freigaben;
-   - eigene Chat-Nachrichten;
+   - eigene Chat-Nachrichten, neue Unterhaltungen nur mit Personen und das Hinzufügen von Personen;
    - für die Datenschutz-Verantwortlichen: die **eigene**, von der App angelegte Einwilligungsliste.
 
    Alles andere wird blockiert. Die Meldung beginnt dann mit „Schreibschutz:“.

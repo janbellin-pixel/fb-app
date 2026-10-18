@@ -3,6 +3,7 @@ import { html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, 
 import { matchesQuery, linkify } from '../lib/text.js';
 import { config, statusGroup } from '../config.js';
 import { local } from '../lib/store.js';
+import * as auth from '../auth.js';
 
 export function instagramUrl(v) {
   const s = String(v || '').trim();
@@ -169,19 +170,17 @@ export async function detail(ctx) {
     if (!btn) return;
     btn.disabled = true;
     try {
-      const space = await b.findDirectChat(m.email);
-      if (space) app.navigate(`#/chat/${encodeURIComponent(space.id.replace('spaces/', ''))}?name=${encodeURIComponent(m.name)}`);
-      else {
-        toast('Noch kein Direktchat vorhanden – Google Chat wird geöffnet', { type: 'info' });
-        window.open(`https://mail.google.com/chat/u/0/#chat/home`, '_blank', 'noopener');
-      }
+      // Direktnachricht öffnen – gibt es noch keine, legt die App sie an (E30)
+      const space = await b.openDirectChat(m.email, m.name);
+      await app.forget('chat-spaces');
+      app.navigate(`#/chat/${encodeURIComponent(space.id.replace('spaces/', ''))}?name=${encodeURIComponent(m.name)}`);
     } catch (err) {
-      if (err.status === 404) {
-        toast('Noch kein Direktchat vorhanden – Google Chat wird geöffnet', { type: 'info' });
-        window.open('https://mail.google.com/chat/u/0/#chat/home', '_blank', 'noopener');
-      } else showError(err);
-    } finally {
       btn.disabled = false;
+      if (err.code === 'chat_scope') {
+        auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash });
+        return;
+      }
+      showError(err);
     }
   });
 }

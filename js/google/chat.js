@@ -24,6 +24,21 @@ export async function listMessages(space, { pageSize = 60, since } = {}) {
 export const createMessage = (space, text) =>
   api(`${BASE}/${space}/messages`, { method: 'POST', body: { text } });
 
+/**
+ * Neue Unterhaltung anlegen (Direktnachricht, Gruppe oder benannter Raum) und Personen hinzufügen.
+ * Gibt es die Direktnachricht schon, liefert Google die bestehende zurück.
+ */
+export const setupSpace = (body) => api(`${BASE}/spaces:setup`, { method: 'POST', body });
+
+/** Mitglieder einer Unterhaltung */
+export async function listMembers(space) {
+  const { items } = await apiAll(`${BASE}/${space}/members`, { query: { pageSize: 1000 } }, 'memberships', 5);
+  return items;
+}
+
+/** Person zu einer Unterhaltung hinzufügen (member: { name: 'users/<E-Mail>', type: 'HUMAN' }) */
+export const addMember = (space, member) => api(`${BASE}/${space}/members`, { method: 'POST', body: { member } });
+
 /** Bestehenden Direktchat mit einer Person finden (users/<E-Mail> ist als Alias erlaubt) */
 export const findDirectMessage = (email) =>
   api(`${BASE}/spaces:findDirectMessage`, { query: { name: `users/${email}` } });

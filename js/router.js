@@ -12,6 +12,7 @@ export const ROUTES = [
   { path: 'profil', load: v('profil'), tab: 'mehr', nav: 'mitglieder', title: 'Mein Profil' },
   { path: 'chat', load: v('chat'), tab: 'chat', nav: 'chat', title: 'Chat' },
   { path: 'chat/:space', load: v('chat', 'room'), tab: 'chat', nav: 'chat', title: 'Chat' },
+  { path: 'chat-neu', load: v('chat', 'newChat'), tab: 'chat', nav: 'chat', title: 'Neue Nachricht' },
   { path: 'adressen', load: v('adressen'), tab: 'mehr', nav: 'adressen', title: 'Adressverzeichnis' },
   { path: 'zeitung', load: v('zeitung'), tab: 'mehr', nav: 'zeitung', title: 'Bundesbote' },
   { path: 'zeitung/:id', load: v('zeitung', 'reader'), tab: 'mehr', nav: 'zeitung', title: 'Bundesbote' },

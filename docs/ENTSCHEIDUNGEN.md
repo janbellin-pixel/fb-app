@@ -109,6 +109,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 
 - **Entscheidung:** Die App zeigt Räume und Nachrichten aus Google Chat und sendet eigene Nachrichten. Für Push-Benachrichtigungen dient die Google-Chat-App.
 - **Folgen:** Kein eigener Chat-Server. Funktioniert nur mit Workspace, und das Cloud-Projekt braucht die Chat-API-Konfiguration.
+- **Ergänzt durch E30** (Direktnachrichten und Gruppen in der App anlegen).
 
 ## E15 · Datenschutz: zwei getrennte Einwilligungen, nachweisbar gespeichert
 *2026-10-17 – Anforderung des Auftraggebers*
@@ -218,3 +219,11 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Kontext:** Die App darf gemeinsame Daten nicht ändern (E5), also auch nicht die Tabelle „News“. Schreiben über die Tabelle würde außerdem einen breiteren Google-Zugriff verlangen (`drive.file` deckt nur von der App selbst angelegte Dateien ab).
 - **Entscheidung:** News sind – wie Forumsbeiträge – **eigene Dateien** der Verfasser im eigenen App-Ordner (`fbTyp=news`, Beschreibung `{ titel, text, kategorie, angeheftet, bild, datum, bearbeitet }`), für Mitglieder nur lesbar. Fotos werden vor dem Hochladen verkleinert (1600 px, JPEG) und als eigene Datei `fbTyp=newsbild` gespeichert (`bild = drive:<ID>`). **Als News zählen nur Dateien, deren Eigentümer laut Google Admin ist oder in `config.redaktion` steht** – andere Mitglieder können sich so nicht als Redaktion ausgeben. Bearbeiten und Löschen nur der eigenen News (Löschen = Papierkorb, samt eigenem Bild). Die Tabelle „News“ wird weiter gelesen und mit den App-News zusammen sortiert (angeheftet zuerst, dann neueste).
 - **Folgen:** Keine neuen Berechtigungen, keine neue Schreibregel. Wird jemand aus Admins/Redaktion entfernt, verschwinden seine News aus der App (die Dateien bleiben in seinem Drive). Mehrere Redakteure können nicht gemeinsam an einer News arbeiten. Routen `#/news-neu` und `#/news-bearbeiten/:id`.
+
+## E30 · Private Nachrichten und Gruppen direkt in der App
+*2026-10-18 – Wunsch der Verbindung: Mitglieder sollen sich ohne Einrichtung bei Google privat oder in Gruppen schreiben können, auch aus der Mitgliederliste und aus Terminen heraus*
+
+- **Kontext:** Bisher zeigte die App nur Räume, in denen man schon Mitglied ist, und öffnete für neue Direktnachrichten Google Chat. Sich selbst in einen bestehenden Raum aufnehmen erlaubt Google über die Schnittstelle nicht (nur Mitglieder bzw. Verwalter können hinzufügen; auffindbare Räume brauchen eine Bestätigung).
+- **Entscheidung:** Zwei zusätzliche OAuth-Scopes (Ausnahme von AGENTS.md, Regel 2): `chat.spaces.create` (Direktnachricht, Gruppe oder benannten Raum anlegen – `spaces.setup`; eine bestehende Direktnachricht liefert Google zurück) und `chat.memberships` (Mitglieder lesen, damit Direktnachrichten und Gruppen mit Namen erscheinen, und Personen hinzufügen). Der Schreibschutz lässt nur zu: `spaces:setup` mit ausschließlich Personen (keine Chat-Apps, keine Google-Gruppen, keine Bot-Direktnachricht) und `spaces/{id}/members` für eine Person. Räume umbenennen oder löschen und Mitglieder entfernen bleiben gesperrt. Wer welchen Raum ergänzen darf, entscheidet Google (man muss selbst Mitglied sein).
+- **Oberfläche:** „Nachricht“ im Profil (erreichbar aus der Mitgliederliste und aus „Wer kommt?“ bei Terminen) öffnet bzw. legt die Direktnachricht an. Im Chat gibt es „Neue Nachricht“, „Neue Gruppe“ (mit Namen = Raum, ohne Namen = Gruppenunterhaltung) und in Gruppen/Räumen „Personen“. Ist das Verzeichnis leer, kann man eine E-Mail-Adresse der Domain eingeben.
+- **Folgen:** Jedes Mitglied bestätigt die zusätzlichen Rechte einmal bei Google. Namen in Direktnachrichten kommen aus dem Google-Verzeichnis (Kontaktfreigabe nötig); für selbst angelegte Unterhaltungen merkt sich das Gerät den Namen zusätzlich (`fb.chatNamen`). Bestehende Räume ohne eigene Mitgliedschaft lassen sich weiterhin nicht selbst betreten.

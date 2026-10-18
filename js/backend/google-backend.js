@@ -33,10 +33,14 @@ import { htmlToText } from '../lib/text.js';
 import { isoLocal } from '../lib/dates.js';
 import { resizeImage } from '../ui.js';
 import { findOwnAddress, nameKey } from '../lib/adressabgleich.js';
+import { local } from '../lib/store.js';
 
 const SCOPE_DIRECTORY = 'https://www.googleapis.com/auth/directory.readonly';
 const SCOPE_CHAT_READ = 'https://www.googleapis.com/auth/chat.spaces.readonly';
 const SCOPE_CHAT_MSG = 'https://www.googleapis.com/auth/chat.messages';
+const SCOPE_CHAT_CREATE = 'https://www.googleapis.com/auth/chat.spaces.create';
+const SCOPE_CHAT_MEMBERS = 'https://www.googleapis.com/auth/chat.memberships';
+const CHAT_NAMES = 'fb.chatNamen'; // Namen selbst angelegter Unterhaltungen (falls das Verzeichnis fehlt)
 const APP_FOLDER = 'Frankonia-Brunonia App – meine Beiträge und Profil';
 const OWN_FIELDS = 'id,name,description,createdTime,modifiedTime,appProperties,ownedByMe,owners(emailAddress,displayName,photoLink)';
 const GALLERY_FIELDS = 'id,name,mimeType,thumbnailLink,webViewLink,createdTime,modifiedTime,imageMediaMetadata(width,height,time),parents';
@@ -961,13 +965,106 @@ export class GoogleBackend {
     return url;
   }
 
-  /* ================================================================ Chat (eigene Nachrichten) */
+  /* ================================================================ Chat (eigene Nachrichten, neue Unterhaltungen mit Personen) */
 
   chatStatus() {
     if (config.chat?.aktiv === false) return { available: false, reason: 'disabled' };
     if (!this.isWorkspace) return { available: false, reason: 'no-workspace' };
     if (!hasScope(SCOPE_CHAT_MSG) || !hasScope(SCOPE_CHAT_READ)) return { available: false, reason: 'scope' };
-    return { available: true };
+    return { available: true, canCreate: this.chatCanCreate() };
+  }
+
+  /** Direktnachrichten und Gruppen anlegen, Personen hinzufügen – braucht eine zusätzliche Zustimmung (E30) */
+  chatCanCreate() {
+    return this.isWorkspace && hasScope(SCOPE_CHAT_CREATE) && hasScope(SCOPE_CHAT_MEMBERS);
+  }
+
+  chatScopeError() {
+    return Object.assign(new Error('Für neue Unterhaltungen braucht die App einmalig deine Zustimmung bei Google.'), { code: 'chat_scope' });
+  }
+
+  rememberChatName(spaceId, info) {
+    const names = local.get(CHAT_NAMES, {});
+    names[spaceId] = info;
+    local.set(CHAT_NAMES, names);
+  }
+
+  /** Personen einer Unterhaltung (über das Verzeichnis aufgelöst, ohne Chat-Apps) */
+  async spaceMembers(spaceId, dir = null) {
+    if (!hasScope(SCOPE_CHAT_MEMBERS)) return [];
+    const d = dir || await this.dirMap();
+    const list = await this.cached(`members:${spaceId}`, 5 * 60_000, () => chat.listMembers(spaceId));
+    return list
+      .filter((m) => (m.member?.type || 'HUMAN') === 'HUMAN' && String(m.member?.name || '').startsWith('users/'))
+      .map((m) => {
+        const uid = m.member.name.replace('users/', '');
+        const p = d.get(uid) || [...d.values()].find((x) => x.email === uid.toLowerCase());
+        return { id: p?.id || uid, email: p?.email || (uid.includes('@') ? uid.toLowerCase() : ''), name: p?.name || m.member.displayName || 'Mitglied', photo: p?.photo || '' };
+      });
+  }
+
+  /** Öffnet die Direktnachricht mit einem Mitglied – gibt es sie noch nicht, wird sie angelegt */
+  async openDirectChat(email, name = '') {
+    if (!this.chatCanCreate()) throw this.chatScopeError();
+    const e = String(email || '').toLowerCase().trim();
+    if (!e || e === this.myEmail) throw new Error('Bitte eine andere Person wählen.');
+    let s = null;
+    try {
+      s = await chat.findDirectMessage(e);
+    } catch (err) {
+      if (err.status !== 404) throw err;
+    }
+    if (!s?.name) {
+      s = await chat.setupSpace({
+        space: { spaceType: 'DIRECT_MESSAGE', singleUserBotDm: false },
+        memberships: [{ member: { name: `users/${e}`, type: 'HUMAN' } }],
+      });
+    }
+    this.rememberChatName(s.name, { name: name || e, email: e });
+    return { id: s.name, url: chat.spaceUrl(s.name) };
+  }
+
+  /** Neue Gruppe: mit Namen als Raum (SPACE), ohne Namen als Gruppenunterhaltung (GROUP_CHAT) */
+  async createGroup({ name = '', emails = [] } = {}) {
+    if (!this.chatCanCreate()) throw this.chatScopeError();
+    const people = [...new Set(emails.map((x) => String(x).toLowerCase().trim()).filter((x) => x && x !== this.myEmail))];
+    const title = clip(name, 128);
+    if (!people.length) throw new Error('Bitte mindestens eine Person auswählen.');
+    if (!title && people.length < 2) throw new Error('Für eine Gruppe ohne Namen bitte mindestens zwei Personen auswählen – oder einen Namen eingeben.');
+    if (people.length > 49) throw new Error('Höchstens 49 Personen auf einmal – weitere später hinzufügen.');
+    let s;
+    try {
+      s = await chat.setupSpace({
+        space: title ? { spaceType: 'SPACE', displayName: title } : { spaceType: 'GROUP_CHAT' },
+        memberships: people.map((e) => ({ member: { name: `users/${e}`, type: 'HUMAN' } })),
+      });
+    } catch (err) {
+      if (err.status === 409) throw new Error(`Einen Raum „${title}“ gibt es schon – bitte einen anderen Namen wählen.`);
+      throw err;
+    }
+    if (!title) this.rememberChatName(s.name, { name: 'Gruppe' });
+    return { id: s.name, name: title, url: chat.spaceUrl(s.name) };
+  }
+
+  /** Personen zu einer Unterhaltung hinzufügen, in der man selbst ist (ob man das darf, entscheidet Google) */
+  async addMembers(spaceId, emails = []) {
+    if (!this.chatCanCreate()) throw this.chatScopeError();
+    const out = { added: [], already: [], failed: [] };
+    for (const e of [...new Set(emails.map((x) => String(x).toLowerCase().trim()).filter(Boolean))]) {
+      try {
+        await chat.addMember(spaceId, { name: `users/${e}`, type: 'HUMAN' });
+        out.added.push(e);
+      } catch (err) {
+        if (err.status === 409) out.already.push(e);
+        else out.failed.push({ email: e, error: err.message });
+      }
+    }
+    this.invalidate(`members:${spaceId}`);
+    return out;
+  }
+
+  async listSpaceMembers(spaceId) {
+    return this.spaceMembers(spaceId);
   }
 
   async dirMap() {
@@ -977,19 +1074,27 @@ export class GoogleBackend {
     return map;
   }
 
+  /** Räume, Gruppen und Direktnachrichten, in denen ich Mitglied bin – mit Namen der anderen */
   async listSpaces() {
-    const spaces = await chat.listSpaces();
-    return spaces
-      .filter((s) => (s.spaceType || s.type) !== 'DIRECT_MESSAGE' && (s.displayName || '').trim())
-      .map((s) => ({
-        id: s.name,
-        name: s.displayName,
-        type: s.spaceType || s.type || '',
-        lastActive: s.lastActiveTime || s.createTime || '',
-        url: chat.spaceUrl(s.name),
-        description: s.spaceDetails?.description || '',
-      }))
-      .sort((a, b) => String(b.lastActive).localeCompare(String(a.lastActive)));
+    const [spaces, dir] = await Promise.all([chat.listSpaces(), this.dirMap()]);
+    const myId = [...dir.values()].find((p) => p.email === this.myEmail)?.id;
+    const names = local.get(CHAT_NAMES, {});
+    const rows = await Promise.all(spaces.map(async (s) => {
+      const type = s.spaceType || (s.type === 'DM' ? 'DIRECT_MESSAGE' : s.type === 'ROOM' ? 'SPACE' : s.type) || '';
+      const base = { id: s.name, type, lastActive: s.lastActiveTime || s.createTime || '', url: chat.spaceUrl(s.name), description: s.spaceDetails?.description || '' };
+      if (type === 'SPACE') return (s.displayName || '').trim() ? { ...base, name: s.displayName } : null;
+      if ((type !== 'DIRECT_MESSAGE' && type !== 'GROUP_CHAT') || s.singleUserBotDm) return null;
+      const others = (await this.spaceMembers(s.name, dir).catch(() => [])).filter((p) => p.id !== myId && p.email !== this.myEmail);
+      const hint = names[s.name];
+      if (type === 'DIRECT_MESSAGE') {
+        const p = others[0];
+        return { ...base, name: p?.name || hint?.name || 'Direktnachricht', with: p?.email || hint?.email || '', photo: p?.photo || '' };
+      }
+      const first = others.map((p) => p.name.split(' ')[0]);
+      const label = first.length > 3 ? `${first.slice(0, 3).join(', ')} und ${first.length - 3} weitere` : first.join(', ');
+      return { ...base, name: label || hint?.name || 'Gruppe', members: others.map((p) => p.email) };
+    }));
+    return rows.filter(Boolean).sort((a, b) => String(b.lastActive).localeCompare(String(a.lastActive)));
   }
 
   async listMessages(spaceId, opts = {}) {
