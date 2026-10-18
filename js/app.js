@@ -64,23 +64,23 @@ const app = {
 
   startDemo() {
     local.set('fb.mode', 'demo');
-    location.hash = '#/';
-    location.reload();
+    reloadAtStart();
   },
 
   endDemo() {
     local.del('fb.mode');
-    location.hash = '#/';
-    location.reload();
+    reloadAtStart();
   },
 
   logout({ revoke = false } = {}) {
+    // Wichtig: Vor dem Neuladen keinen Seitenwechsel auslösen. Früher setzte diese Funktion
+    // location.hash = '#/'; der Seitenwechsel lief noch vor dem Neuladen durch beforeRoute(),
+    // fand keinen Zugangsschlüssel mehr und meldete still wieder an (Google kennt die Sitzung).
+    this.loggingOut = true;
     auth.logout({ revoke });
     local.del('fb.mode');
-    kv.clear().finally(() => {
-      location.hash = '#/';
-      location.reload();
-    });
+    // Zwischenspeicher leeren, aber höchstens kurz darauf warten
+    Promise.race([kv.clear(), new Promise((r) => setTimeout(r, 1500))]).finally(reloadAtStart);
   },
 
   /** Datenschutz: muss das Mitglied (erstmals oder nach neuer Fassung) über die Einwilligungen entscheiden? */
@@ -88,6 +88,7 @@ const app = {
 
   /** Vor jedem Seitenwechsel: Datenschutz-Abfrage beim ersten Öffnen, Google-Sitzung rechtzeitig still erneuern */
   beforeRoute(match) {
+    if (this.loggingOut) return false;
     if (this.consentPending && this.user && !match.route.public) {
       const weiter = location.hash && !location.hash.startsWith('#/datenschutz') ? location.hash : '#/';
       navigate(`#/datenschutz?erstmals=1&weiter=${encodeURIComponent(weiter)}`, { replace: true });
@@ -96,7 +97,8 @@ const app = {
     if (this.mode !== 'google' || !navigator.onLine) return true;
     const left = auth.tokenExpiresIn();
     if (left > 4 * 60_000) return true;
-    if (!auth.recentSilentAttempt()) {
+    // still erneuern nur, solange jemand angemeldet ist (nach dem Abmelden ist fb.user gelöscht)
+    if (!auth.recentSilentAttempt() && auth.getUser()) {
       auth.login({ silent: true, returnTo: `#/${match.path}${location.hash.includes('?') ? `?${location.hash.split('?')[1]}` : ''}` });
       return false;
     }
@@ -112,6 +114,12 @@ const app = {
   },
 };
 window.fbApp = app; // zur Fehlersuche in der Konsole
+
+/** Mit der Startseite neu laden – ohne vorherigen Seitenwechsel (der würde noch beforeRoute() durchlaufen) */
+function reloadAtStart() {
+  history.replaceState(null, '', `${location.pathname}${location.search}#/`);
+  location.reload();
+}
 
 /* ------------------------------------------------------------------ Start */
 
