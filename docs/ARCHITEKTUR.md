@@ -62,7 +62,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Adressänderungen | keine Speicherung: „Mein Profil“ gleicht Anschrift und Stammdaten mit dem Adressverzeichnis ab (`js/lib/adressabgleich.js`) und bereitet eine E-Mail an `config.adressaenderung` vor | – | Mitglied schickt sie ab, Schriftwart pflegt das Verzeichnis |
 | Forum | je Beitrag eine kleine Datei im **eigenen** Drive des Verfassers (`fbTyp = forum`, `fbRolle = thema/antwort`, `fbThema`, `fbKategorie`) | lesen | jeder seine eigenen |
 | Status, Kneipname, Rezeption, Beruf, Wohnort | Adressverzeichnis. Der **Status** von dort hat immer Vorrang; die übrigen Angaben kann das Mitglied im eigenen Profil ergänzen oder überschreiben | lesen | Admins / Schriftwart |
-| News | Tabelle „News“ | lesen | Redaktion in Google Tabellen |
+| News | Eigene Dateien der Redaktion (`fbTyp=news`, Bilder `fbTyp=newsbild`) und Tabelle „News“ | lesen; Admins/Redaktion schreiben eigene | Redaktion in der App bzw. in Google Tabellen |
 | Adressen, Geburtstage | Tabelle „Adressverzeichnis“ (Spalten frei, werden erkannt) | lesen | Admins / Schriftwart |
 | Bundesbote (Zeitung) | PDF-Dateien im Drive-Ordner, Dateiname `JJJJ-N Titel.pdf` | lesen | Redaktion in Google Drive |
 | Galerie | Bilder im Drive-Ordner; Unterordner = Alben (`JJJJ-MM Name`), lose Bilder = Album „Allgemein“ | lesen | Admins / Fotowart in Google Drive |

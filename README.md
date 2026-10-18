@@ -19,7 +19,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Adressverzeichnis** | Google-Tabelle, nur lesbar. Suche, anrufen, E-Mail, Karte, in Kontakte übernehmen (vCard). |
 | **Bundesbote** | Die Zeitung der Verbindung: PDFs aus einem Drive-Ordner mit allen Ausgaben, immer eine Seite (Doppelseiten aus Scans werden geteilt), **realistische Umblätter-Animation**, Zoom, offline verfügbar. |
 | **Fotogalerie** | Fotos aus einem festen Drive-Ordner. Jeder Unterordner ist ein Album (z. B. „2026-06 Stiftungsfest“), Vollbild mit Wischen. |
-| **News** | Meldungen mit Bildern aus einer Google-Tabelle, die die Redaktion direkt in Google Tabellen pflegt. |
+| **News** | Meldungen mit Bildern. Admins und die Redaktion schreiben sie direkt in der App (als eigene Beiträge, wie im Forum); Meldungen aus einer Google-Tabelle „News“ erscheinen zusätzlich. |
 | **Forum** | Kategorien, Themen und Antworten. Jeder Beitrag liegt im eigenen Drive des Verfassers, nur er kann ihn ändern oder löschen. |
 | **Schriftgröße** | Klein, Normal, Groß und Sehr groß, damit auch Menschen mit schlechten Augen auf dem Handy alles lesen können. Einstellbar unter Mehr. |
 | **Datenschutz** | Beim ersten Öffnen: Datenschutzerklärung und zwei getrennte Einwilligungen (vereinsübliche Zwecke; Weitergabe an die Deutsche Sängerschaft), jeweils Ja oder Nein. Unter Mehr → Datenschutz jederzeit änderbar. Jede Entscheidung liegt nachweisbar im eigenen Drive und wird in einer vertraulichen Sammeltabelle der Verantwortlichen zusammengeführt. |
@@ -34,7 +34,7 @@ Die App ändert **keine** gemeinsamen Daten, weder Termine noch News, Adressen, 
 
 1. **Google-Freigaben:** Mitglieder haben auf Kalender, Tabellen und Ordner nur Leserechte.
 2. **Angefragte Berechtigungen:** Die App fragt bei Google für Drive nur „lesen“ und „eigene, von der App angelegte Dateien“ an (`drive.readonly` und `drive.file`), für Tabellen gar keine Schreibberechtigung. Damit kann sie fremde Dateien technisch nicht ändern.
-3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung) und eigene Chat-Nachrichten. Alles andere wird blockiert.
+3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Zusagen ohne Einladung, News der Redaktion, Einwilligung) und eigene Chat-Nachrichten. Alles andere wird blockiert.
 
 Ausnahmen gibt es zwei, beide betreffen nur eigene Dateien:
 - Der Knopf **„Fehlendes neu anlegen“** in der Einrichtung ist nur für Admins sichtbar und legt nur an, was noch nicht verbunden ist – ausschließlich neue Dateien im eigenen Drive. Verbundenes (vorhandener Kalender, Mitgliederliste, Ordner) wird nie verändert oder neu freigegeben.

@@ -123,6 +123,9 @@ export default async function einrichtung(ctx) {
             <div class="field"><label for="o-admins">Admins</label>
               <input class="input" id="o-admins" name="admins" placeholder="deine@adresse.de" value="${(config.admins || []).join(', ') || me?.email || ''}">
               <span class="hint">Nur Admins sehen diese Einrichtungsseite. Solange unter „Wer darf die Einwilligungen sehen?“ niemand steht, sind sie auch die Datenschutz-Verantwortlichen.</span></div>
+            <div class="field"><label for="o-red">Redaktion (optional)</label>
+              <input class="input" id="o-red" name="redaktion" placeholder="z. B. schriftwart@frankonia-brunonia.de" value="${(config.redaktion || []).join(', ')}">
+              <span class="hint">Wer außer den Admins News in der App schreiben darf.</span></div>
           </div>
           <div class="field"><label for="o-url">Adresse der App</label>
             <input class="input" id="o-url" name="appUrl" value="${config.appUrl || currentBaseUrl()}">
@@ -207,6 +210,7 @@ export default async function einrichtung(ctx) {
     workspaceDomain: config.workspaceDomain,
     mitgliederGruppe: config.mitgliederGruppe,
     admins: config.admins,
+    redaktion: config.redaktion,
     appUrl: config.appUrl,
     kalenderId: config.kalenderId,
     tabellen: config.tabellen,
@@ -255,6 +259,7 @@ export default async function einrichtung(ctx) {
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
       testMitglieder: list(d.testMitglieder),
       admins: list(d.admins),
+      redaktion: list(d.redaktion),
       appUrl: d.appUrl,
       adressaenderung: d.adressaenderung.trim().toLowerCase(),
       datenschutz,
@@ -264,6 +269,7 @@ export default async function einrichtung(ctx) {
       workspaceDomain: d.workspaceDomain.toLowerCase().replace(/^@/, ''),
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
       testMitglieder: list(d.testMitglieder),
+      redaktion: list(d.redaktion),
       datenschutz,
     });
     showCfg();

@@ -354,7 +354,7 @@ export function buildForum(threadRows, postRows) {
 
 /* ---------------------------------------------------------- News */
 export function newsFromRows(rows) {
-  return rows
+  const items = rows
     .filter((r) => r.titel && !truthy(r.geloescht))
     .map((r) => ({
       // ohne eigene ID: Zeilennummer (die Redaktion muss die Spalte nicht ausfüllen)
@@ -369,8 +369,14 @@ export function newsFromRows(rows) {
       authorEmail: String(r.autorEmail || '').toLowerCase(),
       authorName: String(r.autorName || ''),
       _row: r._row,
-    }))
-    .sort((a, b) => (b.pinned - a.pinned) || String(b.date).localeCompare(String(a.date)));
+      source: 'sheet',
+    }));
+  return sortNews(items);
+}
+
+/** Angeheftete zuerst, sonst neueste zuerst */
+export function sortNews(list) {
+  return list.slice().sort((a, b) => (b.pinned - a.pinned) || String(b.date).localeCompare(String(a.date)));
 }
 
 export function eventCategories() {

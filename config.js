@@ -29,6 +29,9 @@ window.FB_CONFIG = {
   // (und die Einwilligungen, solange unter datenschutz.empfaenger niemand steht)
   admins: ['jan@frankonia-brunonia.de'],
 
+  // Wer außer den Admins News in der App schreiben darf (E-Mail-Adressen)
+  redaktion: [],
+
   // Öffentliche Adresse der App (für die Links in den Kalenderterminen).
   // Leer = Adresse, unter der die App gerade läuft.
   appUrl: 'https://janbellin-pixel.github.io/fb-app/',

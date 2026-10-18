@@ -81,6 +81,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 
 - **Entscheidung:** Die Redaktion pflegt die Tabelle „News“ direkt. Die ID ist optional (sonst Zeilennummer). Datumsangaben werden in allen üblichen Schreibweisen erkannt, weil Google von Hand eingetippte Daten als „16.10.2026“ liefert.
 - **Folgen:** Kein Editor in der App nötig. Bilder per Drive-Link oder URL.
+- **Ergänzt durch E29** (News direkt in der App, als eigene Beiträge der Redaktion).
 
 ## E11 · Bundesbote (Zeitung der Verbindung) als PDFs mit Umblätter-Ansicht
 *2026-10-16*
@@ -210,3 +211,10 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Kontext:** Google Kalender lässt nur Eingeladene antworten. Eine Mitglieder-Gruppe gibt es (noch) nicht, und die App darf den Kalender der Verbindung nicht ändern (E5) – Mitglieder können sich also nicht selbst als Gast eintragen.
 - **Entscheidung:** Ist ein Mitglied eingeladen, bleibt alles wie in E8 (Antwort im eigenen Kalender). Sonst speichert die App die Antwort als kleine eigene Datei im eigenen App-Ordner (`fbTyp=zusage`, `fbTermin=<Termin-ID>`, Beschreibung `{ termin, titel, beginn, status, gaeste, kommentar, zeitpunkt }`), für Mitglieder nur lesbar – wie Profil und Forum (E6). „Wer kommt?“ führt Kalender-Antworten und App-Antworten zusammen; wer geantwortet hat, bestimmt der Dateieigentümer laut Google. Eine offene Kalender-Antwort („keine Antwort“) wird durch eine App-Antwort ersetzt. Je Termin und Mitglied gibt es eine Datei, Änderungen überschreiben sie.
 - **Folgen:** Jedes Mitglied kann antworten, ohne neue Berechtigungen und ohne Schreibzugriff auf gemeinsame Daten. App-Antworten sieht man nur in der App, nicht im Google Kalender des Organisators. Die Mitglieder-Gruppe ist damit optional (bringt aber Termine in die eigenen Kalender und Antworten in Google Kalender). Die Terminliste liest App-Antworten der letzten 120 Tage vor Beginn des angezeigten Zeitraums.
+
+## E29 · News der Redaktion direkt in der App
+*2026-10-18 – Wunsch der Verbindung: Admins sollen News aus der App heraus schreiben können*
+
+- **Kontext:** Die App darf gemeinsame Daten nicht ändern (E5), also auch nicht die Tabelle „News“. Schreiben über die Tabelle würde außerdem einen breiteren Google-Zugriff verlangen (`drive.file` deckt nur von der App selbst angelegte Dateien ab).
+- **Entscheidung:** News sind – wie Forumsbeiträge – **eigene Dateien** der Verfasser im eigenen App-Ordner (`fbTyp=news`, Beschreibung `{ titel, text, kategorie, angeheftet, bild, datum, bearbeitet }`), für Mitglieder nur lesbar. Fotos werden vor dem Hochladen verkleinert (1600 px, JPEG) und als eigene Datei `fbTyp=newsbild` gespeichert (`bild = drive:<ID>`). **Als News zählen nur Dateien, deren Eigentümer laut Google Admin ist oder in `config.redaktion` steht** – andere Mitglieder können sich so nicht als Redaktion ausgeben. Bearbeiten und Löschen nur der eigenen News (Löschen = Papierkorb, samt eigenem Bild). Die Tabelle „News“ wird weiter gelesen und mit den App-News zusammen sortiert (angeheftet zuerst, dann neueste).
+- **Folgen:** Keine neuen Berechtigungen, keine neue Schreibregel. Wird jemand aus Admins/Redaktion entfernt, verschwinden seine News aus der App (die Dateien bleiben in seinem Drive). Mehrere Redakteure können nicht gemeinsam an einer News arbeiten. Routen `#/news-neu` und `#/news-bearbeiten/:id`.

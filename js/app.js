@@ -47,6 +47,11 @@ const app = {
     return cachedLoad(`${this.user.email}:${key}`, fetcher, onData, opts);
   },
 
+  /** Zwischengespeicherten Stand einer Liste verwerfen (z. B. nach einer eigenen Änderung) */
+  forget(key) {
+    return this.user ? kv.del(`${this.user.email}:${key}`).catch(() => {}) : Promise.resolve();
+  },
+
   async clearCache() {
     this.backend?.memo?.clear();
     await kv.clear();

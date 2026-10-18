@@ -19,6 +19,8 @@ export const ROUTES = [
   { path: 'galerie/:album', load: v('galerie', 'album'), tab: 'mehr', nav: 'galerie', title: 'Galerie' },
   { path: 'news', load: v('news'), tab: 'mehr', nav: 'news', title: 'News' },
   { path: 'news/:id', load: v('news', 'detail'), tab: 'mehr', nav: 'news', title: 'News' },
+  { path: 'news-neu', load: v('news', 'editor'), tab: 'mehr', nav: 'news', title: 'News schreiben' },
+  { path: 'news-bearbeiten/:id', load: v('news', 'editor'), tab: 'mehr', nav: 'news', title: 'News bearbeiten' },
   { path: 'forum', load: v('forum'), tab: 'mehr', nav: 'forum', title: 'Forum' },
   { path: 'forum-neu', load: v('forum', 'newThread'), tab: 'mehr', nav: 'forum', title: 'Neues Thema' },
   { path: 'forum/:id', load: v('forum', 'thread'), tab: 'mehr', nav: 'forum', title: 'Forum' },

@@ -14,7 +14,7 @@
 //   Einwilligungen     → eigene Datei im eigenen Drive, nur für die Datenschutz-Verantwortlichen lesbar
 //                        (die Sammeltabelle schreibt nur deren eigenes Konto)
 // Der Schreibschutz (google/guard.js) erzwingt das für jede einzelne Anfrage.
-import { config, isAdminEmail } from '../config.js';
+import { config, isAdminEmail, isNewsAuthorEmail } from '../config.js';
 import * as cal from '../google/calendar.js';
 import * as sheets from '../google/sheets.js';
 import * as drive from '../google/drive.js';
@@ -27,9 +27,11 @@ import { buildRecord, consentRecipients, isConsentManager, pruefsumme, ja } from
 import { prepareConsentSheet, syncConsentSheet, TABLE_TYPE } from '../lib/einwilligungsliste.js';
 import {
   SHEETS, NEWS_SCHEMA, PROFILE_FIELDS, PROFILE_MAX, guessCategory, parseEventMeta, stripAppLink, issueFromFile, sortIssues, addressesFromRows, addressTab,
-  buildForum, newsFromRows, sortMembers,
+  buildForum, newsFromRows, sortNews, sortMembers,
 } from './common.js';
 import { htmlToText } from '../lib/text.js';
+import { isoLocal } from '../lib/dates.js';
+import { resizeImage } from '../ui.js';
 import { findOwnAddress, nameKey } from '../lib/adressabgleich.js';
 
 const SCOPE_DIRECTORY = 'https://www.googleapis.com/auth/directory.readonly';
@@ -42,6 +44,7 @@ const TABLE_FIELDS = 'id,name,ownedByMe,appProperties,owners(emailAddress,displa
 const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
 const SPREADSHEET = 'application/vnd.google-apps.spreadsheet';
 export const MAX_POST_LENGTH = 4000;
+export const MAX_NEWS_LENGTH = 4000;
 
 function notConfigured(what) {
   return Object.assign(new Error(`${what} ist noch nicht eingerichtet. Ein Admin muss das unter „Einrichtung“ erledigen.`), { code: 'not_configured' });
@@ -637,13 +640,109 @@ export class GoogleBackend {
 
   /* ================================================================ News (nur lesen) */
 
+  /**
+   * News = Zeilen der Tabelle „News“ (falls eingetragen) + Beiträge, die Admins bzw. die Redaktion in der
+   * App geschrieben haben (eigene Dateien, fbTyp=news). Die Tabelle wird nur gelesen.
+   */
   async listNews() {
-    const table = await sheets.readTable(this.sheetId('news'), SHEETS.news, NEWS_SCHEMA);
-    return newsFromRows(table.items);
+    let sheetError = null;
+    const [fromSheet, fromApp] = await Promise.all([
+      config.tabellen?.news
+        ? sheets.readTable(this.sheetId('news'), SHEETS.news, NEWS_SCHEMA).then((t) => newsFromRows(t.items)).catch((e) => { sheetError = e; return []; })
+        : Promise.resolve([]),
+      this.appNews(),
+    ]);
+    if (sheetError && !fromApp.length) throw sheetError;
+    return sortNews([...fromApp, ...fromSheet]);
+  }
+
+  /** In der App geschriebene News – nur von Admins/Redaktion; wer geschrieben hat, sagt Google (Dateieigentümer) */
+  async appNews() {
+    const files = await this.cached('appNews', 60_000, () => this.listAppFiles('news'));
+    const out = [];
+    for (const f of files) {
+      const owner = this.ownerOf(f);
+      if (!isNewsAuthorEmail(owner.email)) continue;
+      const d = parseJson(f.description);
+      const title = clip(d.titel, 140);
+      if (!title) continue;
+      out.push({
+        id: f.id,
+        source: 'app',
+        own: !!f.ownedByMe,
+        date: String(d.datum || f.createdTime || ''),
+        title,
+        text: clip(d.text, MAX_NEWS_LENGTH),
+        image: clip(d.bild, 300),
+        category: clip(d.kategorie, 60),
+        pinned: !!d.angeheftet,
+        authorEmail: owner.email,
+        authorName: owner.name,
+        edited: String(d.bearbeitet || ''),
+      });
+    }
+    return out;
   }
 
   async canEditNews() {
-    return false;
+    return isNewsAuthorEmail(this.myEmail);
+  }
+
+  newsData({ title, text, category, pinned, image }) {
+    const titel = clip(title, 140);
+    if (!titel) throw new Error('Bitte einen Titel eingeben.');
+    const t = String(text || '').trim();
+    if (t.length > MAX_NEWS_LENGTH) throw new Error(`Der Text ist zu lang (höchstens ${MAX_NEWS_LENGTH} Zeichen).`);
+    return { titel, text: t, kategorie: clip(category, 60), angeheftet: !!pinned, bild: clip(image, 300) };
+  }
+
+  /** News schreiben: eigene Datei im eigenen App-Ordner, für Mitglieder nur lesbar (wie im Forum) */
+  async createNews(fields) {
+    if (!(await this.canEditNews())) throw new Error('News schreiben dürfen nur Admins und die Redaktion.');
+    const data = { ...this.newsData(fields), datum: isoLocal(new Date()) };
+    const f = await this.createOwnFile('news', data, { fbKategorie: data.kategorie }, `News – ${clip(data.titel, 80)}.json`);
+    this.invalidate('appNews');
+    return f.id;
+  }
+
+  async updateNews(id, fields) {
+    const f = (await this.listAppFiles('news')).find((x) => x.id === id);
+    if (!f || !f.ownedByMe) throw new Error('Nur eigene News können bearbeitet werden.');
+    const prev = parseJson(f.description);
+    const data = { ...prev, ...this.newsData(fields), datum: prev.datum || isoLocal(new Date()), bearbeitet: nowIso() };
+    await drive.updateFile(id, { description: JSON.stringify(data), name: `News – ${clip(data.titel, 80)}.json`, appProperties: { fbKategorie: data.kategorie } });
+    // ein ersetztes eigenes Bild aufräumen
+    if (prev.bild && prev.bild !== data.bild) await this.trashOwnNewsImage(prev.bild);
+    this.invalidate('appNews');
+  }
+
+  async deleteNews(id) {
+    const f = (await this.listAppFiles('news')).find((x) => x.id === id);
+    if (!f || !f.ownedByMe) throw new Error('Nur eigene News können gelöscht werden.');
+    await drive.trashFile(id);
+    await this.trashOwnNewsImage(parseJson(f.description).bild);
+    this.invalidate('appNews');
+  }
+
+  /** Foto für eine News: verkleinert (längste Seite 1600 px, JPEG) im eigenen App-Ordner, für Mitglieder lesbar */
+  async uploadNewsImage(file) {
+    if (!(await this.canEditNews())) throw new Error('News schreiben dürfen nur Admins und die Redaktion.');
+    const blob = await resizeImage(file, 1600, 0.85);
+    if (!blob) throw new Error('Das Bild konnte nicht gelesen werden.');
+    const folder = await this.appFolder();
+    const name = `News-Bild – ${clip(String(file.name || 'Foto').replace(/\.[a-z0-9]{2,5}$/i, ''), 60)}.jpg`;
+    const f = await drive.upload({ name, mimeType: 'image/jpeg', parents: [folder], appProperties: { fbTyp: 'newsbild' } }, blob, 'id');
+    registerOwnFile(f.id);
+    await this.shareOwnFile(f.id);
+    return `drive:${f.id}`;
+  }
+
+  /** Eigenes, von der App hochgeladenes News-Bild in den Papierkorb (fremde Bilder bleiben unberührt) */
+  async trashOwnNewsImage(ref) {
+    const id = driveIdFrom(ref);
+    if (!id) return;
+    const own = (await this.listAppFiles('newsbild').catch(() => [])).find((x) => x.id === id && x.ownedByMe);
+    if (own) await drive.trashFile(id).catch((e) => console.warn('News-Bild nicht gelöscht', e));
   }
 
   newsSheetUrl() {

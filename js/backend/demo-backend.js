@@ -3,10 +3,10 @@
 import {
   buildMembers, buildEvents, buildNews, buildForumData, buildChat, buildAddressRows, buildGallery, DEMO_ISSUES, DEMO_ME_EMAIL, DEMO_DOMAIN,
 } from './demo-data.js';
-import { addressesFromRows, buildForum, issueFromFile, sortIssues, sortMembers, PROFILE_FIELDS } from './common.js';
+import { addressesFromRows, buildForum, issueFromFile, sortIssues, sortMembers, sortNews, PROFILE_FIELDS } from './common.js';
 import { local } from '../lib/store.js';
 import { newId, calendarEventId, firstName } from '../lib/text.js';
-import { addDays, isoDate } from '../lib/dates.js';
+import { addDays, isoDate, isoLocal } from '../lib/dates.js';
 import { resizeImage } from '../ui.js';
 import { buildRecord, dsConfig, textPruefsumme } from '../lib/datenschutz.js';
 
@@ -216,14 +216,53 @@ export class DemoBackend {
   async listNews() {
     await wait();
     const n = this.bucket('news', { added: [], edited: {}, deleted: [] });
-    return [...n.added, ...buildNews()]
+    // in der Demo geschriebene News gehören dem Demo-Nutzer; die Beispielmeldungen stehen für die Tabelle
+    return sortNews([...n.added.map((x) => ({ ...x, source: 'app', own: true })), ...buildNews().map((x) => ({ ...x, source: 'sheet' }))]
       .filter((x) => !n.deleted.includes(x.id))
-      .map((x) => ({ ...x, ...(n.edited[x.id] || {}) }))
-      .sort((a, b) => (b.pinned - a.pinned) || String(b.date).localeCompare(String(a.date)));
+      .map((x) => ({ ...x, ...(n.edited[x.id] || {}) })));
   }
 
   async canEditNews() {
-    return false;
+    return true; // der Demo-Nutzer ist Admin
+  }
+
+  newsFields({ title, text, category, pinned, image }) {
+    const t = String(title || '').trim().slice(0, 140);
+    if (!t) throw new Error('Bitte einen Titel eingeben.');
+    return { title: t, text: String(text || '').trim().slice(0, 4000), category: String(category || '').slice(0, 60), pinned: !!pinned, image: image || '' };
+  }
+
+  async createNews(fields) {
+    await wait(300);
+    const n = this.bucket('news', { added: [], edited: {}, deleted: [] });
+    const item = { id: newId('n'), date: isoLocal(new Date()), ...this.newsFields(fields), authorEmail: DEMO_ME_EMAIL, authorName: this.user.name };
+    n.added.unshift(item);
+    this.save();
+    return item.id;
+  }
+
+  async updateNews(id, fields) {
+    await wait(300);
+    const n = this.bucket('news', { added: [], edited: {}, deleted: [] });
+    const own = n.added.find((x) => x.id === id);
+    if (!own) throw new Error('Nur eigene News können bearbeitet werden.');
+    Object.assign(own, this.newsFields(fields), { edited: new Date().toISOString() });
+    this.save();
+  }
+
+  async deleteNews(id) {
+    await wait(300);
+    const n = this.bucket('news', { added: [], edited: {}, deleted: [] });
+    if (!n.added.some((x) => x.id === id)) throw new Error('Nur eigene News können gelöscht werden.');
+    n.added = n.added.filter((x) => x.id !== id);
+    this.save();
+  }
+
+  /** Demo: Bild nur verkleinert im Browser speichern */
+  async uploadNewsImage(file) {
+    const blob = await resizeImage(file, 900, 0.8);
+    if (!blob) throw new Error('Das Bild konnte nicht gelesen werden.');
+    return blobToDataUrl(blob);
   }
 
   newsSheetUrl() {

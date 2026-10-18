@@ -228,12 +228,61 @@ async function run() {
   section('News (nur lesen)');
   const news = await step('listNews', () => b.listNews());
   check(news?.length === 4 && news[0].pinned, '4 Beispielmeldungen, angeheftete zuerst', news?.length);
-  check((await b.canEditNews()) === false, 'keine Bearbeitung in der App');
+  check(b.newsSheetUrl().includes(res.tabellen.news), 'Tabelle verlinkt – sie wird in der App nur gelesen');
   // so trägt die Redaktion von Hand ein: deutsches Datum mit Uhrzeit, ohne ID
   const newsTab = fake.state.sheets[res.tabellen.news].tabs[0];
   newsTab.rows.push(['', '17.10.2026 18:30', 'Von Hand eingetragen', 'Text', '', 'Allgemein', '', '', '', '']);
   const manualNews = (await b.listNews()).find((n) => n.title === 'Von Hand eingetragen');
   check(manualNews?.id === `zeile-${newsTab.rows.length}` && manualNews?.date === '2026-10-17T18:30', 'Zeile ohne ID mit deutschem Datum erkannt', JSON.stringify(manualNews));
+
+  /* ---------------------------------------------------------------- News der Redaktion */
+  section('News der Redaktion (eigene Dateien)');
+  check(await b.canEditNews(), 'Admin darf News schreiben');
+  const nid = await step('createNews', () => b.createNews({ title: 'Neue Küche fertig', text: 'Die **Küche** ist fertig.', category: 'Haus', pinned: true }));
+  const newsFiles = () => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'news' && f.ownerEmail === me.email && !f.trashed);
+  const nf = fake.state.files.get(nid);
+  check(nf && nf.parents.includes(folder.id) && nf.appProperties.fbTyp === 'news', 'als eigene Datei im eigenen App-Ordner');
+  const nPerms = fake.state.permissions.filter((p) => p.file === nid);
+  check(nPerms.length > 0 && nPerms.every((p) => p.role === 'reader'), 'für Mitglieder nur lesbar', JSON.stringify(nPerms));
+  const n1 = await step('listNews (mit eigener News)', () => b.listNews());
+  check(n1?.[0]?.id === nid && n1[0].own && n1[0].source === 'app' && n1[0].pinned && n1.length === 6, 'angeheftet ganz oben, neben den Meldungen aus der Tabelle', JSON.stringify(n1?.map((x) => [x.title, x.source, x.pinned])));
+  const cv = document.createElement('canvas');
+  cv.width = 40; cv.height = 30;
+  cv.getContext('2d').fillRect(0, 0, 40, 30);
+  const png = await new Promise((r) => cv.toBlob(r, 'image/png'));
+  const ref = await step('uploadNewsImage', () => b.uploadNewsImage(new File([png], 'Foto.png', { type: 'image/png' })));
+  const imgFile = fake.state.files.get(String(ref).replace('drive:', ''));
+  check(String(ref).startsWith('drive:') && imgFile?.mimeType === 'image/jpeg' && imgFile.parents.includes(folder.id) && imgFile.appProperties.fbTyp === 'newsbild', 'Bild verkleinert als JPEG im eigenen App-Ordner', String(ref));
+  check(fake.state.permissions.some((p) => p.file === imgFile?.id && p.role === 'reader'), 'Bild für Mitglieder lesbar');
+  await step('updateNews', () => b.updateNews(nid, { title: 'Neue Küche eingeweiht', text: 'Mit Foto.', category: 'Haus', pinned: false, image: ref }));
+  const nd = JSON.parse(fake.state.files.get(nid)?.description || '{}');
+  check(newsFiles().length === 1 && nd.titel === 'Neue Küche eingeweiht' && nd.bild === ref && !nd.angeheftet && nd.bearbeitet, 'Änderung in derselben Datei', JSON.stringify(nd));
+  // Anna gehört nicht zur Redaktion und legt trotzdem eine „News“-Datei an
+  const annaNews = fake.addFile({ name: 'News.json', appProperties: { fbTyp: 'news' }, description: JSON.stringify({ titel: 'Gefälschte Meldung', text: 'Hack', angeheftet: true }), ownerEmail: ANNA, ownerName: 'Anna Andere' });
+  b.invalidate('appNews');
+  check(!(await b.listNews()).some((x) => x.id === annaNews.id), 'News von Mitgliedern außerhalb der Redaktion werden ignoriert (Inhaber zählt)');
+  config.redaktion = [ANNA];
+  const annaItem = (await b.listNews()).find((x) => x.id === annaNews.id);
+  check(annaItem && !annaItem.own && annaItem.authorEmail === ANNA, 'Redaktion: News erscheint, aber nicht als eigene', JSON.stringify(annaItem));
+  const deniedNews = await b.updateNews(annaNews.id, { title: 'X' }).then(() => false).catch(() => true);
+  check(deniedNews && JSON.parse(annaNews.description).titel === 'Gefälschte Meldung', 'fremde News in der App nicht bearbeitbar');
+  await blocked('fremde News direkt in Drive ändern', fake, () => drive.updateFile(annaNews.id, { description: '{}' }));
+  config.redaktion = [];
+  const savedAdmins = config.admins;
+  config.admins = ['vorstand@beispiel.de'];
+  const deniedCreate = await b.createNews({ title: 'X' }).then(() => false).catch(() => true);
+  check(deniedCreate && !(await b.canEditNews()), 'ohne Admin- oder Redaktionsrecht keine News');
+  check(!(await b.listNews()).some((x) => x.id === nid), 'eigene News zählt nur, solange man Admin oder Redaktion ist');
+  config.admins = savedAdmins;
+  await step('deleteNews', () => b.deleteNews(nid));
+  check(fake.state.files.get(nid)?.trashed && imgFile?.trashed, 'eigene News samt Bild gelöscht (Papierkorb)');
+  check(!(await b.listNews()).some((x) => x.id === nid), 'verschwindet aus der Liste');
+  const savedNewsSheet = config.tabellen.news;
+  config.tabellen.news = '';
+  const nid2 = await step('createNews (ohne Tabelle)', () => b.createNews({ title: 'Ohne Tabelle', text: 'Geht auch.' }));
+  const n4 = await step('listNews (ohne Tabelle)', () => b.listNews());
+  check(n4?.length === 1 && n4[0].id === nid2, 'News gehen auch ganz ohne News-Tabelle', JSON.stringify(n4?.map((x) => x.title)));
+  config.tabellen.news = savedNewsSheet;
 
   /* ---------------------------------------------------------------- Forum */
   section('Forum (eigene Beiträge)');

@@ -6,6 +6,8 @@ const DEFAULTS = {
   workspaceDomain: '',
   mitgliederGruppe: '',
   admins: [],
+  // Wer außer den Admins News in der App schreiben darf (E-Mail-Adressen)
+  redaktion: [],
   appUrl: '',
   kalenderId: '',
   tabellen: { adressen: '', news: '', einwilligungen: '' },
@@ -128,6 +130,13 @@ export function isAdminEmail(email) {
   return list.includes(String(email || '').toLowerCase());
 }
 
+/** Darf dieses Konto News in der App schreiben? Admins und die Redaktion (config.redaktion) */
+export function isNewsAuthorEmail(email) {
+  const e = String(email || '').toLowerCase().trim();
+  const list = [...(config.admins || []), ...(config.redaktion || [])].map((x) => String(x).toLowerCase().trim()).filter(Boolean);
+  return !!e && list.includes(e);
+}
+
 /** Sind alle Datenquellen eingetragen? */
 export function isConfigured() {
   return !!(config.kalenderId && config.tabellen?.adressen && config.tabellen?.news && config.zeitungOrdnerId && config.galerieOrdnerId);
@@ -148,7 +157,7 @@ export function statusGroup(status) {
 /** Konfiguration als Text für eine neue config.js */
 export function configFileContent(values) {
   const c = merge(deployedConfig, values);
-  const keep = ['appName', 'googleClientId', 'workspaceDomain', 'mitgliederGruppe', 'admins', 'appUrl',
+  const keep = ['appName', 'googleClientId', 'workspaceDomain', 'mitgliederGruppe', 'admins', 'redaktion', 'appUrl',
     'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'adressaenderung', 'datenschutz',
     'demoErlaubt', 'testMitglieder'];
   // eigene Zusatzeinstellungen aus der bisherigen config.js behalten
