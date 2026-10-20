@@ -92,7 +92,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Entscheidung:** PDFs liegen in einem Drive-Ordner (Dateiname `JJJJ-N Titel.pdf`). PDF.js rendert die Seiten, StPageFlip blättert sie. Geöffnete Ausgaben werden offline zwischengespeichert.
 - **Geändert 2026-10-18 (Wunsch der Verbindung):** immer nur **eine Seite**, keine Doppelseite – auch quer und auf Tablets/Computern. Umsetzung: `minWidth` von StPageFlip wird nach dem Aufbau auf 1e6 gesetzt, damit die Bibliothek stets „portrait“ wählt (`js/views/zeitung.js`). Vorher: hochkant Einzelseite, quer Doppelseite. Zusätzlich gelten PDF-Seiten im Querformat (Breite ≥ 1,25 × Höhe) als Doppelseiten, z. B. aus Scans, und werden in linke und rechte Hälfte geteilt; ist schon die erste PDF-Seite eine Doppelseite, gilt sie als Umschlag (Titel zuerst, Rückseite ans Ende). Grenze: Eine echte Querformat-Einzelseite würde ebenfalls geteilt.
 - **Folgen:** Die Redaktion lädt nur PDFs hoch. Große PDFs brauchen beim ersten Öffnen etwas Ladezeit.
-- **Ergänzt durch E25** (Jahresordner, andere Dateinamen) und **E31** (Leser ausgelagert nach `js/views/reader.js`, auch für die Liedermappe; „Zu Seite …“ und PDF-Lesezeichen als Inhalt).
+- **Ergänzt durch E25** (Jahresordner, andere Dateinamen) und **E31** (Leser ausgelagert nach `js/views/reader.js`, auch für die Liedermappe; „Zu Seite …“ und PDF-Lesezeichen als Inhalt) und **E39** (Reihenfolge allein nach dem Dateinamen).
 
 ## E12 · Fotogalerie aus einem festen Drive-Ordner
 *2026-10-17*
@@ -191,7 +191,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Kontext:** Vorhandene Listen und Ordner sind über Jahre gewachsen und folgen nicht den Namensregeln der App.
 - **Entscheidung:**
   - **Adressverzeichnis:** Kopfzeile in den ersten zehn Zeilen suchen (Titelzeilen darüber erlaubt), „Nachname, Vorname“ in einer Spalte, Hausnummer und „PLZ/Ort“ als eigene Spalten. Das Tabellenblatt ist einstellbar (`adressenBlatt`); fehlt das eingetragene Blatt, gibt es einen Fehler statt eines anderen Blattes. Mitglieder werden über die E-Mail-Adresse zugeordnet, sonst über den Namen, aber nur, wenn der Name auf beiden Seiten eindeutig ist.
-  - **Zeitung:** PDFs bis zwei Ordnerebenen tief. Das Jahr kommt aus dem Namen oder aus dem Ordner, die Nummer aus „Nr.“, „Heft“ oder „Ausgabe“.
+  - **Zeitung:** PDFs bis zwei Ordnerebenen tief. Das Jahr kommt aus dem Namen oder aus dem Ordner, die Nummer aus „Nr.“, „Heft“ oder „Ausgabe“ (weitere Namensformen und Reihenfolge: E39).
   - **Galerie:** Alben sind Ordner mit Fotos bis zwei Ebenen tief; übergeordnete Ordner erscheinen als Zusatz („Stiftungsfest · 2023“).
   - **Abruf:** gebündelt je Ebene, geteilte Ablagen gezielt mit `corpora=drive&driveId`.
 - **Folgen:** Vorhandenes muss nicht umgebaut werden. Grenze: Sehr große Fotoarchive laden alle Angaben auf einmal (ENTWICKLUNG.md, Offene Punkte).
@@ -291,6 +291,17 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 *2026-10-20 – Wunsch der Verbindung: Leser und Schaltfläche für die DS-Zeitung analog zum Bundesboten*
 
 - **Kontext:** Die Verbindung legt die Ausgaben der DS-Zeitung (Zeitung der Deutschen Sängerschaft) als PDFs in einen eigenen Google-Drive-Ordner. Mitglieder sollen sie wie den Bundesboten in der App lesen.
-- **Entscheidung:** Ordner `config.dsZeitungOrdnerId`, nur lesen; freiwillig (leer = ausgeblendet, wie die Liedermappe, E31). Archiv und Leser sind dieselben wie beim Bundesboten: `js/views/zeitung.js` mit eigenen Texten je Zeitung, Route `#/ds-zeitung`, Leser aus `reader.js`. Im Backend nimmt `listIssues(quelle)` die Zeitung als Parameter (`'bundesbote'` als Standard, `'ds'`); Ordner, Fehlermeldung und Ablage stehen in `ZEITUNGEN` (`js/backend/common.js`). Jede Ausgabe trägt `quelle`; `loadIssue()` legt sie im Cache-Speicher `fb-zeitung` unter eigenem Präfix ab. Dateinamen wie beim Bundesboten („2026-2 DS-Zeitung.pdf“, auch Jahresordner, E25). Die Ersatz-Titelseite (ohne Vorschaubild) zeigt „DS-Zeitung“ ohne das Wappen der Verbindung.
+- **Entscheidung:** Ordner `config.dsZeitungOrdnerId`, nur lesen; freiwillig (leer = ausgeblendet, wie die Liedermappe, E31). Archiv und Leser sind dieselben wie beim Bundesboten: `js/views/zeitung.js` mit eigenen Texten je Zeitung, Route `#/ds-zeitung`, Leser aus `reader.js`. Im Backend nimmt `listIssues(quelle)` die Zeitung als Parameter (`'bundesbote'` als Standard, `'ds'`); Ordner, Fehlermeldung und Ablage stehen in `ZEITUNGEN` (`js/backend/common.js`). Jede Ausgabe trägt `quelle`; `loadIssue()` legt sie im Cache-Speicher `fb-zeitung` unter eigenem Präfix ab. Dateinamen wie beim Bundesboten („2026-2 DS-Zeitung.pdf“, auch Jahresordner, E25; Reihenfolge allein nach dem Dateinamen, E39). Die Ersatz-Titelseite (ohne Vorschaubild) zeigt „DS-Zeitung“ ohne das Wappen der Verbindung.
 - **Navigation:** Kachel im Schnellzugriff (eigenes Zeitungssymbol `newspaper`) und Eintrag unter „Mehr“. Nicht in der Textleiste am Computer (E17) und nicht als Verknüpfung am App-Symbol – das Manifest hat schon vier.
 - **Folgen:** Keine neuen Berechtigungen (`drive.readonly` genügt), keine neue Schreibregel. Gepflegt wird direkt in Google Drive; der Ordner muss für die Mitglieder (Domain bzw. Gruppe) als Betrachter freigegeben sein. Die Einrichtung kennt den Ordner als achte Datenquelle (freiwillig; „Fehlendes neu anlegen“ legt bei Bedarf einen leeren, nur lesbar freigegebenen Ordner an). Demo: zwei erfundene Ausgaben aus `tools/make_demo_ds.py`. Die Datenschutzerklärung nennt die DS-Zeitung; die Einwilligungstexte bleiben gleich, daher keine neue Fassung.
+
+## E39 · Reihenfolge der Zeitungsausgaben allein nach dem Dateinamen
+*2026-10-20 – Rückmeldung der Verbindung: In der DS-Zeitung stand nicht die neueste Ausgabe oben; „das richtet sich nach dem Dateinamen, nicht nach dem Datum des Uploads“*
+
+- **Kontext:** Jahr und Nummer las die App nur aus Namen wie „2026-2 …“ (bzw. „Nr.“, „Heft“, „Ausgabe“ mit Jahr). Bei anderen Namen entschied das Datum des Hochladens. Wer ein Archiv auf einmal hochlädt oder alte Ausgaben nachreicht, bekam so eine falsche Reihenfolge – als „neueste Ausgabe“ erschien die zuletzt hochgeladene Datei.
+- **Entscheidung:** Die Reihenfolge richtet sich allein nach dem Dateinamen (`ausgabeAusName()`, `sortIssues()` in `js/backend/common.js`), für Bundesbote und DS-Zeitung:
+  - Jahr und Nummer an beliebiger Stelle im Namen: „2026-2“, „2-2026“, „2026_02“, „202602“, „Nr. 2“ / „Heft 2“ / „Ausgabe 2“.
+  - Sonst Monat oder Jahreszeit neben dem Jahr: „März 2026“, „Herbst 2026“ (Frühjahr = 3, Sommer = 6, Herbst = 9, Winter = 12). „2025-26“ gilt als Studienjahr, nicht als Nummer.
+  - Fehlt das Jahr im Namen, zählt weiter der Jahresordner (E25).
+  - Lässt sich nichts erkennen, entscheidet der Name selbst (natürliche Sortierung: „… 10“ vor „… 9“). Das Upload-Datum zählt nur noch bei gleichem Namen.
+- **Folgen:** Dateinamen sollten Jahr und Nummer (oder Monat) tragen – wie bisher empfohlen, aber in mehr Schreibweisen. Bei Monats- und Jahreszeitnamen zeigt die App „März 2026“ statt „Ausgabe 3/2026“. Tests mit absichtlich verkehrter Upload-Reihenfolge in `tests/google-mock.js`.

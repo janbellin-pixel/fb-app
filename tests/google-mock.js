@@ -441,6 +441,23 @@ async function run() {
   const { hasDsZeitung } = await import('../js/config.js');
   check(dsErr?.code === 'not_configured' && dsErr.message.includes('DS-Zeitung') && !hasDsZeitung(), 'ohne Ordner: DS-Zeitung ausgeblendet, verständliche Meldung', dsErr?.message);
   config.dsZeitungOrdnerId = dsSaved;
+  // Reihenfolge allein nach dem Dateinamen (E39): die zuletzt hochgeladene Datei ist nicht automatisch die neueste Ausgabe
+  const zc = await import('../js/backend/common.js');
+  const order = (...names) => zc.sortIssues(names.map((name, i) => zc.issueFromFile({ id: `t${i}`, name: `${name}.pdf`, createdTime: `2026-10-1${i}T10:00:00Z` })))
+    .map((x) => x.name.replace(/\.pdf$/, '')).join(' | ');
+  const orders = [
+    [order('DS-Zeitung 1-2026', 'DS-Zeitung 12-2025', 'DS-Zeitung 4-2025'), 'DS-Zeitung 1-2026 | DS-Zeitung 12-2025 | DS-Zeitung 4-2025'],
+    [order('DSZ_2025_10', 'DSZ_2025_03', 'DSZ_2024_12'), 'DSZ_2025_10 | DSZ_2025_03 | DSZ_2024_12'],
+    [order('Ausgabe 2025-11', 'Ausgabe 2025-02', 'DS-Zeitung 202412'), 'Ausgabe 2025-11 | Ausgabe 2025-02 | DS-Zeitung 202412'],
+    [order('DS-Zeitung Juli 2025', 'DS-Zeitung März 2025', 'DS-Zeitung Dezember 2024'), 'DS-Zeitung Juli 2025 | DS-Zeitung März 2025 | DS-Zeitung Dezember 2024'],
+    [order('DS-Zeitung Herbst 2025', 'DS-Zeitung Frühjahr 2025', 'DS-Zeitung Winter 2024-25'), 'DS-Zeitung Herbst 2025 | DS-Zeitung Frühjahr 2025 | DS-Zeitung Winter 2024-25'],
+    [order('DS-Zeitung Nr. 116', 'DS-Zeitung Nr. 115', 'DS-Zeitung Nr. 99'), 'DS-Zeitung Nr. 116 | DS-Zeitung Nr. 115 | DS-Zeitung Nr. 99'],
+    [order('DS-Zeitung 10', 'DS-Zeitung 9'), 'DS-Zeitung 10 | DS-Zeitung 9'],
+    [order('2026-2 Bundesbote SoSe 2026', '2026-1 Bundesbote WiSe 2025-26', '2025-2 Bundesbote SoSe 2025'), '2026-2 Bundesbote SoSe 2026 | 2026-1 Bundesbote WiSe 2025-26 | 2025-2 Bundesbote SoSe 2025'],
+  ];
+  check(orders.every(([got, want]) => got === want), 'Ausgaben nach dem Dateinamen geordnet, nicht nach dem Upload-Datum', JSON.stringify(orders.filter(([got, want]) => got !== want)));
+  const labels = ['DS-Zeitung März 2025', 'DS-Zeitung Herbst 2025', 'DS-Zeitung Nr. 116', '2026-1 Bundesbote WiSe 2025-26', 'DS-Zeitung 3-2026'].map((name) => zc.issueFromFile({ name: `${name}.pdf` }).ausgabe);
+  check(labels.join() === 'März 2025,Herbst 2025,Ausgabe 116,Ausgabe 1/2026,Ausgabe 3/2026', 'Anzeige: Monat, Jahreszeit oder Nummer; „2025-26“ ist keine Nummer', labels.join());
   const gal = await step('listGallery', () => b.listGallery());
   check(gal?.albums.length === 3 && gal.albums[0].title === '2026-06 Stiftungsfest', 'Alben, neuestes zuerst', JSON.stringify(gal?.albums.map((a) => a.title)));
   check(gal?.albums[0].photos.length === 4 && gal.albums[0].photos[0].thumb, 'Fotos mit Vorschaubild');

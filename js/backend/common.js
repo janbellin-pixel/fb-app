@@ -133,34 +133,53 @@ export const ZEITUNGEN = {
   ds: { ordner: 'dsZeitungOrdnerId', name: 'Der Ordner der DS-Zeitung', prefix: 'ds-zeitung' },
 };
 
+const JAHR = '((?:19|20)\\d{2})';
+const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const MONAT_RE = /(?:^|[^a-zäöüß])(jan(?:uar)?|feb(?:ruar)?|mär(?:z)?|maerz|apr(?:il)?|mai|jun(?:i)?|jul(?:i)?|aug(?:ust)?|sep(?:t(?:ember)?)?|okt(?:ober)?|nov(?:ember)?|dez(?:ember)?|frühjahr|frühling|fruehjahr|fruehling|sommer|herbst|winter)(?![a-zäöüß])/gi;
+const JAHRESZEIT = { frühjahr: 3, frühling: 3, fruehjahr: 3, fruehling: 3, sommer: 6, herbst: 9, winter: 12 };
+const monatsNummer = (w) => JAHRESZEIT[w] || (w === 'maerz' ? 3 : MONATE.findIndex((m) => m.toLowerCase().startsWith(w)) + 1);
+
 /**
- * "2026-2 Bundesbote SoSe 2026.pdf" → Jahr, Nummer, Titel.
- * Andere Namen („Zeitung Nr. 3 2019.pdf“) werden so gut wie möglich gelesen; fehlt das Jahr im Namen,
- * zählt ein Jahresordner („2019/…“, siehe f.path aus drive.listTree).
+ * Jahr und Nummer einer Ausgabe – allein aus dem Dateinamen (E39), fehlt das Jahr, aus dem Jahresordner (f.path):
+ * „2026-2 …“, „… 2-2026“, „…_2026_02“, „… 202602“, „Nr. 2“ / „Heft 2“ / „Ausgabe 2“, „März 2026“, „Herbst 2026“.
+ * „2025-26“ ist ein Studienjahr („WiSe 2025-26“), keine Nummer. wort = Monat bzw. Jahreszeit für die Anzeige.
  */
+export function ausgabeAusName(name, path = []) {
+  const s = String(name || '').replace(/\.pdf$/i, '').replace(/_/g, ' ');
+  for (const m of s.matchAll(new RegExp(`(?:^|\\D)${JAHR}\\s*[-./ ]\\s*(\\d{1,2})(?!\\d)`, 'g'))) {
+    if (+m[2] !== (+m[1] + 1) % 100) return { year: +m[1], nr: +m[2], wort: '' };
+  }
+  let m = s.match(new RegExp(`(?:^|\\D)${JAHR}(0[1-9]|1[0-2])(?!\\d)`));
+  if (m) return { year: +m[1], nr: +m[2], wort: '' };
+  m = s.match(new RegExp(`(?:^|\\D)(\\d{1,2})\\s*[-./ ]\\s*${JAHR}(?!\\d)`));
+  if (m) return { year: +m[2], nr: +m[1], wort: '' };
+  const y = s.match(new RegExp(`(?:^|\\D)${JAHR}(?!\\d)`));
+  const fromPath = [...(path || [])].reverse().map((p) => String(p).match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/)?.[1]).find(Boolean);
+  const year = y ? +y[1] : fromPath ? +fromPath : null;
+  const n = s.match(/(?:^|[^a-zäöüß])(?:nr|no|nummer|ausgabe|heft)\.?\s*(\d{1,4})(?!\d)/i);
+  if (n && +n[1] !== year) return { year, nr: +n[1], wort: '' };
+  if (y) {
+    for (const w of s.matchAll(MONAT_RE)) {
+      if (Math.abs(w.index - y.index) > 14) continue;
+      const lw = w[1].toLowerCase();
+      const nr = monatsNummer(lw);
+      return { year, nr, wort: JAHRESZEIT[lw] ? w[1][0].toUpperCase() + w[1].slice(1) : MONATE[nr - 1] };
+    }
+  }
+  return { year, nr: null, wort: '' };
+}
+
+/** "2026-2 Bundesbote SoSe 2026.pdf" → Jahr, Nummer, Titel; andere Namen siehe ausgabeAusName() */
 export function issueFromFile(f) {
   const base = String(f.name || '').replace(/\.pdf$/i, '');
-  const m = base.match(/^(\d{4})[-_ .](\d{1,2})\s*[-_ ]?\s*(.*)$/);
-  let title = base;
-  let year = null;
-  let nr = null;
-  if (m) {
-    year = +m[1];
-    nr = +m[2];
-    title = m[3] || base;
-  } else {
-    const y = base.match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/);
-    const n = base.match(/(?:nr\.?|nummer|ausgabe|heft)\s*(\d{1,2})(?!\d)/i);
-    const fromPath = [...(f.path || [])].reverse().map((p) => String(p).match(/(?:^|\D)((?:19|20)\d{2})(?!\d)/)?.[1]).find(Boolean);
-    year = y ? +y[1] : fromPath ? +fromPath : null;
-    nr = n ? +n[1] : null;
-  }
-  title = title.replace(/[_]+/g, ' ').trim();
+  const lead = base.match(/^(\d{4})[-_ .](\d{1,2})\s*[-_ ]?\s*(.*)$/);
+  const { year, nr, wort } = ausgabeAusName(base, f.path);
+  const title = (lead?.[3] || base).replace(/[_]+/g, ' ').trim();
   return {
     id: f.id,
     name: f.name,
     title: f.description?.trim() || title,
-    ausgabe: year && nr ? `Ausgabe ${nr}/${year}` : year ? String(year) : '',
+    ausgabe: year && nr ? (wort ? `${wort} ${year}` : `Ausgabe ${nr}/${year}`) : year ? String(year) : nr ? `Ausgabe ${nr}` : '',
     year,
     nr,
     date: f.createdTime || f.modifiedTime || '',
@@ -173,8 +192,12 @@ export function issueFromFile(f) {
   };
 }
 
+const nachName = new Intl.Collator('de', { numeric: true, sensitivity: 'base' });
+
+/** Neueste zuerst: Jahr und Nummer aus dem Namen, sonst der Name selbst („… 10“ vor „… 9“); das Upload-Datum nur bei gleichem Namen (E39) */
 export function sortIssues(list) {
-  return list.slice().sort((a, b) => ((b.year || 0) - (a.year || 0)) || ((b.nr || 0) - (a.nr || 0)) || String(b.date).localeCompare(String(a.date)) || String(b.name).localeCompare(String(a.name)));
+  return list.slice().sort((a, b) => ((b.year || 0) - (a.year || 0)) || ((b.nr || 0) - (a.nr || 0))
+    || nachName.compare(String(b.name), String(a.name)) || String(b.date).localeCompare(String(a.date)));
 }
 
 /* ---------------------------------------------------------- Liedermappe */
