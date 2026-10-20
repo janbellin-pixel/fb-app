@@ -16,6 +16,8 @@ const DEFAULTS = {
   zeitungOrdnerId: '',
   // Ordner mit den Noten der Liedermappe (PDFs oder Bilder, Unterordner = Rubriken); leer = ausgeblendet
   liedermappeOrdnerId: '',
+  // Ordner mit den PDF-Ausgaben der DS-Zeitung (Zeitung der Deutschen Sängerschaft); leer = ausgeblendet
+  dsZeitungOrdnerId: '',
   galerieOrdnerId: '',
   // newsRaum: vorgeschlagener Chat-Raum für Ankündigungen neuer News, z. B. 'spaces/AAAA…' (E33)
   chat: { aktiv: true, newsRaum: '' },
@@ -152,6 +154,9 @@ export function isConfigured() {
 /** Ist eine Liedermappe eingetragen? (sonst bleibt sie in der App ausgeblendet) */
 export const hasSongbook = () => !!String(config.liedermappeOrdnerId || '').trim();
 
+/** Ist ein Ordner für die DS-Zeitung eingetragen? (sonst bleibt sie in der App ausgeblendet) */
+export const hasDsZeitung = () => !!String(config.dsZeitungOrdnerId || '').trim();
+
 /** Weitere Links aus config.links – nur vollständige https-Adressen mit Titel */
 export function extraLinks() {
   return (Array.isArray(config.links) ? config.links : []).map((l) => {
@@ -186,7 +191,7 @@ export function statusGroup(status) {
 export function configFileContent(values) {
   const c = merge(deployedConfig, values);
   const keep = ['appName', 'googleClientId', 'workspaceDomain', 'mitgliederGruppe', 'admins', 'redaktion', 'appUrl',
-    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'liedermappeOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
+    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
     'adressaenderung', 'datenschutz',
     'demoErlaubt', 'testMitglieder'];
   // eigene Zusatzeinstellungen aus der bisherigen config.js behalten

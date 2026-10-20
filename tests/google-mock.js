@@ -104,10 +104,10 @@ async function run() {
   check(res?.kalenderId?.endsWith('@group.calendar.google.com'), 'Kalender angelegt', JSON.stringify(res));
   check(res?.tabellen?.adressen && res?.tabellen?.news && !res?.tabellen?.mitglieder, 'nur Adressen- und News-Tabelle (keine beschreibbare Mitgliedertabelle)');
   check(res?.tabellen?.einwilligungen, 'vertrauliche Einwilligungsliste angelegt');
-  check(res?.zeitungOrdnerId && res?.galerieOrdnerId && res?.liedermappeOrdnerId, 'Ordner für Bundesbote, Liedermappe und Galerie angelegt');
+  check(res?.zeitungOrdnerId && res?.galerieOrdnerId && res?.liedermappeOrdnerId && res?.dsZeitungOrdnerId, 'Ordner für Bundesbote, DS-Zeitung, Liedermappe und Galerie angelegt');
   check(!logs.some((l) => l.startsWith('err')), 'keine Fehler im Protokoll', logs.filter((l) => l.startsWith('err')).join(' | '));
   if (!res) return;
-  Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, liedermappeOrdnerId: res.liedermappeOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
+  Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, liedermappeOrdnerId: res.liedermappeOrdnerId, dsZeitungOrdnerId: res.dsZeitungOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
   check(fake.state.permissions.length > 0 && fake.state.permissions.every((p) => p.role === 'reader'), 'Mitglieder bekommen überall nur Leserechte', JSON.stringify(fake.state.permissions.filter((p) => p.role !== 'reader')));
   check(fake.state.acls.every((a) => a.role === 'reader'), 'Kalender nur lesbar freigegeben');
   const fbCal = fake.state.calendars[res.kalenderId];
@@ -123,6 +123,9 @@ async function run() {
   const cl0 = checks?.find((c) => c.label === 'Ordner Liedermappe');
   check(cl0?.ok && cl0.warn.some((w) => w.includes('Keine PDFs oder Bilder')), 'Liedermappe: neuer, leerer Ordner – Hinweis statt Fehler', JSON.stringify(cl0));
   check(fake.state.permissions.some((p) => p.file === res.liedermappeOrdnerId && p.role === 'reader'), 'neuer Liedermappen-Ordner für Mitglieder nur lesbar');
+  const cd0 = checks?.find((c) => c.label === 'Ordner DS-Zeitung');
+  check(cd0?.ok && cd0.warn.some((w) => w.includes('Keine PDF-Dateien')), 'DS-Zeitung: neuer, leerer Ordner – Hinweis statt Fehler', JSON.stringify(cd0));
+  check(fake.state.permissions.some((p) => p.file === res.dsZeitungOrdnerId && p.role === 'reader'), 'neuer Ordner der DS-Zeitung für Mitglieder nur lesbar');
 
   // Noten, die der Liederwart (ein anderes Mitglied) in die Liedermappe gelegt hat
   const LW = { ownerEmail: 'liederwart@beispiel.de', ownerName: 'Liederwart' };
@@ -137,6 +140,11 @@ async function run() {
   fake.addFile({ ...LW, name: 'Das Wandern.jpg', mimeType: 'image/jpeg', parents: [lW.id] });
   fake.addFile({ ...LW, name: 'Liederbuch.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', parents: [res.liedermappeOrdnerId] });
   fake.addFile({ ...LW, name: 'Notizen.mscz', mimeType: 'application/octet-stream', parents: [lK.id] });
+  // Ausgaben der DS-Zeitung, die der Pressewart (ein anderes Mitglied) in ihren Ordner gelegt hat
+  const PW = { ownerEmail: 'pressewart@beispiel.de', ownerName: 'Pressewart' };
+  const ds1 = fake.addFile({ ...PW, name: '2026-2 DS-Zeitung.pdf', mimeType: 'application/pdf', parents: [res.dsZeitungOrdnerId], content: new TextEncoder().encode('%PDF-1.4 DS-Zeitung').buffer });
+  fake.addFile({ ...PW, name: '2026-1 DS-Zeitung.pdf', mimeType: 'application/pdf', parents: [res.dsZeitungOrdnerId] });
+  fake.addFile({ ...PW, name: 'Hinweise.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', parents: [res.dsZeitungOrdnerId] });
 
   /* ---------------------------------------------------------------- Schreibschutz */
   section('Schreibschutz: gemeinsame Daten bleiben unverändert');
@@ -154,6 +162,9 @@ async function run() {
   await blocked('Lied umbenennen', fake, () => drive.updateFile(song1.id, { name: 'Hack.pdf' }));
   await blocked('Lied in den Papierkorb legen', fake, () => drive.trashFile(song1.id));
   await blocked('Datei in die Liedermappe legen', fake, () => drive.createFile({ name: 'x.pdf', parents: [res.liedermappeOrdnerId] }));
+  await blocked('DS-Zeitung umbenennen', fake, () => drive.updateFile(ds1.id, { name: 'Hack.pdf' }));
+  await blocked('DS-Zeitung in den Papierkorb legen', fake, () => drive.trashFile(ds1.id));
+  await blocked('Datei in den Ordner der DS-Zeitung legen', fake, () => drive.createFile({ name: 'x.pdf', parents: [res.dsZeitungOrdnerId] }));
   await blocked('Liedermappe neu freigeben', fake, () => drive.addPermission(res.liedermappeOrdnerId, { type: 'anyone', role: 'reader' }));
   await blocked('Galerie-Ordner neu freigeben', fake, () => drive.addPermission(res.galerieOrdnerId, { type: 'anyone', role: 'writer' }));
   await blocked('Datei verschieben (addParents)', fake, () => drive.updateFile('irgendwas', {}, { addParents: res.galerieOrdnerId }));
@@ -412,6 +423,24 @@ async function run() {
   check(issues?.length === 3 && issues[0].year === 2026 && issues[0].nr === 2, 'neueste Ausgabe zuerst');
   const buf = await step('loadIssue', () => b.loadIssue(issues[0]));
   check(buf instanceof ArrayBuffer && buf.byteLength > 1000, 'PDF geladen');
+  const wDs = fake.state.writes.length;
+  const dsIssues = await step('listIssues (DS-Zeitung)', () => b.listIssues('ds'));
+  check(dsIssues?.length === 2 && dsIssues[0].nr === 2 && dsIssues.every((i) => i.quelle === 'ds'), 'DS-Zeitung: nur PDFs aus ihrem Ordner, neueste zuerst', JSON.stringify(dsIssues?.map((i) => [i.name, i.quelle])));
+  const bbAgain = await step('listIssues (Bundesbote erneut)', () => b.listIssues());
+  check(bbAgain?.length === 3 && bbAgain.every((i) => i.quelle === 'bundesbote' && !i.name.includes('DS-Zeitung')), 'Bundesbote und DS-Zeitung bleiben getrennt');
+  const dsLog = fake.state.log.length;
+  const dsBuf = await step('loadIssue (DS-Zeitung)', () => b.loadIssue(dsIssues[0]));
+  check(dsBuf instanceof ArrayBuffer && fake.state.log.slice(dsLog).some((l) => l.includes(ds1.id)), 'DS-Zeitung aus Google Drive geladen', dsBuf?.byteLength);
+  const dsLog2 = fake.state.log.length;
+  await step('loadIssue (DS-Zeitung erneut)', () => b.loadIssue(dsIssues[0]));
+  check(fake.state.log.length === dsLog2, 'DS-Zeitung beim zweiten Mal vom Gerät (auch ohne Netz)');
+  check(b.issueOpenUrl(dsIssues[0]).includes(ds1.id) && fake.state.writes.length === wDs, 'Link zum Öffnen in Google Drive; Lesen schreibt nichts');
+  const dsSaved = config.dsZeitungOrdnerId;
+  config.dsZeitungOrdnerId = '';
+  const dsErr = await b.listIssues('ds').then(() => null, (e) => e);
+  const { hasDsZeitung } = await import('../js/config.js');
+  check(dsErr?.code === 'not_configured' && dsErr.message.includes('DS-Zeitung') && !hasDsZeitung(), 'ohne Ordner: DS-Zeitung ausgeblendet, verständliche Meldung', dsErr?.message);
+  config.dsZeitungOrdnerId = dsSaved;
   const gal = await step('listGallery', () => b.listGallery());
   check(gal?.albums.length === 3 && gal.albums[0].title === '2026-06 Stiftungsfest', 'Alben, neuestes zuerst', JSON.stringify(gal?.albums.map((a) => a.title)));
   check(gal?.albums[0].photos.length === 4 && gal.albums[0].photos[0].thumb, 'Fotos mit Vorschaubild');
@@ -671,6 +700,12 @@ async function run() {
   fake.addFile({ ...OTHER, name: 'Handyfoto.heic', mimeType: 'image/heic', parents: [lVo.id] });
   fake.addFile({ ...OTHER, name: 'Liederliste.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', parents: [extL.id] });
   fake.state.permissions.push({ file: extL.id, id: 'p-dom-l', type: 'domain', role: 'reader', domain: 'beispiel.de' });
+  // vorhandene DS-Zeitung: eine Ausgabe im Jahresordner, eine direkt im Ordner
+  const extD = fake.addFile({ ...OTHER, name: 'DS-Zeitung', mimeType: FOLDER_MIME });
+  const d2026 = fake.addFile({ ...OTHER, name: '2026', mimeType: FOLDER_MIME, parents: [extD.id] });
+  fake.addFile({ ...OTHER, name: 'DS-Zeitung Heft 3.pdf', mimeType: 'application/pdf', parents: [d2026.id] });
+  fake.addFile({ ...OTHER, name: '2025-4 DS-Zeitung.pdf', mimeType: 'application/pdf', parents: [extD.id] });
+  fake.state.permissions.push({ file: extD.id, id: 'p-dom-d', type: 'domain', role: 'reader', domain: 'beispiel.de' });
 
   const existing = new Set([...fake.state.files.values()].filter((f) => f.ownerEmail === OTHER.ownerEmail).map((f) => f.id));
   const extNames = new Set([...fake.state.files.values()].filter((f) => existing.has(f.id)).map((f) => f.name));
@@ -681,8 +716,8 @@ async function run() {
     events: [...fake.state.calendars[extCal].events.values()],
     acl: fake.state.acls.filter((a) => a.calendar === extCal),
   });
-  const savedCfg = { kalenderId: config.kalenderId, tabellen: { ...config.tabellen }, adressenBlatt: config.adressenBlatt, zeitungOrdnerId: config.zeitungOrdnerId, liedermappeOrdnerId: config.liedermappeOrdnerId, galerieOrdnerId: config.galerieOrdnerId };
-  Object.assign(config, { kalenderId: extCal, tabellen: { adressen: extSheet.id, news: '', einwilligungen: '' }, adressenBlatt: 'Aktive', zeitungOrdnerId: extZ.id, liedermappeOrdnerId: extL.id, galerieOrdnerId: extG.id });
+  const savedCfg = { kalenderId: config.kalenderId, tabellen: { ...config.tabellen }, adressenBlatt: config.adressenBlatt, zeitungOrdnerId: config.zeitungOrdnerId, liedermappeOrdnerId: config.liedermappeOrdnerId, dsZeitungOrdnerId: config.dsZeitungOrdnerId, galerieOrdnerId: config.galerieOrdnerId };
+  Object.assign(config, { kalenderId: extCal, tabellen: { adressen: extSheet.id, news: '', einwilligungen: '' }, adressenBlatt: 'Aktive', zeitungOrdnerId: extZ.id, liedermappeOrdnerId: extL.id, dsZeitungOrdnerId: extD.id, galerieOrdnerId: extG.id });
   check(setup.missingResources().join() === 'news,einwilligungen', 'es fehlen nur News-Tabelle und Einwilligungsliste', setup.missingResources().join());
   const snapBefore = snap();
   const w0 = fake.state.writes.length;
@@ -694,7 +729,7 @@ async function run() {
   }));
   fake.state.setupPhase = false;
   check(res2?.created.join() === 'news,einwilligungen', 'angelegt: nur News-Tabelle und Einwilligungsliste', res2?.created.join());
-  check(res2 && !res2.kalenderId && !res2.zeitungOrdnerId && !res2.liedermappeOrdnerId && !res2.galerieOrdnerId && !res2.tabellen.adressen, 'kein neuer Kalender, keine neue Adressliste, keine neuen Ordner für Bundesbote, Liedermappe oder Fotos');
+  check(res2 && !res2.kalenderId && !res2.zeitungOrdnerId && !res2.liedermappeOrdnerId && !res2.dsZeitungOrdnerId && !res2.galerieOrdnerId && !res2.tabellen.adressen, 'kein neuer Kalender, keine neue Adressliste, keine neuen Ordner für Bundesbote, DS-Zeitung, Liedermappe oder Fotos');
   check(snap() === snapBefore, 'vorhandene Dateien, Freigaben, Termine und Kalenderfreigaben unverändert');
   const newWrites = fake.state.writes.slice(w0);
   const touched = newWrites.filter((w) => existing.has(w.target) || extNames.has(w.target) || w.target === extCal || String(w.target).startsWith(extCal));
@@ -728,6 +763,8 @@ async function run() {
   const cl = by('Ordner Liedermappe');
   check(cl?.ok && cl.detail.includes('4 Lieder (3 PDF, 1 Bild) in 2 Rubriken') && !cl.warn.length, 'Liedermappe: Lieder und Rubriken gezählt, Freigabe in Ordnung', JSON.stringify(cl));
   check(cl?.lines.some((l) => l.startsWith('2 weitere Dateien') && l.includes('Handyfoto.heic')) && cl.lines.some((l) => l.startsWith('1 ohne Liednummer')), 'Liedermappe: nicht anzeigbare Dateien und fehlende Nummern genannt', JSON.stringify(cl?.lines));
+  const cdz = by('Ordner DS-Zeitung');
+  check(cdz?.ok && cdz.detail.includes('2 Ausgaben') && !cdz.warn.length, 'DS-Zeitung: Ausgaben auch im Jahresordner, Freigabe in Ordnung', JSON.stringify(cdz));
   const cg = by('Ordner Galerie');
   check(cg?.ok && cg.detail.includes('3 Alben') && cg.detail.includes('4 Fotos'), 'Galerie: auch verschachtelte Alben', JSON.stringify(cg));
   check(cg?.warn.length === 1 && cg.warn[0].includes('Bearbeiten dürfen mitglieder@beispiel.de'), 'Warnung: Gruppe darf bearbeiten (und nur diese)', JSON.stringify(cg?.warn));
@@ -746,6 +783,8 @@ async function run() {
   const iss = await step('listIssues (Jahresordner)', () => b2.listIssues());
   check(iss?.map((i) => i.year).join() === '2026,2025,2003', 'Ausgaben aus Jahresordnern, neueste zuerst', JSON.stringify(iss?.map((i) => [i.name, i.year, i.nr])));
   check(iss?.[1]?.ausgabe === 'Ausgabe 2/2025' && iss?.[2]?.ausgabe === 'Ausgabe 1/2003', 'Nummer aus „Nr. 2“ bzw. „Heft 1“, Jahr aus dem Ordner', JSON.stringify(iss?.map((i) => i.ausgabe)));
+  const dsIss = await step('listIssues (vorhandene DS-Zeitung)', () => b2.listIssues('ds'));
+  check(dsIss?.map((i) => i.ausgabe).join() === 'Ausgabe 3/2026,Ausgabe 4/2025', 'DS-Zeitung: Nummer aus „Heft 3“, Jahr aus dem Ordner', JSON.stringify(dsIss?.map((i) => [i.name, i.ausgabe])));
   const gal2 = await step('listGallery (verschachtelt)', () => b2.listGallery());
   const sfAlbum = gal2?.albums.find((x) => x.title === 'Stiftungsfest');
   check(gal2?.albums.length === 3 && sfAlbum?.path.join() === '2023' && sfAlbum.photos.length === 2, 'Album im Jahresordner mit Pfad „2023“', JSON.stringify(gal2?.albums.map((x) => [x.title, x.path, x.photos.length])));

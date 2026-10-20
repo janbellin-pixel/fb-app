@@ -78,11 +78,13 @@ export function bindCardLinks(root, navigate) {
 
 export function issueCover(issue, coverUrl = '') {
   const label = issue.ausgabe || issue.title;
+  // Ersatz-Titelseite: Bundesbote mit Wappen, DS-Zeitung (E38) neutral ohne Wappen der Verbindung
+  const ds = issue.quelle === 'ds';
   return html`<div class="cover">
     ${coverUrl ? html`<img src="${coverUrl}" alt="" loading="lazy" referrerpolicy="no-referrer" data-cover-fallback>` : ''}
-    <div class="cover-fallback" ${coverUrl ? html`style="display:none"` : ''}>
-      <div class="t">Bundes&shy;bote</div>
-      <img src="assets/wappen.webp" alt="">
+    <div class="cover-fallback ${ds ? 'ds' : ''}" ${coverUrl ? html`style="display:none"` : ''}>
+      <div class="t">${ds ? 'DS-Zeitung' : html`Bundes&shy;bote`}</div>
+      ${ds ? icon('newspaper') : html`<img src="assets/wappen.webp" alt="">`}
       <div class="band">${label}</div>
     </div>
   </div>`;

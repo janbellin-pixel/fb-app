@@ -56,6 +56,9 @@ window.FB_CONFIG = {
   // Google-Drive-Ordner mit den Noten der Liedermappe: PDFs oder Bilder, Unterordner = Rubriken (nur lesen)
   liedermappeOrdnerId: '1Alvm6W_XaqwQysdX-VhOAPL2C1BgPfvl',
 
+  // Google-Drive-Ordner mit den PDF-Ausgaben der DS-Zeitung (Deutsche Sängerschaft, nur lesen); leer = ausgeblendet
+  dsZeitungOrdnerId: '1MJZo2LXHPBjMK74fFiXuQP61upBGwu8H',
+
   // Google-Drive-Ordner mit den Fotos der Galerie; Unterordner = Alben (nur lesen)
   galerieOrdnerId: '1KHHPf5PG2uLJ8YosmDb85HlUVsNkCVPl',
 

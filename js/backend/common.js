@@ -125,6 +125,15 @@ export function appLinkBlock(link) {
 
 /* ---------------------------------------------------------- Zeitung */
 /**
+ * Zeitungen als PDF-Archiv: Bundesbote (E11) und DS-Zeitung der Deutschen Sängerschaft (E38).
+ * ordner = Schlüssel in config.js, prefix = Ablage der geladenen PDFs auf dem Gerät (Cache „fb-zeitung“).
+ */
+export const ZEITUNGEN = {
+  bundesbote: { ordner: 'zeitungOrdnerId', name: 'Der Ordner des Bundesboten', prefix: 'zeitung' },
+  ds: { ordner: 'dsZeitungOrdnerId', name: 'Der Ordner der DS-Zeitung', prefix: 'ds-zeitung' },
+};
+
+/**
  * "2026-2 Bundesbote SoSe 2026.pdf" → Jahr, Nummer, Titel.
  * Andere Namen („Zeitung Nr. 3 2019.pdf“) werden so gut wie möglich gelesen; fehlt das Jahr im Namen,
  * zählt ein Jahresordner („2019/…“, siehe f.path aus drive.listTree).

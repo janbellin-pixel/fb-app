@@ -1,6 +1,6 @@
 # Die Mitglieder-App der Frankonia-Brunonia – so geht's
 
-**Termine, Zu- und Absagen, Mitglieder, Chat, Adressen, Bundesbote, Liedermappe und Fotos – alles in einer App. Kostenlos und ohne App-Store.**
+**Termine, Zu- und Absagen, Mitglieder, Chat, Adressen, Bundesbote, DS-Zeitung, Liedermappe und Fotos – alles in einer App. Kostenlos und ohne App-Store.**
 
 > Diese Anleitung gibt es auch als PDF mit QR-Code zum Verschicken oder Ausdrucken: [Anleitung-Mitglieder-App.pdf](Anleitung-Mitglieder-App.pdf), den QR-Code allein als [qr-code.png](qr-code.png). Neu erzeugt wird beides mit `python tools/make_anleitung.py https://janbellin-pixel.github.io/fb-app/ --domain frankonia-brunonia.de`.
 
@@ -45,7 +45,7 @@ Unten in der App gibt es fünf Bereiche:
 | **Termine** | Alle Veranstaltungen als Liste oder Monat. Termin antippen › **Zusagen, Vielleicht oder Absagen**, Gäste und Kommentar angeben, sehen wer kommt. „Kalender abonnieren“ holt alle Termine in den eigenen Kalender. |
 | **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“. |
 | **Mitglieder** | Alle Bundesbrüder mit Foto und Profil. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
-| **Mehr** | **Bundesbote** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
+| **Mehr** | **Bundesbote** und **DS-Zeitung** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
 
 ## Gut zu wissen
 
@@ -53,6 +53,6 @@ Unten in der App gibt es fünf Bereiche:
 - **Abmelden oder Konto wechseln:** Mehr › oben **„Abmelden“**. Beim nächsten „Mit Google anmelden“ fragt Google, welches Konto du nehmen willst.
 - **Bitte dein Profil ausfüllen und deine Anschrift prüfen:** Mehr › Mein Profil (Kneipname, Tätigkeit, was du Jüngeren anbieten kannst …). Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart. Dein Foto änderst du in deinem Google-Konto.
 - **Liedermappe:** Liednummer ins Suchfeld tippen und Enter – schon ist das Lied offen. Der Bildschirm bleibt an, solange ein Lied offen ist. Mit „Alle Lieder speichern“ geht es auch ohne Netz, z. B. auf der Kneipe.
-- **Keine Sorge:** Termine, Adressen, Bundesbote, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge.
+- **Keine Sorge:** Termine, Adressen, Bundesbote, DS-Zeitung, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge.
 - **iPhone:** Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt.
 - **Fragen?** Einfach im Chat fragen oder den Admins der App schreiben.

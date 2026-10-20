@@ -445,6 +445,12 @@ export const DEMO_ISSUES = [
   { id: 'z2025-2', name: '2025-2 Bundesbote SoSe 2025.pdf', createdTime: '2025-10-08T10:00:00Z', modifiedTime: '2026-10-18T12:00:00Z', size: 1150000, url: 'assets/demo/2025-2 Bundesbote SoSe 2025.pdf' },
 ];
 
+// DS-Zeitung: fiktive Beispielausgaben (tools/make_demo_ds.py)
+export const DEMO_DS_ISSUES = [
+  { id: 'ds2026-2', name: '2026-2 DS-Zeitung.pdf', createdTime: '2026-09-15T10:00:00Z', modifiedTime: '2026-10-20T12:00:00Z', size: 58286, url: 'assets/demo/ds/2026-2 DS-Zeitung.pdf' },
+  { id: 'ds2026-1', name: '2026-1 DS-Zeitung.pdf', createdTime: '2026-03-20T10:00:00Z', modifiedTime: '2026-10-20T12:00:00Z', size: 57250, url: 'assets/demo/ds/2026-1 DS-Zeitung.pdf' },
+];
+
 /* ------------------------------------------------------------------ Liedermappe */
 // Fiktive Beispiellieder (tools/make_demo_lieder.py): Name wie in Google Drive, Unterordner = Rubrik
 const SONGS = [

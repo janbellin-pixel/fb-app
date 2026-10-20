@@ -51,12 +51,15 @@
     fake.state.setupPhase = true;
     const res = await setup.createEverything({ withSamples: true, withIssues: true, withPhotos: true, group: config.mitgliederGruppe, domain: 'beispiel.de', testUsers: [], me, log: () => {} });
     fake.state.setupPhase = false;
-    Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, liedermappeOrdnerId: res.liedermappeOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
+    Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, liedermappeOrdnerId: res.liedermappeOrdnerId, dsZeitungOrdnerId: res.dsZeitungOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
 
     // Inhalte eines anderen Mitglieds (liegen in SEINEM Drive)
     const anna = { ownerEmail: 'anna@beispiel.de', ownerName: 'Anna Andere' };
     fake.addFile({ ...anna, name: 'Mein Profil.json', appProperties: { fbTyp: 'profil' }, description: JSON.stringify({ kneipname: 'Annabella', studium: 'Medizin', ueberMich: 'Ich organisiere die Kanutour.' }) });
     fake.addFile({ ...anna, name: 'Forum.json', appProperties: { fbTyp: 'forum', fbRolle: 'thema', fbKategorie: 'Allgemeines' }, description: JSON.stringify({ titel: 'Wer kommt mit zur Kanutour?', text: 'Wir brauchen noch **zwei Boote**. Bitte kurz melden!' }), createdTime: new Date(Date.now() - 5 * 3600_000).toISOString() });
+    // eine Ausgabe der DS-Zeitung, die ein anderes Mitglied in ihren Ordner gelegt hat
+    const dsPdf = await (await fetch('assets/demo/ds/2026-2 DS-Zeitung.pdf')).arrayBuffer();
+    fake.addFile({ ...anna, name: '2026-2 DS-Zeitung.pdf', mimeType: 'application/pdf', parents: [res.dsZeitungOrdnerId], content: dsPdf });
     await import('./js/app.js');
   </script>
 </head>

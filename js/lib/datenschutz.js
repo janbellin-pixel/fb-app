@@ -179,7 +179,7 @@ export function erklaerung() {
     },
     {
       titel: 'Wofür gibt es die App?',
-      inhalt: html`<p>Die Mitglieder-App ist ein internes Angebot der ${ds.verein} für ihre Mitglieder. Sie zeigt Termine, Mitglieder, das Adressverzeichnis, den Bundesboten (die Zeitung der Verbindung), die Liedermappe, Fotos, Neuigkeiten, das Forum und den Chat. Nutzen können sie nur Mitglieder mit einem Google-Konto der Verbindung.</p>
+      inhalt: html`<p>Die Mitglieder-App ist ein internes Angebot der ${ds.verein} für ihre Mitglieder. Sie zeigt Termine, Mitglieder, das Adressverzeichnis, den Bundesboten (die Zeitung der Verbindung), die DS-Zeitung (Zeitung der Deutschen Sängerschaft), die Liedermappe, Fotos, Neuigkeiten, das Forum und den Chat. Nutzen können sie nur Mitglieder mit einem Google-Konto der Verbindung.</p>
         ${links.length ? html`<p>Links zu weiteren Angeboten (${links.map((l) => l.titel).join(', ')}) öffnen sich außerhalb der App; dort gelten deren eigene Datenschutzhinweise. Die App gibt dabei keine Daten weiter.</p>` : ''}`,
     },
     {
@@ -188,7 +188,7 @@ export function erklaerung() {
         <li><strong>Dein Google-Konto:</strong> Name, E-Mail-Adresse und Profilfoto.</li>
         <li><strong>Was du selbst einträgst:</strong> Profilangaben (z. B. Kneipname, Studium/Beruf, aktuelle Tätigkeit, Wohnort, Telefon, „Über mich“ und was du jüngeren Bundesbrüdern anbietest), Zu- und Absagen zu Terminen mit Gästen und Kommentar, Forumsbeiträge, als Admin oder Redaktion auch News mit Bildern, Chat-Nachrichten und deine Entscheidungen zu den Einwilligungen.</li>
         <li><strong>Adressänderungen:</strong> Unter „Mein Profil“ vergleicht die App deine Anschrift mit dem Adressverzeichnis. Weicht etwas ab, öffnet sie auf Wunsch dein E-Mail-Programm mit einer vorbereiteten Nachricht an das Postfach für Adressänderungen. Die App selbst speichert oder versendet diese Angaben nicht – erst du schickst die E-Mail ab.</li>
-        <li><strong>Daten der Verbindung:</strong> Termine, Adressverzeichnis (z. B. Anschrift, Telefon, Geburtsdatum, Status), Neuigkeiten, Bundesbote und Fotos von Veranstaltungen.</li>
+        <li><strong>Daten der Verbindung:</strong> Termine, Adressverzeichnis (z. B. Anschrift, Telefon, Geburtsdatum, Status), Neuigkeiten, Bundesbote, DS-Zeitung und Fotos von Veranstaltungen.</li>
         <li><strong>Technisch notwendig:</strong> Beim Laden der App-Dateien verarbeitet der Webhoster deine IP-Adresse und Browserangaben kurzzeitig in Server-Protokollen. Auf deinem Gerät speichert die App einen Zugangsschlüssel (eine Stunde gültig), deine Einstellungen (z. B. Schriftgröße, Benachrichtigungen), bei eingeschalteten Benachrichtigungen, welche Nachrichten und News du schon gesehen hast, und einen Zwischenspeicher, damit sie schnell startet und auch offline funktioniert (z. B. gespeicherte Lieder). Mitteilungen zeigt dein Gerät an; die App schickt dafür nichts an weitere Dienste.</li>
       </ul>`,
     },

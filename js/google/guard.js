@@ -1,7 +1,7 @@
 // Schreibschutz der App
 // ====================
 // Grundsatz: Die App dient der Information und dem Austausch. Gemeinsame Daten
-// (Termine, News, Adressen, Bundesbote, Liedermappe, Galerie, Mitgliederliste) werden nur gelesen.
+// (Termine, News, Adressen, Bundesbote, DS-Zeitung, Liedermappe, Galerie, Mitgliederliste) werden nur gelesen.
 // Ändern darf jedes Mitglied ausschließlich seine EIGENEN Daten:
 //   • die eigene Zu-/Absage – im eigenen Kalender (calendars/primary)
 //   • eigene Dateien, die die App im eigenen Google Drive angelegt hat (Profil, Forenbeiträge,

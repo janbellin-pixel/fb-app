@@ -2,7 +2,7 @@
 import {
   html, raw, setHtml, icon, hero, avatar, toast, confirmDialog, isStandalone, isIos, loadScript, copyText, notice,
 } from '../ui.js';
-import { config, appBaseUrl, hasOverride, clearOverride, isGoogleConfigured, hasSongbook, extraLinks } from '../config.js';
+import { config, appBaseUrl, hasOverride, clearOverride, isGoogleConfigured, hasSongbook, hasDsZeitung, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
 import * as hinweise from '../lib/hinweise.js';
 import * as auth from '../auth.js';
@@ -37,6 +37,7 @@ export default async function mehr(ctx) {
         ${menuItem('#/news', 'news', html`Neuigkeiten<span class="menu-badge hidden" data-badge="news"></span>`, 'Aus dem Bundesleben')}
         ${menuItem('#/forum', 'forum', 'Forum', 'Diskussionen und Fragen')}
         ${menuItem('#/zeitung', 'paper', 'Bundesbote', 'Alle Ausgaben zum Blättern')}
+        ${app.mode === 'demo' || hasDsZeitung() ? menuItem('#/ds-zeitung', 'newspaper', 'DS-Zeitung', 'Zeitung der Deutschen Sängerschaft') : ''}
         ${app.mode === 'demo' || hasSongbook() ? menuItem('#/lieder', 'music', 'Liedermappe', 'Noten und Texte zum Mitsingen') : ''}
         ${menuItem('#/galerie', 'image', 'Galerie', 'Fotos aus dem Bundesleben')}
         ${menuItem('#/adressen', 'book', 'Adressverzeichnis', 'Nachschlagen, anrufen, in Kontakte übernehmen')}
@@ -103,7 +104,7 @@ export async function settings(ctx) {
         </div>
         <div class="card card-pad">
           <h2 style="margin:0 0 .75rem;font-weight:300;font-size:1.375rem">Daten auf diesem Gerät</h2>
-          <p class="small">Damit die App schnell startet und auch ohne Netz funktioniert, merkt sie sich den zuletzt geladenen Stand (Termine, Mitglieder, gelesene Ausgaben des Bundesboten, geöffnete Lieder).</p>
+          <p class="small">Damit die App schnell startet und auch ohne Netz funktioniert, merkt sie sich den zuletzt geladenen Stand (Termine, Mitglieder, gelesene Ausgaben des Bundesboten und der DS-Zeitung, geöffnete Lieder).</p>
           <div class="row wrap">
             <button class="btn" data-action="clear-cache">${icon('trash', 'icon-sm')}Zwischenspeicher leeren</button>
             <button class="btn" data-action="update">${icon('refresh', 'icon-sm')}Nach Updates suchen</button>

@@ -27,7 +27,7 @@ import { buildRecord, consentRecipients, isConsentManager, pruefsumme, ja } from
 import { prepareConsentSheet, syncConsentSheet, TABLE_TYPE } from '../lib/einwilligungsliste.js';
 import {
   SHEETS, NEWS_SCHEMA, PROFILE_FIELDS, PROFILE_MAX, guessCategory, parseEventMeta, stripAppLink, issueFromFile, sortIssues, addressesFromRows, addressTab,
-  buildForum, newsFromRows, sortNews, sortMembers, isSongFile, songFromFile, sortSongs,
+  buildForum, newsFromRows, sortNews, sortMembers, isSongFile, songFromFile, sortSongs, ZEITUNGEN,
 } from './common.js';
 import { htmlToText } from '../lib/text.js';
 import { isoLocal } from '../lib/dates.js';
@@ -880,18 +880,20 @@ export class GoogleBackend {
     });
   }
 
-  async listIssues() {
-    const folder = (config.zeitungOrdnerId || '').trim();
-    if (!folder) throw notConfigured('Der Ordner des Bundesboten');
+  /** Ausgaben einer Zeitung: quelle 'bundesbote' (Standard) oder 'ds' (DS-Zeitung), siehe ZEITUNGEN */
+  async listIssues(quelle = 'bundesbote') {
+    const z = ZEITUNGEN[quelle];
+    const folder = (config[z.ordner] || '').trim();
+    if (!folder) throw notConfigured(z.name);
     // auch Jahresordner („2019“, „Archiv/2003“): bis zwei Ebenen tief
     const { files } = await drive.listTree(folder, {
       depth: 2, filter: "mimeType = 'application/pdf'", fields: drive.FILE_FIELDS, orderBy: 'name desc', ...(await this.folderScope(folder)),
     });
-    return sortIssues(files.map(issueFromFile));
+    return sortIssues(files.map((f) => ({ ...issueFromFile(f), quelle })));
   }
 
   loadIssue(issue, onProgress) {
-    return this.keptFile('fb-zeitung', 'zeitung', issue, onProgress);
+    return this.keptFile('fb-zeitung', ZEITUNGEN[issue.quelle || 'bundesbote'].prefix, issue, onProgress);
   }
 
   issueOpenUrl(issue) {

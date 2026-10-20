@@ -1,7 +1,7 @@
 // Demo-Modus: gleiche Schnittstelle wie GoogleBackend, Daten sind fiktiv.
 // Änderungen (Zusagen, Beiträge, Profil …) werden nur in diesem Browser gespeichert.
 import {
-  buildMembers, buildEvents, buildNews, buildForumData, buildChat, buildAddressRows, buildGallery, DEMO_ISSUES, DEMO_SONGS, DEMO_ME_EMAIL, DEMO_DOMAIN,
+  buildMembers, buildEvents, buildNews, buildForumData, buildChat, buildAddressRows, buildGallery, DEMO_ISSUES, DEMO_DS_ISSUES, DEMO_SONGS, DEMO_ME_EMAIL, DEMO_DOMAIN,
 } from './demo-data.js';
 import {
   addressesFromRows, buildForum, issueFromFile, sortIssues, sortMembers, sortNews, songFromFile, sortSongs, PROFILE_FIELDS,
@@ -366,9 +366,9 @@ export class DemoBackend {
   }
 
   /* ---------------------------------------------------------- Zeitung */
-  async listIssues() {
+  async listIssues(quelle = 'bundesbote') {
     await wait();
-    return sortIssues(DEMO_ISSUES.map((f) => issueFromFile(f)));
+    return sortIssues((quelle === 'ds' ? DEMO_DS_ISSUES : DEMO_ISSUES).map((f) => ({ ...issueFromFile(f), quelle })));
   }
 
   async loadIssue(issue) {

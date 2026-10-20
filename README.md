@@ -1,6 +1,6 @@
 # Frankonia-Brunonia – Mitglieder-App
 
-Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile, Geburtstage, Chat, Adressverzeichnis, den Bundesboten (Zeitung der Verbindung) zum Durchblättern, die Liedermappe mit allen Noten, Fotogalerie, News und Forum**. Sie lässt sich auf iPhone, Android und PC installieren, ohne App-Store. Alle Daten liegen im **Google Workspace der Verbindung**; angemeldet wird einmalig mit dem Verbindungskonto.
+Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile, Geburtstage, Chat, Adressverzeichnis, den Bundesboten (Zeitung der Verbindung) und die DS-Zeitung zum Durchblättern, die Liedermappe mit allen Noten, Fotogalerie, News und Forum**. Sie lässt sich auf iPhone, Android und PC installieren, ohne App-Store. Alle Daten liegen im **Google Workspace der Verbindung**; angemeldet wird einmalig mit dem Verbindungskonto.
 
 **Grundsatz:** Die App dient der Information und dem Austausch. Gemeinsame Daten zeigt sie nur an und ändert sie nie. Jedes Mitglied ändert ausschließlich seine eigenen Daten: die eigene Zu-/Absage, das eigene Profil, eigene Forumsbeiträge, die eigene Datenschutz-Einwilligung, eigene Chat-Nachrichten und neue Unterhaltungen mit Personen (siehe [Schreibschutz](#schreibschutz)).
 
@@ -19,6 +19,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Benachrichtigungen** | Nur wenn man sie einschaltet: Zahlen am Chat und an „Mehr“, „Neu“ an News, Hinweise und – solange die App läuft – Mitteilungen des Systems. Bei geschlossener App über die App „Google Chat“; die Redaktion kann neue News dort ankündigen. |
 | **Adressverzeichnis** | Google-Tabelle, nur lesbar. Suche, anrufen, E-Mail, Karte, in Kontakte übernehmen (vCard). |
 | **Bundesbote** | Die Zeitung der Verbindung: PDFs aus einem Drive-Ordner mit allen Ausgaben, immer eine Seite (Doppelseiten aus Scans werden geteilt), **realistische Umblätter-Animation**, Zoom, offline verfügbar. |
+| **DS-Zeitung** | Die Zeitung der Deutschen Sängerschaft: PDFs aus einem eigenen Drive-Ordner, Archiv und Blättern wie beim Bundesboten. Freiwillig – ohne Ordner ausgeblendet. |
 | **Liedermappe** | Noten aus einem Drive-Ordner (PDFs oder Scans), Rubriken aus Unterordnern, Suche nach Titel oder Liednummer, Blättern wie beim Bundesboten. Der Bildschirm bleibt beim Singen an; auf Wunsch liegt die ganze Mappe offline auf dem Gerät. |
 | **Weitere Links** | Schaltflächen im Schnellzugriff zu weiteren Angeboten der Verbindung, z. B. dem Wiki (`links` in `config.js`). |
 | **Fotogalerie** | Fotos aus einem festen Drive-Ordner. Jeder Unterordner ist ein Album (z. B. „2026-06 Stiftungsfest“), Vollbild mit Wischen. |

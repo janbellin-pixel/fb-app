@@ -321,7 +321,7 @@ def page_install(c, url, sample, domain, crest):
     small = style(10.5, color=GREY, leading=14)
     tw = W - 2 * M
 
-    y -= para(c, "Termine, Zu- und Absagen, Mitglieder, Chat, Adressen, Bundesbote, Liedermappe und Fotos – alles in einer App. "
+    y -= para(c, "Termine, Zu- und Absagen, Mitglieder, Chat, Adressen, Bundesbote, DS-Zeitung, Liedermappe und Fotos – alles in einer App. "
                  "Kostenlos und ohne App-Store.", style(13, "light", leading=18), M, y, tw)
     y -= 5 * mm
 
@@ -465,7 +465,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
                                 f"„Kalender abonnieren“ holt alle Termine in deinen eigenen Kalender."),
         ("chat", "Chat", "Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“."),
         ("users", "Mitglieder", f"Alle Bundesbrüder mit Foto und Profil. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter {b('„Angebote für Jüngere“')} steht, wer Praktika, Mentoring & Co. anbietet."),
-        ("grid", "Mehr", f"{b('Bundesbote')} · {b('Liedermappe')} · {b('Galerie')} · {b('News')} · {b('Forum')} · {b('Adressverzeichnis')} · {b('Wiki')} · "
+        ("grid", "Mehr", f"{b('Bundesbote')} · {b('DS-Zeitung')} · {b('Liedermappe')} · {b('Galerie')} · {b('News')} · {b('Forum')} · {b('Adressverzeichnis')} · {b('Wiki')} · "
                          f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Schriftgröße')} · Einstellungen"),
     ]
     st = style(11.5, leading=16)
@@ -488,7 +488,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
         ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße › „Groß“ oder „Sehr groß“."),
         ("users", f"{b('Profil ausfüllen, Anschrift prüfen:')} Mehr › Mein Profil. Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart."),
         ("music", f"{b('Liedermappe:')} Liednummer eintippen und Enter – schon ist das Lied offen."),
-        ("shield", f"{b('Keine Sorge:')} Termine, Adressen, Bundesbote, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge."),
+        ("shield", f"{b('Keine Sorge:')} Termine, Adressen, Bundesbote, DS-Zeitung, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge."),
         ("share", f"{b('iPhone:')} Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt."),
         ("chat", f"{b('Fragen?')} {kontakt}"),
     ]

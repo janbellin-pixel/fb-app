@@ -58,6 +58,7 @@ export const RESOURCES = [
   { key: 'news', label: 'News-Tabelle', id: (c) => c.tabellen?.news },
   { key: 'zeitung', label: 'Ordner Bundesbote', id: (c) => c.zeitungOrdnerId },
   { key: 'lieder', label: 'Ordner Liedermappe', id: (c) => c.liedermappeOrdnerId },
+  { key: 'ds', label: 'Ordner DS-Zeitung', id: (c) => c.dsZeitungOrdnerId },
   { key: 'galerie', label: 'Ordner Galerie', id: (c) => c.galerieOrdnerId },
   { key: 'einwilligungen', label: 'Einwilligungsliste (vertraulich)', id: (c) => c.tabellen?.einwilligungen },
 ];
@@ -211,7 +212,7 @@ export async function createMissing({
   try {
     // Neue Tabellen und Ordner kommen in einen gemeinsamen Ordner (die Einwilligungsliste bewusst nicht)
     let root = null;
-    if (['adressen', 'news', 'zeitung', 'lieder', 'galerie'].some((k) => want.has(k))) {
+    if (['adressen', 'news', 'zeitung', 'lieder', 'ds', 'galerie'].some((k) => want.has(k))) {
       log('Ordner in Google Drive anlegen …');
       root = await newFolder(`${name} – Mitglieder-App`);
       out.rootFolderId = root.id;
@@ -219,6 +220,7 @@ export async function createMissing({
     }
     let zeitung = null;
     let lieder = null;
+    let dsZeitung = null;
     let galerie = null;
     if (want.has('zeitung')) {
       zeitung = await newFolder('Bundesbote', root.id);
@@ -231,6 +233,12 @@ export async function createMissing({
       out.liedermappeOrdnerId = lieder.id;
       out.created.push('lieder');
       log('Ordner „Liedermappe“ angelegt (Noten als PDF oder Bild hineinlegen, Unterordner = Rubriken)', 'ok');
+    }
+    if (want.has('ds')) {
+      dsZeitung = await newFolder('DS-Zeitung', root.id);
+      out.dsZeitungOrdnerId = dsZeitung.id;
+      out.created.push('ds');
+      log('Ordner „DS-Zeitung“ angelegt (Ausgaben als PDF hineinlegen)', 'ok');
     }
     if (want.has('galerie')) {
       galerie = await newFolder('Galerie', root.id);
@@ -281,7 +289,7 @@ export async function createMissing({
     }
 
     // Freigaben nur für das NEU Angelegte – Mitglieder dürfen nur lesen
-    const newShared = [root, zeitung, lieder, galerie, adressen, news].filter(Boolean).map((x) => x.id);
+    const newShared = [root, zeitung, lieder, dsZeitung, galerie, adressen, news].filter(Boolean).map((x) => x.id);
     if (newShared.length || calendar) {
       if (targets.length) {
         log('Für die Mitglieder freigeben – nur lesen …');
@@ -578,6 +586,14 @@ export async function checkSetup() {
       return;
     }
     await folderCheck(c, config.liedermappeOrdnerId, 'lieder');
+  });
+  await add('Ordner DS-Zeitung', async (c) => {
+    // freiwillig wie die Liedermappe; Ausgaben werden wie beim Bundesboten gezählt
+    if (!String(config.dsZeitungOrdnerId || '').trim()) {
+      c.detail = 'Nicht eingetragen – die DS-Zeitung ist in der App ausgeblendet (freiwillig).';
+      return;
+    }
+    await folderCheck(c, config.dsZeitungOrdnerId, 'zeitung');
   });
   await add('Ordner Galerie', (c) => folderCheck(c, config.galerieOrdnerId, 'galerie'));
 

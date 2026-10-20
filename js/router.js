@@ -16,6 +16,8 @@ export const ROUTES = [
   { path: 'adressen', load: v('adressen'), tab: 'mehr', nav: 'adressen', title: 'Adressverzeichnis' },
   { path: 'zeitung', load: v('zeitung'), tab: 'mehr', nav: 'zeitung', title: 'Bundesbote' },
   { path: 'zeitung/:id', load: v('zeitung', 'reader'), tab: 'mehr', nav: 'zeitung', title: 'Bundesbote' },
+  { path: 'ds-zeitung', load: v('zeitung', 'ds'), tab: 'mehr', nav: '', title: 'DS-Zeitung' },
+  { path: 'ds-zeitung/:id', load: v('zeitung', 'dsReader'), tab: 'mehr', nav: '', title: 'DS-Zeitung' },
   { path: 'lieder', load: v('lieder'), tab: 'mehr', nav: '', title: 'Liedermappe' },
   { path: 'lieder/:id', load: v('lieder', 'reader'), tab: 'mehr', nav: '', title: 'Liedermappe' },
   { path: 'galerie', load: v('galerie'), tab: 'mehr', nav: 'galerie', title: 'Galerie' },

@@ -1,9 +1,9 @@
-// Startseite: Begrüßung, nächste Termine, Neuigkeiten, Schnellzugriff (auch Liedermappe und weitere Links), Bundesbote, Forum, Geburtstage
+// Startseite: Begrüßung, nächste Termine, Neuigkeiten, Schnellzugriff (auch DS-Zeitung, Liedermappe und weitere Links), Bundesbote, Forum, Geburtstage
 import { html, setHtml, icon, avatar, sectionTitle, skeletonList, toast, showError, isStandalone, emptyState } from '../ui.js';
 import { fDateLong, fDateNoYear, semesterLabel, addDays, startOfDay, nextBirthday, toDate, relDay } from '../lib/dates.js';
 import { eventCard, memberMap, newsCard, threadRow, issueCover, bindCardLinks, isUnread, forumSeen } from './parts.js';
 import { local } from '../lib/store.js';
-import { hasSongbook, extraLinks } from '../config.js';
+import { hasSongbook, hasDsZeitung, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
 import { albumInfo } from './galerie.js';
 import { isNewNews } from '../lib/hinweise.js';
@@ -21,6 +21,7 @@ export default async function home(ctx) {
   const me = app.user;
   const showInstall = !isStandalone() && !local.get('fb.installDismissed');
   const songs = app.mode === 'demo' || hasSongbook();
+  const dsZeitung = app.mode === 'demo' || hasDsZeitung();
 
   setHtml(el, html`
     <section class="home-hero">
@@ -52,6 +53,7 @@ export default async function home(ctx) {
           <a class="tile" href="#/mitglieder">${icon('users')}Mitglieder</a>
           <a class="tile" href="#/adressen">${icon('book')}Adressen</a>
           <a class="tile" href="#/zeitung">${icon('paper')}Bundesbote</a>
+          ${dsZeitung ? html`<a class="tile" href="#/ds-zeitung">${icon('newspaper')}DS-Zeitung</a>` : ''}
           ${songs ? html`<a class="tile" href="#/lieder">${icon('music')}Lieder&shy;mappe</a>` : ''}
           <a class="tile" href="#/galerie">${icon('image')}Galerie</a>
           <a class="tile" href="#/forum">${icon('forum')}Forum</a>

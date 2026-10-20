@@ -157,7 +157,7 @@ export default async function einrichtung(ctx) {
 
       <section class="card step ${resourcesDone ? 'done' : ''}">
         <h3>Kalender, Tabellen und Ordner</h3>
-        <p class="small">Was es schon gibt – etwa euren Kalender, die Mitgliederliste und die Ordner mit dem Bundesboten, der Liedermappe und den Fotos –, unter <strong>1.</strong> verbinden. <strong>2.</strong> legt danach nur noch an, was dann fehlt. Vorhandenes liest die App nur.</p>
+        <p class="small">Was es schon gibt – etwa euren Kalender, die Mitgliederliste und die Ordner mit dem Bundesboten, der DS-Zeitung, der Liedermappe und den Fotos –, unter <strong>1.</strong> verbinden. <strong>2.</strong> legt danach nur noch an, was dann fehlt. Vorhandenes liest die App nur.</p>
         <ul class="res-status" id="res-status">${resourceStatus()}</ul>
         <div class="grid-2">
           <form id="manual-form" novalidate>
@@ -171,6 +171,8 @@ export default async function einrichtung(ctx) {
             <div class="field"><label for="m-z">Ordner Bundesbote (PDFs, auch in Jahresordnern)</label><input class="input" id="m-z" name="zeitung" value="${config.zeitungOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
             <div class="field"><label for="m-l">Ordner Liedermappe (PDFs oder Bilder, Unterordner = Rubriken)</label><input class="input" id="m-l" name="lieder" value="${config.liedermappeOrdnerId}" placeholder="https://drive.google.com/drive/folders/…">
               <span class="hint">Freiwillig – ohne Ordner ist die Liedermappe ausgeblendet.</span></div>
+            <div class="field"><label for="m-ds">Ordner DS-Zeitung (PDFs, auch in Jahresordnern)</label><input class="input" id="m-ds" name="ds" value="${config.dsZeitungOrdnerId}" placeholder="https://drive.google.com/drive/folders/…">
+              <span class="hint">Freiwillig – ohne Ordner ist die DS-Zeitung ausgeblendet.</span></div>
             <div class="field"><label for="m-g">Ordner Galerie (Unterordner = Alben)</label><input class="input" id="m-g" name="galerie" value="${config.galerieOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
             <div class="field"><label for="m-ew">Tabelle Einwilligungen (vertraulich)</label><input class="input" id="m-ew" name="einwilligungen" value="${config.tabellen?.einwilligungen}" placeholder="leer lassen – wird unter 2. neu angelegt">
               <span class="hint">Nur eine Tabelle, die die App selbst angelegt hat.</span></div>
@@ -219,6 +221,7 @@ export default async function einrichtung(ctx) {
     adressenBlatt: config.adressenBlatt,
     zeitungOrdnerId: config.zeitungOrdnerId,
     liedermappeOrdnerId: config.liedermappeOrdnerId,
+    dsZeitungOrdnerId: config.dsZeitungOrdnerId,
     galerieOrdnerId: config.galerieOrdnerId,
     testMitglieder: config.testMitglieder,
     adressaenderung: config.adressaenderung,
@@ -288,6 +291,7 @@ export default async function einrichtung(ctx) {
       adressenBlatt: d.adressenBlatt.trim(),
       zeitungOrdnerId: idFromUrl(d.zeitung),
       liedermappeOrdnerId: idFromUrl(d.lieder),
+      dsZeitungOrdnerId: idFromUrl(d.ds),
       galerieOrdnerId: idFromUrl(d.galerie),
     };
     saveOverride(values);
@@ -299,6 +303,7 @@ export default async function einrichtung(ctx) {
     el.querySelector('#m-news').value = values.tabellen.news;
     el.querySelector('#m-z').value = values.zeitungOrdnerId;
     el.querySelector('#m-l').value = values.liedermappeOrdnerId;
+    el.querySelector('#m-ds').value = values.dsZeitungOrdnerId;
     el.querySelector('#m-g').value = values.galerieOrdnerId;
     el.querySelector('#m-ew').value = values.tabellen.einwilligungen;
     app.clearCache().catch(() => {});
@@ -330,6 +335,7 @@ export default async function einrichtung(ctx) {
         tabellen: res.tabellen,
         zeitungOrdnerId: res.zeitungOrdnerId,
         liedermappeOrdnerId: res.liedermappeOrdnerId,
+        dsZeitungOrdnerId: res.dsZeitungOrdnerId,
         galerieOrdnerId: res.galerieOrdnerId,
         admins: config.admins?.length ? config.admins : [me.email],
       });
