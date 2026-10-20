@@ -299,9 +299,11 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 *2026-10-20 – Rückmeldung der Verbindung: In der DS-Zeitung stand nicht die neueste Ausgabe oben; „das richtet sich nach dem Dateinamen, nicht nach dem Datum des Uploads“*
 
 - **Kontext:** Jahr und Nummer las die App nur aus Namen wie „2026-2 …“ (bzw. „Nr.“, „Heft“, „Ausgabe“ mit Jahr). Bei anderen Namen entschied das Datum des Hochladens. Wer ein Archiv auf einmal hochlädt oder alte Ausgaben nachreicht, bekam so eine falsche Reihenfolge – als „neueste Ausgabe“ erschien die zuletzt hochgeladene Datei.
-- **Entscheidung:** Die Reihenfolge richtet sich allein nach dem Dateinamen (`ausgabeAusName()`, `sortIssues()` in `js/backend/common.js`), für Bundesbote und DS-Zeitung:
-  - Jahr und Nummer an beliebiger Stelle im Namen: „2026-2“, „2-2026“, „2026_02“, „202602“, „Nr. 2“ / „Heft 2“ / „Ausgabe 2“.
+- **Entscheidung:** Die Reihenfolge richtet sich allein nach dem Dateinamen (`datumAusName()`, `ausgabeAusName()`, `sortIssues()` in `js/backend/common.js`), für Bundesbote und DS-Zeitung:
+  - Ein vollständiges Datum hat Vorrang, bei mehreren das letzte (die Dateien der DS-Zeitung tragen das Datum am Ende): „26.11.2025“, „26.11.25“, „2025-11-26“, „20251126“, „26112025“. Dann zählt auch der Tag.
+  - Sonst Jahr und Nummer an beliebiger Stelle im Namen: „2026-2“, „2-2026“, „2026_02“, „202602“, „Nr. 2“ / „Heft 2“ / „Ausgabe 2“.
   - Sonst Monat oder Jahreszeit neben dem Jahr: „März 2026“, „Herbst 2026“ (Frühjahr = 3, Sommer = 6, Herbst = 9, Winter = 12). „2025-26“ gilt als Studienjahr, nicht als Nummer.
   - Fehlt das Jahr im Namen, zählt weiter der Jahresordner (E25).
-  - Lässt sich nichts erkennen, entscheidet der Name selbst (natürliche Sortierung: „… 10“ vor „… 9“). Das Upload-Datum zählt nur noch bei gleichem Namen.
-- **Folgen:** Dateinamen sollten Jahr und Nummer (oder Monat) tragen – wie bisher empfohlen, aber in mehr Schreibweisen. Bei Monats- und Jahreszeitnamen zeigt die App „März 2026“ statt „Ausgabe 3/2026“. Tests mit absichtlich verkehrter Upload-Reihenfolge in `tests/google-mock.js`.
+  - Lässt sich nichts davon erkennen, entscheiden die Zahlen im Namen (Zahl für Zahl von vorn: „… 12“ vor „… 9“), danach der Name selbst. Das Upload-Datum zählt nur noch bei gleichem Namen.
+  - Sechsstellige Kurzdaten („261125“) sind mehrdeutig (TTMMJJ oder JJMMTT) und zählen nur als Zahl.
+- **Folgen:** Dateinamen sollten ein Datum oder Jahr und Nummer (bzw. Monat) tragen – wie bisher empfohlen, aber in mehr Schreibweisen. Die App zeigt dann „26.11.2025“, „März 2026“ oder „Ausgabe 3/2026“. Tests mit absichtlich verkehrter Upload-Reihenfolge in `tests/google-mock.js`.

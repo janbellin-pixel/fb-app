@@ -138,14 +138,37 @@ const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'A
 const MONAT_RE = /(?:^|[^a-zäöüß])(jan(?:uar)?|feb(?:ruar)?|mär(?:z)?|maerz|apr(?:il)?|mai|jun(?:i)?|jul(?:i)?|aug(?:ust)?|sep(?:t(?:ember)?)?|okt(?:ober)?|nov(?:ember)?|dez(?:ember)?|frühjahr|frühling|fruehjahr|fruehling|sommer|herbst|winter)(?![a-zäöüß])/gi;
 const JAHRESZEIT = { frühjahr: 3, frühling: 3, fruehjahr: 3, fruehling: 3, sommer: 6, herbst: 9, winter: 12 };
 const monatsNummer = (w) => JAHRESZEIT[w] || (w === 'maerz' ? 3 : MONATE.findIndex((m) => m.toLowerCase().startsWith(w)) + 1);
+const gueltig = (y, mo, d) => y >= 1900 && y <= 2099 && mo >= 1 && mo <= 12 && d >= 1 && d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
+const jahr2 = (yy) => (yy <= (new Date().getFullYear() % 100) + 1 ? 2000 + yy : 1900 + yy);
+
+/** Vollständiges Datum im Dateinamen, bei mehreren das letzte: „2025-11-26“, „26.11.2025“, „26.11.25“, „20251126“, „26112025“ */
+export function datumAusName(name) {
+  const s = String(name || '').replace(/\.pdf$/i, '').replace(/_/g, ' ');
+  const found = [];
+  const add = (re, ymd) => {
+    for (const m of s.matchAll(re)) {
+      const [y, mo, d] = ymd(m);
+      if (gueltig(y, mo, d)) found.push({ i: m.index, y, mo, d });
+    }
+  };
+  add(new RegExp(`(?:^|\\D)${JAHR}[-. ](\\d{1,2})[-. ](\\d{1,2})(?!\\d)`, 'g'), (m) => [+m[1], +m[2], +m[3]]);
+  add(new RegExp(`(?:^|\\D)(\\d{1,2})[-. ](\\d{1,2})[-. ]${JAHR}(?!\\d)`, 'g'), (m) => [+m[3], +m[2], +m[1]]);
+  add(/(?:^|\D)(\d{1,2})[-.](\d{1,2})[-.](\d{2})(?!\d)/g, (m) => [jahr2(+m[3]), +m[2], +m[1]]);
+  add(new RegExp(`(?:^|\\D)${JAHR}(\\d{2})(\\d{2})(?!\\d)`, 'g'), (m) => [+m[1], +m[2], +m[3]]);
+  add(new RegExp(`(?:^|\\D)(\\d{2})(\\d{2})${JAHR}(?!\\d)`, 'g'), (m) => [+m[3], +m[2], +m[1]]);
+  return found.sort((a, b) => b.i - a.i)[0] || null;
+}
 
 /**
  * Jahr und Nummer einer Ausgabe – allein aus dem Dateinamen (E39), fehlt das Jahr, aus dem Jahresordner (f.path):
- * „2026-2 …“, „… 2-2026“, „…_2026_02“, „… 202602“, „Nr. 2“ / „Heft 2“ / „Ausgabe 2“, „März 2026“, „Herbst 2026“.
+ * Datum („… 26.11.2025“, dann zählt auch der Tag), „2026-2 …“, „… 2-2026“, „…_2026_02“, „… 202602“,
+ * „Nr. 2“ / „Heft 2“ / „Ausgabe 2“, „März 2026“, „Herbst 2026“.
  * „2025-26“ ist ein Studienjahr („WiSe 2025-26“), keine Nummer. wort = Monat bzw. Jahreszeit für die Anzeige.
  */
 export function ausgabeAusName(name, path = []) {
   const s = String(name || '').replace(/\.pdf$/i, '').replace(/_/g, ' ');
+  const d = datumAusName(s);
+  if (d) return { year: d.y, nr: d.mo, tag: d.d, wort: '' };
   for (const m of s.matchAll(new RegExp(`(?:^|\\D)${JAHR}\\s*[-./ ]\\s*(\\d{1,2})(?!\\d)`, 'g'))) {
     if (+m[2] !== (+m[1] + 1) % 100) return { year: +m[1], nr: +m[2], wort: '' };
   }
@@ -173,15 +196,19 @@ export function ausgabeAusName(name, path = []) {
 export function issueFromFile(f) {
   const base = String(f.name || '').replace(/\.pdf$/i, '');
   const lead = base.match(/^(\d{4})[-_ .](\d{1,2})\s*[-_ ]?\s*(.*)$/);
-  const { year, nr, wort } = ausgabeAusName(base, f.path);
+  const { year, nr, tag = 0, wort } = ausgabeAusName(base, f.path);
   const title = (lead?.[3] || base).replace(/[_]+/g, ' ').trim();
+  const zwei = (n) => String(n).padStart(2, '0');
   return {
     id: f.id,
     name: f.name,
     title: f.description?.trim() || title,
-    ausgabe: year && nr ? (wort ? `${wort} ${year}` : `Ausgabe ${nr}/${year}`) : year ? String(year) : nr ? `Ausgabe ${nr}` : '',
+    ausgabe: tag ? `${zwei(tag)}.${zwei(nr)}.${year}`
+      : year && nr ? (wort ? `${wort} ${year}` : `Ausgabe ${nr}/${year}`) : year ? String(year) : nr ? `Ausgabe ${nr}` : '',
     year,
     nr,
+    tag,
+    zahlen: (base.match(/\d+/g) || []).map(Number),
     date: f.createdTime || f.modifiedTime || '',
     modified: f.modifiedTime || '',
     size: Number(f.size) || 0,
@@ -194,10 +221,22 @@ export function issueFromFile(f) {
 
 const nachName = new Intl.Collator('de', { numeric: true, sensitivity: 'base' });
 
-/** Neueste zuerst: Jahr und Nummer aus dem Namen, sonst der Name selbst („… 10“ vor „… 9“); das Upload-Datum nur bei gleichem Namen (E39) */
+/** größere Zahlen im Namen zuerst (Zahl für Zahl von vorn) */
+function nachZahlen(a = [], b = []) {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (b[i] ?? -1) - (a[i] ?? -1);
+    if (d) return d;
+  }
+  return 0;
+}
+
+/**
+ * Neueste zuerst: Jahr, Nummer bzw. Monat und Tag aus dem Namen; sonst die Zahlen im Namen („… 10“ vor „… 9“),
+ * dann der Name selbst. Das Upload-Datum zählt nur bei gleichem Namen (E39).
+ */
 export function sortIssues(list) {
-  return list.slice().sort((a, b) => ((b.year || 0) - (a.year || 0)) || ((b.nr || 0) - (a.nr || 0))
-    || nachName.compare(String(b.name), String(a.name)) || String(b.date).localeCompare(String(a.date)));
+  return list.slice().sort((a, b) => ((b.year || 0) - (a.year || 0)) || ((b.nr || 0) - (a.nr || 0)) || ((b.tag || 0) - (a.tag || 0))
+    || nachZahlen(a.zahlen, b.zahlen) || nachName.compare(String(b.name), String(a.name)) || String(b.date).localeCompare(String(a.date)));
 }
 
 /* ---------------------------------------------------------- Liedermappe */

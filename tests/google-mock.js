@@ -453,11 +453,17 @@ async function run() {
     [order('DS-Zeitung Herbst 2025', 'DS-Zeitung Frühjahr 2025', 'DS-Zeitung Winter 2024-25'), 'DS-Zeitung Herbst 2025 | DS-Zeitung Frühjahr 2025 | DS-Zeitung Winter 2024-25'],
     [order('DS-Zeitung Nr. 116', 'DS-Zeitung Nr. 115', 'DS-Zeitung Nr. 99'), 'DS-Zeitung Nr. 116 | DS-Zeitung Nr. 115 | DS-Zeitung Nr. 99'],
     [order('DS-Zeitung 10', 'DS-Zeitung 9'), 'DS-Zeitung 10 | DS-Zeitung 9'],
+    [order('DS-Zeitung 26.11.2025', 'DS-Zeitung 05.11.2025', 'DS-Zeitung 15.03.2025'), 'DS-Zeitung 26.11.2025 | DS-Zeitung 05.11.2025 | DS-Zeitung 15.03.2025'],
+    [order('DSZ 20251126', 'DSZ 20250815', 'DS-Zeitung 20241201'), 'DSZ 20251126 | DSZ 20250815 | DS-Zeitung 20241201'],
+    [order('DS-Zeitung 26.11.25', 'DS-Zeitung 15.03.25', 'DS-Zeitung 05.12.24'), 'DS-Zeitung 26.11.25 | DS-Zeitung 15.03.25 | DS-Zeitung 05.12.24'],
+    [order('DS-Zeitung 26112025', 'DS-Zeitung 01062025'), 'DS-Zeitung 26112025 | DS-Zeitung 01062025'],
+    [order('Ausgabe A 12', 'Ausgabe B 9'), 'Ausgabe A 12 | Ausgabe B 9'],
     [order('2026-2 Bundesbote SoSe 2026', '2026-1 Bundesbote WiSe 2025-26', '2025-2 Bundesbote SoSe 2025'), '2026-2 Bundesbote SoSe 2026 | 2026-1 Bundesbote WiSe 2025-26 | 2025-2 Bundesbote SoSe 2025'],
   ];
   check(orders.every(([got, want]) => got === want), 'Ausgaben nach dem Dateinamen geordnet, nicht nach dem Upload-Datum', JSON.stringify(orders.filter(([got, want]) => got !== want)));
-  const labels = ['DS-Zeitung März 2025', 'DS-Zeitung Herbst 2025', 'DS-Zeitung Nr. 116', '2026-1 Bundesbote WiSe 2025-26', 'DS-Zeitung 3-2026'].map((name) => zc.issueFromFile({ name: `${name}.pdf` }).ausgabe);
-  check(labels.join() === 'März 2025,Herbst 2025,Ausgabe 116,Ausgabe 1/2026,Ausgabe 3/2026', 'Anzeige: Monat, Jahreszeit oder Nummer; „2025-26“ ist keine Nummer', labels.join());
+  const labels = ['DS-Zeitung März 2025', 'DS-Zeitung Herbst 2025', 'DS-Zeitung Nr. 116', '2026-1 Bundesbote WiSe 2025-26', 'DS-Zeitung 3-2026', 'DS-Zeitung 26.11.2025', 'DSZ 20251126']
+    .map((name) => zc.issueFromFile({ name: `${name}.pdf` }).ausgabe);
+  check(labels.join() === 'März 2025,Herbst 2025,Ausgabe 116,Ausgabe 1/2026,Ausgabe 3/2026,26.11.2025,26.11.2025', 'Anzeige: Datum, Monat, Jahreszeit oder Nummer; „2025-26“ ist keine Nummer', labels.join());
   const gal = await step('listGallery', () => b.listGallery());
   check(gal?.albums.length === 3 && gal.albums[0].title === '2026-06 Stiftungsfest', 'Alben, neuestes zuerst', JSON.stringify(gal?.albums.map((a) => a.title)));
   check(gal?.albums[0].photos.length === 4 && gal.albums[0].photos[0].thumb, 'Fotos mit Vorschaubild');
