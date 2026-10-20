@@ -48,8 +48,9 @@ function einwilligungenEinsammeln() {
 
   const jetzt = zeit(new Date());
   const zeilen = {};
+  // Spalten wie in der App (seit Fassung 3 mit „Sichtbar in der App“): Stand 11, Verlauf 12
   if (stand.getLastRow() > 1) {
-    stand.getRange(2, 1, stand.getLastRow() - 1, 10).getValues().forEach(function (r) {
+    stand.getRange(2, 1, stand.getLastRow() - 1, 11).getValues().forEach(function (r) {
       if (r[0]) zeilen[String(r[0]).toLowerCase()] = r;
     });
   }
@@ -67,7 +68,7 @@ function einwilligungenEinsammeln() {
     try { d = JSON.parse(datei.getDescription() || '{}'); } catch (e) { d = {}; }
     const name = datei.getOwner().getName() || d.name || email;
     const hinweis = (d.konto && String(d.konto).toLowerCase() !== email) ? 'Achtung: Konto in der Datei weicht vom Inhaber ab – Inhaber gilt' : '';
-    zeilen[email] = [email, name, ja(d.vereinszwecke), ja(d.dachverband), d.fassung || '', zeit(d.zeitpunkt),
+    zeilen[email] = [email, name, ja(d.vereinszwecke), ja(d.dachverband), ja(d.sichtbar), d.fassung || '', zeit(d.zeitpunkt),
       zeit(d.erstmals || datei.getDateCreated()), zeit(datei.getLastUpdated()), datei.getUrl(), hinweis];
     const eintraege = (d.verlauf && d.verlauf.length) ? d.verlauf : [d];
     eintraege.forEach(function (v) {
@@ -76,7 +77,7 @@ function einwilligungenEinsammeln() {
       if (!stempel || gesehen[schluessel]) return;
       gesehen[schluessel] = true;
       neu.push([zeit(stempel), email, name, ja(v.vereinszwecke), ja(v.dachverband), v.fassung || '', v.pruefsumme || '',
-        v.geraet || '', datei.getId(), jetzt, stempel]);
+        v.geraet || '', datei.getId(), jetzt, stempel, ja(v.sichtbar)]);
     });
   });
 
@@ -84,9 +85,9 @@ function einwilligungenEinsammeln() {
   const liste = Object.keys(zeilen).map(function (k) { return zeilen[k]; })
     .sort(function (a, b) { return String(a[1]).localeCompare(String(b[1]), 'de'); });
   const bisher = Math.max(stand.getLastRow() - 1, 0);
-  if (bisher) stand.getRange(2, 1, bisher, 10).clearContent();
+  if (bisher) stand.getRange(2, 1, bisher, 11).clearContent();
   if (liste.length) {
-    const bereich = stand.getRange(2, 1, liste.length, 10);
+    const bereich = stand.getRange(2, 1, liste.length, 11);
     bereich.setNumberFormat('@');
     bereich.setValues(liste);
   }
@@ -94,7 +95,7 @@ function einwilligungenEinsammeln() {
   // Verlauf: nur neue Erklärungen anhängen
   neu.sort(function (a, b) { return a[10] < b[10] ? -1 : a[10] > b[10] ? 1 : 0; });
   if (neu.length) {
-    const bereich = verlauf.getRange(verlauf.getLastRow() + 1, 1, neu.length, 11);
+    const bereich = verlauf.getRange(verlauf.getLastRow() + 1, 1, neu.length, 12);
     bereich.setNumberFormat('@');
     bereich.setValues(neu);
   }

@@ -46,6 +46,12 @@ const OWN_FIELDS = 'id,name,description,createdTime,modifiedTime,appProperties,o
 const GALLERY_FIELDS = 'id,name,mimeType,thumbnailLink,webViewLink,createdTime,modifiedTime,imageMediaMetadata(width,height,time),parents';
 const TABLE_FIELDS = 'id,name,ownedByMe,appProperties,owners(emailAddress,displayName,photoLink)';
 const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
+const VISIBILITY_FILE = 'Sichtbarkeit (Mitglieder-App).json';
+/** Wahl aus einer Sichtbarkeits-Datei (E40): true = in der Mitgliederliste zeigen */
+const visibilityOf = (f) => {
+  const d = parseJson(f.description);
+  return typeof d.sichtbar === 'boolean' ? d.sichtbar : f.appProperties?.fbSichtbar !== 'nein';
+};
 const SPREADSHEET = 'application/vnd.google-apps.spreadsheet';
 export const MAX_POST_LENGTH = 4000;
 export const MAX_NEWS_LENGTH = 4000;
@@ -216,12 +222,23 @@ export class GoogleBackend {
   }
 
   async listMembers() {
-    const [dir, files, addr] = await Promise.all([
+    const [dir, files, addr, vis] = await Promise.all([
       this.directory().catch(() => []),
       this.profileFiles().catch(() => []),
       config.tabellen?.adressen ? this.cached(this.addressKey(), 10 * 60_000, () => this.loadAddresses()).catch(() => null) : Promise.resolve(null),
+      this.visibilityFiles().catch(() => []),
     ]);
+    // Sichtbarkeit (E40): je Mitglied die zuletzt geänderte eigene Datei – Inhaber laut Google, nicht fälschbar.
+    // Wer „nicht sichtbar“ gewählt hat, fehlt in der Liste (nur man selbst sieht sich immer).
+    const visNewest = new Map();
+    for (const f of vis) {
+      const owner = this.ownerOf(f);
+      if (!owner.email) continue;
+      const prev = visNewest.get(owner.email);
+      if (!prev || String(f.modifiedTime) > String(prev.f.modifiedTime)) visNewest.set(owner.email, { f, owner });
+    }
     const hidden = new Set((config.ausgeblendeteKonten || []).map((e) => String(e).toLowerCase()));
+    for (const [email, { f }] of visNewest) if (email !== this.myEmail && !visibilityOf(f)) hidden.add(email);
     const map = new Map();
     const get = (email) => {
       if (!map.has(email)) map.set(email, { email });
@@ -287,10 +304,17 @@ export class GoogleBackend {
       }
       m.profilAktualisiert = f.modifiedTime;
     }
+    // Wer die App schon genutzt hat und sichtbar ist, erscheint auch ohne Eintrag im Google-Verzeichnis
+    for (const { owner } of visNewest.values()) {
+      if (hidden.has(owner.email)) continue;
+      const m = get(owner.email);
+      m.name = m.name || owner.name || owner.email;
+      m.photo = m.photo || owner.photo || '';
+    }
     const me = get(this.myEmail);
     me.name = me.name || this.user.name;
     me.photo = me.photo || this.user.photo;
-    return sortMembers([...map.values()].map((m) => ({ ...m, name: m.name || m.email })));
+    return sortMembers([...map.values()].map((m) => ({ ...m, name: m.name || m.email, appNutzer: visNewest.has(m.email) })));
   }
 
   async getMember(email) {
@@ -308,9 +332,59 @@ export class GoogleBackend {
     if (own) {
       await drive.updateFile(own.id, { description: JSON.stringify(data) });
     } else {
-      await this.createOwnFile('profil', data, {}, 'Mein Profil (Mitglieder-App).json');
+      const f = await this.createOwnFile('profil', data, {}, 'Mein Profil (Mitglieder-App).json');
+      // nicht sichtbar gewählt (E40): das neue Profil bleibt privat
+      if ((await this.myVisibility()) === false) await this.unshareOwnFile(f.id);
     }
     this.invalidate('profiles');
+  }
+
+  /* ================================================================ Sichtbarkeit in der App (E40) */
+
+  /** Alle für mich lesbaren Sichtbarkeits-Dateien (eigene und die der anderen Mitglieder) */
+  async visibilityFiles() {
+    return this.cached('visibility', 60_000, () => this.listAppFiles('sichtbarkeit'));
+  }
+
+  async ownVisibilityFile() {
+    const files = await this.listAppFiles('sichtbarkeit');
+    return files.filter((f) => f.ownedByMe).sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)))[0] || null;
+  }
+
+  /** Eigene Wahl laut eigener Datei: true/false, null = noch keine Datei */
+  async myVisibility() {
+    const own = (await this.visibilityFiles().catch(() => [])).filter((f) => f.ownedByMe)
+      .sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)))[0];
+    return own ? visibilityOf(own) : null;
+  }
+
+  /**
+   * Eigene Sichtbarkeit speichern – als kleine Datei im eigenen Drive, für die Mitglieder lesbar: Daran erkennt die App
+   * der anderen, dass ich die App nutze und ob sie mich anzeigen darf. Mein Profil ist nur freigegeben, solange ich sichtbar bin.
+   */
+  async saveMyVisibility(sichtbar) {
+    const data = { sichtbar: !!sichtbar, geaendert: new Date().toISOString() };
+    const props = { fbSichtbar: sichtbar ? 'ja' : 'nein' };
+    const own = await this.ownVisibilityFile();
+    const before = own ? visibilityOf(own) : null;
+    if (own) await drive.updateFile(own.id, { description: JSON.stringify(data), appProperties: props });
+    else await this.createOwnFile('sichtbarkeit', data, props, VISIBILITY_FILE);
+    const profiles = (await this.listAppFiles('profil')).filter((f) => f.ownedByMe);
+    for (const f of profiles) {
+      if (!sichtbar) await this.unshareOwnFile(f.id);
+      else if (before === false) await this.shareOwnFile(f.id);
+    }
+    this.invalidate('visibility');
+    this.invalidate('profiles');
+  }
+
+  /** Lese-Freigaben einer eigenen Datei zurücknehmen (Gruppe, Domain, einzelne Konten); der Inhaber bleibt */
+  async unshareOwnFile(fileId) {
+    const perms = await drive.listPermissions(fileId);
+    for (const p of perms) {
+      if (p.role === 'owner' || String(p.emailAddress || '').toLowerCase() === this.myEmail) continue;
+      try { await drive.deletePermission(fileId, p.id); } catch (e) { console.warn('Freigabe nicht entfernt', p, e); }
+    }
   }
 
   /* ================================================================ Datenschutz-Einwilligungen */
@@ -332,7 +406,13 @@ export class GoogleBackend {
     if (!f) return null;
     // Freigabe an die aktuellen Verantwortlichen anpassen (z. B. nach einem Wechsel im Vorstand)
     this.ensureConsentSharing(f.id, f.appProperties?.fbEmpf).catch((e) => console.warn('Freigabe der Einwilligung nicht angepasst', e));
-    return { ...parseJson(f.description), fileId: f.id, geaendert: f.modifiedTime };
+    const rec = { ...parseJson(f.description), fileId: f.id, geaendert: f.modifiedTime };
+    // Sichtbarkeit nachziehen, falls die eigene Datei fehlt oder abweicht (z. B. nach einem Fehler beim Speichern)
+    if (typeof rec.sichtbar === 'boolean') {
+      this.myVisibility().then((v) => (v === rec.sichtbar ? null : this.saveMyVisibility(rec.sichtbar)))
+        .catch((e) => console.warn('Sichtbarkeit nicht abgeglichen', e));
+    }
+    return rec;
   }
 
   /** Entscheidung speichern – als eigene Datei im eigenen Drive (Inhalt und Beschreibung) */
@@ -355,6 +435,7 @@ export class GoogleBackend {
       id = created.id;
     }
     await this.ensureConsentSharing(id, f?.appProperties?.fbEmpf).catch((e) => console.warn('Freigabe der Einwilligung nicht möglich', e));
+    if (typeof rec.sichtbar === 'boolean') await this.saveMyVisibility(rec.sichtbar).catch((e) => console.warn('Sichtbarkeit nicht gespeichert', e));
     this.invalidate('consents');
     return { ...rec, fileId: id };
   }
@@ -404,6 +485,7 @@ export class GoogleBackend {
           name: this.ownerOf(f).name || rec.name || email,
           vereinszwecke: rec.vereinszwecke,
           dachverband: rec.dachverband,
+          sichtbar: rec.sichtbar,
           fassung: String(rec.fassung || ''),
           pruefsumme: rec.pruefsumme || '',
           zeitpunkt: rec.zeitpunkt || f.modifiedTime,

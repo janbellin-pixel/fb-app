@@ -572,7 +572,7 @@ async function run() {
   config.datenschutz = { ...config.datenschutz, empfaenger: ['vorstand@beispiel.de', me.email] };
   check(dsLib.consentRecipients(me.email).join() === 'vorstand@beispiel.de', 'Empfänger: Verantwortliche ohne mich selbst');
   check((await b.getMyConsent()) === null, 'noch keine Entscheidung → Abfrage beim ersten Öffnen');
-  await step('saveMyConsent (erstmals)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: false }));
+  await step('saveMyConsent (erstmals)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: false, sichtbar: true }));
   const consentFiles = () => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'einwilligung' && f.ownerEmail === me.email);
   const cf = consentFiles()[0];
   check(consentFiles().length === 1 && cf.parents.includes(folder.id), 'als eigene Datei im eigenen App-Ordner gespeichert');
@@ -585,8 +585,8 @@ async function run() {
   check(cPerms.length === 1 && cPerms[0].type === 'user' && cPerms[0].emailAddress === 'vorstand@beispiel.de' && cPerms[0].role === 'reader',
     'nur für die Verantwortlichen lesbar – nicht für Gruppe oder Domain', JSON.stringify(cPerms));
   check(dsLib.needsDecision(await b.getMyConsent()) === false, 'danach keine erneute Abfrage');
-  await step('saveMyConsent (DS erteilt)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: true }));
-  await step('saveMyConsent (DS widerrufen)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: false }));
+  await step('saveMyConsent (DS erteilt)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: true, sichtbar: true }));
+  await step('saveMyConsent (DS widerrufen)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: false, sichtbar: true }));
   const c3 = await b.getMyConsent();
   check(consentFiles().length === 1 && c3?.verlauf?.length === 3 && c3.dachverband === false, 'Widerruf in derselben Datei, Verlauf mit allen 3 Entscheidungen', JSON.stringify(c3?.verlauf));
   config.datenschutz = { ...config.datenschutz, empfaenger: ['schriftwart@beispiel.de'] };
@@ -624,11 +624,11 @@ async function run() {
   const s1 = await step('syncConsentTable', () => b.syncConsentTable());
   const tab = (n) => fake.state.sheets[tId].tabs.find((t) => t.title === n).rows;
   const stand = tab('Stand');
-  check(stand[0]?.[0] === 'E-Mail (Google-Konto)' && stand.some((r) => r[0] === ANNA && r[2] === 'Nein' && r[3] === 'Ja' && String(r[8]).includes(annaConsent.id)), 'Stand: Annas Zeile mit Nachweis-Link', JSON.stringify(stand));
-  check(stand.some((r) => r[0] === me.email && r[2] === 'Ja' && r[3] === 'Nein'), 'Stand: Theos aktuelle Entscheidung');
-  check(stand.some((r) => r[0] === 'karl@beispiel.de' && r[9] === 'keine Rückmeldung'), 'Stand: wer noch nicht geantwortet hat');
-  check(tab('Verlauf').length - 1 === 4 && s1?.neueEintraege === 4, 'Verlauf: alle 4 Erklärungen (3 von Theo, 1 von Anna)', JSON.stringify(tab('Verlauf')));
-  check(tab('Fassungen').length - 1 === 2 && tab('Fassungen')[1][4].includes('Bundesbote'), 'Fassungen: Wortlaut beider Einwilligungen festgehalten');
+  check(stand[0]?.[0] === 'E-Mail (Google-Konto)' && stand.some((r) => r[0] === ANNA && r[2] === 'Nein' && r[3] === 'Ja' && String(r[9]).includes(annaConsent.id)), 'Stand: Annas Zeile mit Nachweis-Link', JSON.stringify(stand));
+  check(stand[0]?.[4] === 'Sichtbar in der App' && stand.some((r) => r[0] === me.email && r[2] === 'Ja' && r[3] === 'Nein' && r[4] === 'Ja'), 'Stand: Theos aktuelle Entscheidung, auch zur Sichtbarkeit');
+  check(stand.some((r) => r[0] === 'karl@beispiel.de' && r[10] === 'keine Rückmeldung'), 'Stand: wer noch nicht geantwortet hat');
+  check(tab('Verlauf').length - 1 === 4 && s1?.neueEintraege === 4 && tab('Verlauf')[0][11] === 'Sichtbar in der App', 'Verlauf: alle 4 Erklärungen (3 von Theo, 1 von Anna)', JSON.stringify(tab('Verlauf')));
+  check(tab('Fassungen').length - 1 === 3 && tab('Fassungen')[1][4].includes('Bundesbote') && tab('Fassungen')[3][3].includes('Sichtbarkeit'), 'Fassungen: Wortlaut aller drei Punkte festgehalten');
   const tPerms = fake.state.permissions.filter((p) => p.file === tId);
   check(tPerms.length === 1 && tPerms[0].emailAddress === 'schriftwart@beispiel.de' && tPerms[0].role === 'reader', 'Tabelle lesbar für die aktuellen Verantwortlichen – und nur für sie', JSON.stringify(tPerms));
   const s2 = await step('syncConsentTable (unverändert)', () => b.syncConsentTable());
@@ -659,6 +659,47 @@ async function run() {
   check(found?.id === tId && found.own, 'ohne Eintrag in config.js findet die App die eigene Tabelle selbst');
   config.tabellen.einwilligungen = tId;
   b.invalidate('consentTable');
+
+  /* ---------------------------------------------------------------- Sichtbarkeit (E40) */
+  section('Sichtbarkeit in der App und „Nur App-Nutzer“ (E40)');
+  const visOf = (email) => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'sichtbarkeit' && f.ownerEmail === email);
+  const myVis = () => visOf(me.email)[0];
+  check(visOf(me.email).length === 1 && myVis().parents.includes(folder.id) && JSON.parse(myVis().description).sichtbar === true,
+    'eigene Sichtbarkeits-Datei im eigenen App-Ordner, auch nach mehrmaligem Speichern nur eine', myVis()?.description);
+  check(fake.state.permissions.some((p) => p.file === myVis()?.id && p.type === 'domain' && p.role === 'reader'), 'für die Mitglieder lesbar – daran erkennt deren App die Nutzung');
+  const BERT = 'bert@beispiel.de';
+  const KARL = 'karl@beispiel.de';
+  fake.state.directory.push({ resourceName: 'people/555', names: [{ displayName: 'Bert Bleibtweg' }], emailAddresses: [{ value: BERT }], photos: [] });
+  const annaVis = fake.addFile({ name: 'Sichtbarkeit (Mitglieder-App).json', appProperties: { fbTyp: 'sichtbarkeit', fbSichtbar: 'ja' }, description: JSON.stringify({ sichtbar: true }), ownerEmail: ANNA, ownerName: 'Anna Andere' });
+  const bertProfil = fake.addFile({ name: 'Mein Profil (Mitglieder-App).json', appProperties: { fbTyp: 'profil' }, description: JSON.stringify({ kneipname: 'Geheim' }), ownerEmail: BERT, ownerName: 'Bert Bleibtweg' });
+  fake.state.permissions.push({ file: bertProfil.id, id: 'perm-bert', type: 'domain', role: 'reader', domain: 'beispiel.de' });
+  fake.addFile({ name: 'Sichtbarkeit (Mitglieder-App).json', appProperties: { fbTyp: 'sichtbarkeit', fbSichtbar: 'nein' }, description: JSON.stringify({ sichtbar: false }), ownerEmail: BERT, ownerName: 'Bert Bleibtweg' });
+  // Fälschungsversuch: Anna legt eine ältere Datei an, die Theo verstecken soll
+  fake.addFile({ name: 'x.json', appProperties: { fbTyp: 'sichtbarkeit', fbSichtbar: 'nein' }, description: JSON.stringify({ sichtbar: false, konto: me.email }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2020-01-01T00:00:00.000Z' });
+  for (const k of ['directory', 'profiles', 'visibility']) b.invalidate(k);
+  const visList = await step('listMembers (Sichtbarkeit)', () => b.listMembers());
+  const vm = (email) => visList?.find((m) => m.email === email);
+  check(vm(ANNA)?.appNutzer === true, 'Anna nutzt die App und ist sichtbar', JSON.stringify(vm(ANNA)));
+  check(vm(KARL) && vm(KARL).appNutzer === false, 'Karl steht im Google-Verzeichnis, hat die App aber noch nicht genutzt (nur bei „alle zeigen“)', JSON.stringify(vm(KARL)));
+  check(!vm(BERT) && (await b.getMember(BERT)) === null, 'Bert hat „nicht sichtbar“ gewählt: fehlt in der Liste und als Profil', JSON.stringify(vm(BERT)));
+  check(vm(me.email)?.appNutzer === true, 'gefälschte Datei versteckt Theo nicht (Inhaber zählt)');
+  await blocked('fremde Sichtbarkeit ändern', fake, () => drive.updateFile(annaVis.id, { description: '{"sichtbar":false}' }));
+  await blocked('Freigabe eines fremden Profils entfernen', fake, () => drive.deletePermission(bertProfil.id, 'perm-bert'));
+  if (![...fake.state.files.values()].some((f) => f.appProperties.fbTyp === 'profil' && f.ownerEmail === me.email)) await b.saveMyProfile({ kneipname: 'Testo' });
+  const myProfil = [...fake.state.files.values()].find((f) => f.appProperties.fbTyp === 'profil' && f.ownerEmail === me.email);
+  const profilShared = () => fake.state.permissions.filter((p) => p.file === myProfil?.id && ['group', 'domain', 'user'].includes(p.type)).length;
+  check(profilShared() > 0, 'vorher: eigenes Profil für die Mitglieder freigegeben');
+  await step('saveMyConsent (nicht sichtbar)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: false, sichtbar: false }));
+  check(visOf(me.email).length === 1 && JSON.parse(myVis().description).sichtbar === false && myVis().appProperties.fbSichtbar === 'nein', 'Wahl „nicht sichtbar“ in derselben Datei', myVis()?.description);
+  check(profilShared() === 0 && fake.state.permissions.some((p) => p.file === myVis().id && p.type === 'domain'),
+    'eigenes Profil nicht mehr freigegeben; die Sichtbarkeits-Datei bleibt lesbar (sonst wüsste die App der anderen nichts von der Wahl)');
+  const writesV = fake.state.writes.length;
+  await step('saveMyProfile (unsichtbar)', () => b.saveMyProfile({ kneipname: 'Testo', wohnort: 'Braunschweig' }));
+  check(profilShared() === 0 && fake.state.writes.length > writesV, 'Profil bearbeiten geht weiter, es bleibt aber privat');
+  await step('saveMyConsent (wieder sichtbar)', () => b.saveMyConsent({ vereinszwecke: true, dachverband: false, sichtbar: true }));
+  check(profilShared() > 0 && JSON.parse(myVis().description).sichtbar === true, 'wieder sichtbar: Profil wieder freigegeben');
+  const consentsV = await b.listConsents();
+  check(consentsV.find((x) => x.email === me.email)?.sichtbar === true, 'Übersicht der Verantwortlichen kennt die Wahl (zum Abgleich mit dem Google-Verzeichnis)');
 
   /* ---------------------------------------------------------------- Vorhandenes verbinden */
   section('Einrichtung mit vorhandenen Daten: nur Fehlendes anlegen');

@@ -67,7 +67,8 @@ export class DemoBackend {
   }
 
   members() {
-    return this.baseMembers.map((m) => this.member(m.email));
+    // erfunden: jedes vierte Mitglied hat die App noch nicht genutzt (Schalter „Nur App-Nutzer“, E40)
+    return this.baseMembers.map((m, i) => ({ ...this.member(m.email), appNutzer: m.email === DEMO_ME_EMAIL || i % 4 !== 3 }));
   }
 
   async listMembers() {
@@ -77,7 +78,7 @@ export class DemoBackend {
 
   async getMember(email) {
     await wait(60);
-    return this.member(String(email).toLowerCase());
+    return this.members().find((m) => m.email === String(email).toLowerCase()) || null;
   }
 
   async saveMyProfile(fields) {
@@ -123,7 +124,7 @@ export class DemoBackend {
       const d = new Date(Date.now() - ((i * 37) % 60) * 86400_000);
       d.setHours(9 + ((i * 5) % 13), (i * 17) % 60, 0, 0);
       const zeitpunkt = d.toISOString();
-      const v = { zeitpunkt, fassung, pruefsumme: textPruefsumme(), vereinszwecke: i % 7 !== 2, dachverband: i % 3 !== 1, geraet: i % 2 ? 'iPhone · Safari · installierte App' : 'Android · Chrome' };
+      const v = { zeitpunkt, fassung, pruefsumme: textPruefsumme(), vereinszwecke: i % 7 !== 2, dachverband: i % 3 !== 1, sichtbar: i % 6 !== 4, geraet: i % 2 ? 'iPhone · Safari · installierte App' : 'Android · Chrome' };
       out.push({ email: m.email, name: m.name, ...v, erstmals: zeitpunkt, geaendert: zeitpunkt, verlauf: [v], fileId: `demo-${i}`, link: '' });
     });
     const mine = this.state.einwilligung;

@@ -94,8 +94,8 @@ window.FB_CONFIG = {
     email: 'info@frankonia-brunonia.de', // Kontakt für Datenschutzfragen
     dachverband: 'Deutsche Sängerschaft (DS)',
     dachverbandKurz: 'DS',
-    fassung: '2',      // erhöhen, wenn sich die Einwilligungstexte ändern – dann werden alle erneut gefragt
-    stand: '18.10.2026',
+    fassung: '3',      // erhöhen, wenn sich die Einwilligungstexte ändern – dann werden alle erneut gefragt
+    stand: '20.10.2026',
     empfaenger: []     // wer die Einwilligungen einsehen darf (E-Mail-Adressen); leer = die Admins
   },
 

@@ -82,12 +82,26 @@ export function einwilligungen() {
       ],
       daten: 'Name, Vorname, Anschrift, E-Mail-Adresse, Telefonnummer, Geburtsdatum, Mitgliedsstatus (z. B. Aktiver, Inaktiver, Alter Herr), Datum der Rezeption bzw. des Eintritts und die Zugehörigkeit zur Verbindung.',
     },
+    {
+      // keine Einwilligung im engeren Sinn, sondern die eigene Wahl, ob andere einen in der App sehen (E40)
+      id: 'sichtbar',
+      titel: 'Sichtbarkeit in der Mitgliederliste der App',
+      text: 'Andere Mitglieder dürfen mich in der Mitgliederliste der App sehen und mein Profil aufrufen:',
+      punkte: [
+        'mit Name, Foto und E-Mail-Adresse aus meinem Google-Konto sowie Kneipname und Status aus dem Adressverzeichnis',
+        'mit den Angaben, die ich selbst unter „Mein Profil“ eintrage',
+      ],
+      daten: 'Name, Profilfoto, E-Mail-Adresse, Kneipname, Status und die Angaben in „Mein Profil“.',
+      ja: 'Ja, sichtbar',
+      nein: 'Nein, nicht anzeigen',
+      hinweis: 'Bei „Nein“ erscheinst du nicht in der Mitgliederliste der App, und dein Profil ist für andere nicht abrufbar. Wo du selbst etwas schreibst oder zusagst (Chat, Forum, Termine), steht weiterhin dein Name. Das Google-Verzeichnis (z. B. Adressvorschläge in Gmail) stellt nur ein Admin ein.',
+    },
   ];
 }
 
 /** Wortlaut einer Einwilligung als reiner Text (für Nachweis und Prüfsumme) */
 export function wortlaut(e) {
-  return `${e.titel}\n${e.text}\n${e.punkte.map((p) => `– ${p}`).join('\n')}\nBetroffene Daten: ${e.daten}`;
+  return `${e.titel}\n${e.text}\n${e.punkte.map((p) => `– ${p}`).join('\n')}\nBetroffene Daten: ${e.daten}${e.hinweis ? `\nHinweis: ${e.hinweis}` : ''}`;
 }
 
 /** Kurze Prüfsumme (FNV-1a) – zeigt eindeutig, welcher Wortlaut zugestimmt wurde */
@@ -108,11 +122,11 @@ export function textPruefsumme() {
 /** Muss das Mitglied (erneut) entscheiden? */
 export function needsDecision(rec) {
   return !rec || rec.fassung !== dsConfig().fassung
-    || typeof rec.vereinszwecke !== 'boolean' || typeof rec.dachverband !== 'boolean';
+    || typeof rec.vereinszwecke !== 'boolean' || typeof rec.dachverband !== 'boolean' || typeof rec.sichtbar !== 'boolean';
 }
 
 /** Neuer Datensatz aus der bisherigen Erklärung und der neuen Entscheidung */
-export function buildRecord(prev, { vereinszwecke, dachverband, zeitpunkt: when }, user) {
+export function buildRecord(prev, { vereinszwecke, dachverband, sichtbar, zeitpunkt: when }, user) {
   const ds = dsConfig();
   // Zeitpunkt der Entscheidung (bei offline getroffener Entscheidung: der ursprüngliche)
   const zeitpunkt = when && !Number.isNaN(Date.parse(when)) ? new Date(when).toISOString() : new Date().toISOString();
@@ -122,6 +136,8 @@ export function buildRecord(prev, { vereinszwecke, dachverband, zeitpunkt: when 
     pruefsumme: textPruefsumme(),
     vereinszwecke: !!vereinszwecke,
     dachverband: !!dachverband,
+    // fehlt die Wahl (ältere Aufrufe), bleibt sie offen – die App fragt dann erneut
+    ...(typeof sichtbar === 'boolean' ? { sichtbar } : {}),
     geraet: geraetInfo(),
   };
   return {
@@ -186,7 +202,8 @@ export function erklaerung() {
       titel: 'Welche Daten verarbeitet die App?',
       inhalt: html`<ul>
         <li><strong>Dein Google-Konto:</strong> Name, E-Mail-Adresse und Profilfoto.</li>
-        <li><strong>Was du selbst einträgst:</strong> Profilangaben (z. B. Kneipname, Studium/Beruf, aktuelle Tätigkeit, Wohnort, Telefon, „Über mich“ und was du jüngeren Bundesbrüdern anbietest), Zu- und Absagen zu Terminen mit Gästen und Kommentar, Forumsbeiträge, als Admin oder Redaktion auch News mit Bildern, Chat-Nachrichten und deine Entscheidungen zu den Einwilligungen.</li>
+        <li><strong>Was du selbst einträgst:</strong> Profilangaben (z. B. Kneipname, Studium/Beruf, aktuelle Tätigkeit, Wohnort, Telefon, „Über mich“ und was du jüngeren Bundesbrüdern anbietest), Zu- und Absagen zu Terminen mit Gästen und Kommentar, Forumsbeiträge, als Admin oder Redaktion auch News mit Bildern, Chat-Nachrichten, deine Entscheidungen zu den Einwilligungen und ob du in der Mitgliederliste der App sichtbar bist.</li>
+        <li><strong>App-Nutzung und Sichtbarkeit:</strong> Sobald du deine Auswahl speicherst, legt die App in deinem Google Drive eine kleine Datei an, die die Mitglieder lesen können. Sie enthält nur, ob du in der Mitgliederliste sichtbar sein möchtest, und den Zeitpunkt. Daran erkennt die App der anderen, dass du die App nutzt und ob sie dich anzeigen darf.</li>
         <li><strong>Adressänderungen:</strong> Unter „Mein Profil“ vergleicht die App deine Anschrift mit dem Adressverzeichnis. Weicht etwas ab, öffnet sie auf Wunsch dein E-Mail-Programm mit einer vorbereiteten Nachricht an das Postfach für Adressänderungen. Die App selbst speichert oder versendet diese Angaben nicht – erst du schickst die E-Mail ab.</li>
         <li><strong>Daten der Verbindung:</strong> Termine, Adressverzeichnis (z. B. Anschrift, Telefon, Geburtsdatum, Status), Neuigkeiten, Bundesbote, DS-Zeitung und Fotos von Veranstaltungen.</li>
         <li><strong>Technisch notwendig:</strong> Beim Laden der App-Dateien verarbeitet der Webhoster deine IP-Adresse und Browserangaben kurzzeitig in Server-Protokollen. Auf deinem Gerät speichert die App einen Zugangsschlüssel (eine Stunde gültig), deine Einstellungen (z. B. Schriftgröße, Benachrichtigungen), bei eingeschalteten Benachrichtigungen, welche Nachrichten und News du schon gesehen hast, und einen Zwischenspeicher, damit sie schnell startet und auch offline funktioniert (z. B. gespeicherte Lieder). Mitteilungen zeigt dein Gerät an; die App schickt dafür nichts an weitere Dienste.</li>
@@ -199,7 +216,7 @@ export function erklaerung() {
     {
       titel: 'Wer sieht was?',
       inhalt: html`<ul>
-        <li>Profil, Zu- und Absagen und Forumsbeiträge sehen alle Mitglieder der Verbindung.</li>
+        <li>Dein Profil sehen die Mitglieder, solange du in der Mitgliederliste sichtbar bist. Zu- und Absagen und Forumsbeiträge sehen alle Mitglieder der Verbindung.</li>
         <li>Das Adressverzeichnis ist nur für Mitglieder und nur zum Lesen da.</li>
         <li>Chat-Nachrichten sehen die Mitglieder des jeweiligen Chat-Raums.</li>
         <li>Deine Einwilligungen sehen nur du und die für den Datenschutz Verantwortlichen der Verbindung.</li>
@@ -227,9 +244,9 @@ export function erklaerung() {
 
 /** Hinweise unter den Einwilligungen */
 export function einwilligungHinweis() {
-  return html`Beide Einwilligungen sind <strong>freiwillig und unabhängig voneinander</strong>. Auch ohne Einwilligung kannst du die App ganz normal nutzen und bleibst vollwertiges Mitglied. Du kannst deine Entscheidung jederzeit unter <strong>Mehr → Datenschutz</strong> ändern oder formlos beim Vorstand widerrufen; der Widerruf gilt für die Zukunft.`;
+  return html`Alle drei Angaben sind <strong>freiwillig und unabhängig voneinander</strong>. Auch ohne Einwilligung und ohne Sichtbarkeit kannst du die App ganz normal nutzen und bleibst vollwertiges Mitglied. Du kannst deine Entscheidung jederzeit unter <strong>Mehr → Datenschutz</strong> ändern oder formlos beim Vorstand widerrufen; der Widerruf gilt für die Zukunft.`;
 }
 
 export function speicherHinweis() {
-  return html`Deine Entscheidung wird mit Datum und Uhrzeit als kleine Datei in <strong>deinem eigenen Google Drive</strong> gespeichert – lesen können sie nur du und die Datenschutz-Verantwortlichen – und in die vertrauliche Einwilligungsliste der Verbindung übernommen.`;
+  return html`Deine Entscheidung wird mit Datum und Uhrzeit als kleine Datei in <strong>deinem eigenen Google Drive</strong> gespeichert – lesen können sie nur du und die Datenschutz-Verantwortlichen – und in die vertrauliche Einwilligungsliste der Verbindung übernommen. Ob du sichtbar bist, steht zusätzlich in einer kleinen Datei in deinem Drive, die die Mitglieder lesen können – sonst wüsste ihre App nicht, ob sie dich anzeigen darf.`;
 }

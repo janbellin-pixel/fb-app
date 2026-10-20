@@ -26,7 +26,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **News** | Meldungen mit Bildern. Admins und die Redaktion schreiben sie direkt in der App (als eigene Beiträge, wie im Forum); Meldungen aus einer Google-Tabelle „News“ erscheinen zusätzlich. |
 | **Forum** | Kategorien, Themen und Antworten. Jeder Beitrag liegt im eigenen Drive des Verfassers, nur er kann ihn ändern oder löschen. |
 | **Schriftgröße** | Klein, Normal, Groß und Sehr groß, damit auch Menschen mit schlechten Augen auf dem Handy alles lesen können. Einstellbar unter Mehr. |
-| **Datenschutz** | Beim ersten Öffnen: Datenschutzerklärung und zwei getrennte Einwilligungen (vereinsübliche Zwecke; Weitergabe an die Deutsche Sängerschaft), jeweils Ja oder Nein. Unter Mehr → Datenschutz jederzeit änderbar. Jede Entscheidung liegt nachweisbar im eigenen Drive und wird in einer vertraulichen Sammeltabelle der Verantwortlichen zusammengeführt. |
+| **Datenschutz** | Beim ersten Öffnen: Datenschutzerklärung, zwei getrennte Einwilligungen (vereinsübliche Zwecke; Weitergabe an die Deutsche Sängerschaft) und die Wahl, ob man in der Mitgliederliste der App sichtbar ist, jeweils Ja oder Nein. Unter Mehr → Datenschutz jederzeit änderbar. Jede Entscheidung liegt nachweisbar im eigenen Drive und wird in einer vertraulichen Sammeltabelle der Verantwortlichen zusammengeführt. |
 | **Geräte** | Handy, Phablet und Tablet in jeder Ausrichtung sowie PC. Auf Touch-Geräten gibt es immer die große Leiste unten, ab iPad-Breite zweispaltig, mit Schutzabständen für Kameraaussparungen im Querformat. |
 | **Gestaltung** | Im Stil der Website: hellgrau, schwarze Titelkästen, Raleway, Grün aus dem Wappen. Wappen klein oben, Skyline unten. |
 
@@ -38,7 +38,7 @@ Die App ändert **keine** gemeinsamen Daten, weder Termine noch News, Adressen, 
 
 1. **Google-Freigaben:** Mitglieder haben auf Kalender, Tabellen und Ordner nur Leserechte.
 2. **Angefragte Berechtigungen:** Die App fragt bei Google für Drive nur „lesen“ und „eigene, von der App angelegte Dateien“ an (`drive.readonly` und `drive.file`), für Tabellen gar keine Schreibberechtigung. Damit kann sie fremde Dateien technisch nicht ändern.
-3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Zusagen ohne Einladung, News der Redaktion, Einwilligung), eigene Chat-Nachrichten sowie neue Unterhaltungen mit Personen und das Hinzufügen von Personen. Alles andere wird blockiert.
+3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Zusagen ohne Einladung, News der Redaktion, Einwilligung, Sichtbarkeit), eigene Chat-Nachrichten sowie neue Unterhaltungen mit Personen und das Hinzufügen von Personen. Alles andere wird blockiert.
 
 Ausnahmen gibt es zwei, beide betreffen nur eigene Dateien:
 - Der Knopf **„Fehlendes neu anlegen“** in der Einrichtung ist nur für Admins sichtbar und legt nur an, was noch nicht verbunden ist – ausschließlich neue Dateien im eigenen Drive. Verbundenes (vorhandener Kalender, Mitgliederliste, Ordner) wird nie verändert oder neu freigegeben.
@@ -92,7 +92,7 @@ python tools/make_anleitung.py https://janbellin-pixel.github.io/fb-app/ --domai
 
 ## Technik in Kürze
 
-Progressive Web App ohne Build-Schritt und ohne eigenen Server · Google Calendar, Sheets (nur lesen), Drive, People und Chat API · OAuth 2.0 · Schreibschutz im Code · offline-fähig (Service Worker) · PDF.js + StPageFlip · Schriften lokal (DSGVO) · Demo-Modus · automatische Tests gegen einen Nachbau der Google-APIs (`tests/google-mock.html`, 127 Prüfungen, davon viele zu Schreibschutz und Einwilligungen).
+Progressive Web App ohne Build-Schritt und ohne eigenen Server · Google Calendar, Sheets (nur lesen), Drive, People und Chat API · OAuth 2.0 · Schreibschutz im Code · offline-fähig (Service Worker) · PDF.js + StPageFlip · Schriften lokal (DSGVO) · Demo-Modus · automatische Tests gegen einen Nachbau der Google-APIs (`tests/google-mock.html`, 270 Prüfungen, davon viele zu Schreibschutz, Einwilligungen und Sichtbarkeit).
 
 ## Lizenzen
 

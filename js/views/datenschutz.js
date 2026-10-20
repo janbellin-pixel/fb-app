@@ -21,7 +21,8 @@ function erklaerungHtml({ open = true } = {}) {
 }
 
 function consentText(e) {
-  return html`<p>${e.text}</p><ul>${e.punkte.map((p) => html`<li>${p}</li>`)}</ul><p class="small muted">Betroffene Daten: ${e.daten}</p>`;
+  return html`<p>${e.text}</p><ul>${e.punkte.map((p) => html`<li>${p}</li>`)}</ul><p class="small muted">Betroffene Daten: ${e.daten}</p>
+    ${e.hinweis ? html`<p class="small muted">${e.hinweis}</p>` : ''}`;
 }
 
 export default async function datenschutz(ctx) {
@@ -60,7 +61,7 @@ export default async function datenschutz(ctx) {
         <ul class="ds-points">
           <li>${icon('lock', 'icon-sm')}<span>Deine Daten bleiben im Google-Konto der Verbindung. Keine Werbung, keine Tracker.</span></li>
           <li>${icon('eye', 'icon-sm')}<span>Gemeinsame Daten (Termine, Adressen, Bundesbote, DS-Zeitung, Liedermappe, Fotos) zeigt die App nur an. Ändern kannst du nur deine eigenen Angaben.</span></li>
-          <li>${icon('check', 'icon-sm')}<span>Die zwei Einwilligungen unten sind freiwillig – du kannst sie jederzeit unter Mehr → Datenschutz ändern.</span></li>
+          <li>${icon('check', 'icon-sm')}<span>Die Angaben unten – zwei Einwilligungen und ob andere dich in der Mitgliederliste sehen – sind freiwillig. Du kannst sie jederzeit unter Mehr → Datenschutz ändern.</span></li>
         </ul>
         <details class="ds-section" style="margin-top:.75rem"><summary>Die ganze Datenschutzerklärung lesen</summary><div class="ds-body prose">${erklaerungHtml({ open: false })}</div></details>
       </div>`
@@ -68,8 +69,8 @@ export default async function datenschutz(ctx) {
     ${!first && app.isAdmin() && !angabenVollstaendig() ? html`<div style="margin-bottom:1rem">${notice('gold', 'Für Admins: Angaben ergänzen', 'Die Datenschutzerklärung ist ein Muster. Bitte unter Einrichtung → Datenschutz den Verein (Verantwortlicher), die Anschrift und eine Kontaktadresse eintragen und den Text vom Vorstand prüfen lassen.',
       html`<p style="margin-top:.5rem"><a class="btn btn-sm" href="#/einrichtung">${icon('tool', 'icon-sm')}Zur Einrichtung</a></p>`)}</div>` : ''}
     <form class="card card-pad" id="consent-form" novalidate>
-      <h2 class="card-title">Deine Einwilligungen</h2>
-      <p class="small muted" style="margin-top:0">Bitte entscheide dich bei beiden Punkten jeweils für <strong>Ja</strong> oder <strong>Nein</strong>.</p>
+      <h2 class="card-title">Deine Einwilligungen und Sichtbarkeit</h2>
+      <p class="small muted" style="margin-top:0">Bitte entscheide dich bei jedem Punkt für <strong>Ja</strong> oder <strong>Nein</strong>.</p>
       <div id="consent-items"></div>
       <p class="small">${einwilligungHinweis()}</p>
       <p class="small muted">${icon('shield', 'icon-sm')} ${speicherHinweis()}</p>
@@ -107,8 +108,8 @@ export default async function datenschutz(ctx) {
         <legend>${e.titel}</legend>
         ${consentText(e)}
         <div class="consent-choice" role="radiogroup" aria-label="${e.titel}">
-          <label class="choice yes"><input type="radio" name="${e.id}" value="ja" ${pre === true ? 'checked' : ''}><span>${icon('check', 'icon-sm')}Ja, ich willige ein</span></label>
-          <label class="choice no"><input type="radio" name="${e.id}" value="nein" ${pre === false ? 'checked' : ''}><span>${icon('x', 'icon-sm')}Nein</span></label>
+          <label class="choice yes"><input type="radio" name="${e.id}" value="ja" ${pre === true ? 'checked' : ''}><span>${icon('check', 'icon-sm')}${e.ja || 'Ja, ich willige ein'}</span></label>
+          <label class="choice no"><input type="radio" name="${e.id}" value="nein" ${pre === false ? 'checked' : ''}><span>${icon('x', 'icon-sm')}${e.nein || 'Nein'}</span></label>
         </div>
         ${typeof cur === 'boolean' ? html`<p class="tiny muted" style="margin:.5rem 0 0">Bisher: <strong>${ja(cur)}</strong>${current.zeitpunkt ? ` · ${when(current.zeitpunkt)}` : ''}${!valid ? ` · Fassung ${current.fassung} – bitte neu entscheiden` : ''}</p>` : ''}
       </fieldset>`;
@@ -133,7 +134,7 @@ export default async function datenschutz(ctx) {
     const list = (current?.verlauf || []).slice().reverse();
     setHtml(box, list.length ? html`
       <details class="card card-pad" style="margin-top:1rem"><summary style="cursor:pointer;font-weight:700">Deine bisherigen Entscheidungen (${list.length})</summary>
-        <ul class="ds-history">${list.map((v) => html`<li><strong>${when(v.zeitpunkt)}</strong> – Vereinszwecke: ${ja(v.vereinszwecke)} · ${ds.dachverbandKurz}: ${ja(v.dachverband)} <span class="tiny muted">· Fassung ${v.fassung}${v.geraet ? ` · ${v.geraet}` : ''}</span></li>`)}</ul>
+        <ul class="ds-history">${list.map((v) => html`<li><strong>${when(v.zeitpunkt)}</strong> – Vereinszwecke: ${ja(v.vereinszwecke)} · ${ds.dachverbandKurz}: ${ja(v.dachverband)}${typeof v.sichtbar === 'boolean' ? ` · sichtbar: ${ja(v.sichtbar)}` : ''} <span class="tiny muted">· Fassung ${v.fassung}${v.geraet ? ` · ${v.geraet}` : ''}</span></li>`)}</ul>
         ${current?.fileId && !String(current.fileId).startsWith('demo') ? html`<p class="small" style="margin-bottom:0"><a href="https://drive.google.com/file/d/${current.fileId}/view" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Nachweis in deinem Google Drive öffnen</a></p>` : ''}
       </details>` : '');
   }
@@ -228,6 +229,7 @@ export async function uebersicht(ctx) {
       ['Rückmeldungen', `${consents.length} von ${rows.length}`],
       ['Vereinszwecke: Ja', n((r) => r.vereinszwecke === true)],
       [`${ds.dachverbandKurz}: Ja`, n((r) => r.dachverband === true)],
+      ['In der App sichtbar', n((r) => r.sichtbar === true)],
       ['Noch offen', n((r) => r.offen || r.fassung !== ds.fassung)],
     ];
     const filters = {
@@ -236,6 +238,8 @@ export async function uebersicht(ctx) {
       dvja: [`${ds.dachverbandKurz}: Ja`, (r) => r.dachverband === true],
       dvnein: [`${ds.dachverbandKurz}: Nein`, (r) => r.dachverband === false],
       vznein: ['Vereinszwecke: Nein', (r) => r.vereinszwecke === false],
+      // wer nicht sichtbar sein möchte – bei Bedarf im Google-Verzeichnis von Hand ausblenden (E40)
+      unsichtbar: ['Nicht sichtbar', (r) => r.sichtbar === false],
     };
     const shown = rows.filter(filters[filter][1]);
     setHtml(c, html`
@@ -264,6 +268,7 @@ export async function uebersicht(ctx) {
           <div class="ds-pills">
             <span class="tiny muted">Verein</span>${pill(r.vereinszwecke)}
             <span class="tiny muted">${ds.dachverbandKurz}</span>${pill(r.dachverband)}
+            <span class="tiny muted">Sichtbar</span>${pill(r.sichtbar)}
           </div>
           <div class="tiny muted ds-when">${r.offen ? 'keine Rückmeldung' : html`${when(r.zeitpunkt)}${r.fassung !== ds.fassung ? html`<br>ältere Fassung ${r.fassung}` : ''}`}</div>
         </div>`) : html`<div class="card-pad">${emptyState('users', 'Niemand in dieser Auswahl')}</div>`}</div>`);

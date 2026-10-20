@@ -6,7 +6,7 @@
 
 Die Mitglieder-App ist eine **Progressive Web App (PWA)**: eine Web-App, die sich wie eine normale App auf iPhone, Android und PC installieren lässt. Es gibt **keinen eigenen Server**. Die App spricht direkt mit den Google-Schnittstellen, angemeldet mit dem Google-Konto des Mitglieds. Wer was sehen darf, regeln die **Freigaben in Google**.
 
-**Leitlinie:** Die App dient der Information und dem Austausch. Gemeinsame Daten werden nur **gelesen**. Schreiben darf jedes Mitglied ausschließlich **eigene** Daten (eigene Zu-/Absage, eigenes Profil, eigene Forumsbeiträge, eigene Datenschutz-Einwilligung, eigene Chat-Nachrichten). Siehe [Schreibschutz](#schreibschutz).
+**Leitlinie:** Die App dient der Information und dem Austausch. Gemeinsame Daten werden nur **gelesen**. Schreiben darf jedes Mitglied ausschließlich **eigene** Daten (eigene Zu-/Absage, eigenes Profil, eigene Forumsbeiträge, eigene Datenschutz-Einwilligung und Sichtbarkeit, eigene Chat-Nachrichten). Siehe [Schreibschutz](#schreibschutz).
 
 ```
 Handy / PC (PWA)  ──OAuth 2.0──▶  Google-Konto des Mitglieds
@@ -14,7 +14,8 @@ Handy / PC (PWA)  ──OAuth 2.0──▶  Google-Konto des Mitglieds
        ├─ Google Calendar API   Termine lesen; eigene Antwort im eigenen Kalender
        ├─ Google Sheets API     nur lesen: News, Adressverzeichnis
        ├─ Google Drive API      lesen: Zeitungs-PDFs, Galerie, News-Bilder
-       │                        eigene Dateien: Profil, Forum, Zusagen, Einwilligung
+       │                        eigene Dateien: Profil, Forum, Zusagen, Einwilligung,
+       │                        Sichtbarkeit
        ├─ People API            Workspace-Verzeichnis (Namen, Fotos)
        └─ Google Chat API       Räume lesen, eigene Nachrichten
 GitHub Pages: liefert nur die statischen App-Dateien aus
@@ -58,7 +59,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Zu-/Absagen | Eingeladen: Teilnehmerstatus im Termin (`attendees[].responseStatus`, `additionalGuests`, `comment`), gesetzt über den **eigenen** Kalender (`calendars/primary`). Nicht eingeladen: eigene Datei im eigenen Drive (`fbTyp=zusage`, E28) | eigene Antwort | jedes Mitglied selbst |
 | Kategorie, Kleidung, Pflicht | `extendedProperties.shared` (`fbKategorie`, `fbKleidung`, `fbPflicht`) oder Zeilen in der Beschreibung (`Kategorie: …`, `Kleidung: …`, `Pflichttermin`); sonst Kategorie aus dem Titel geraten | lesen | Chargen |
 | Profilfoto, Name | Google-Konto bzw. Workspace-Verzeichnis | – | jedes Mitglied im Google-Konto |
-| Profil-Zusatzangaben | JSON in der Beschreibung einer kleinen Datei im **eigenen** Drive (`appProperties.fbTyp = profil`), Ordner „Frankonia-Brunonia App – meine Beiträge und Profil“. Felder: Kneipname, Status, Rezeption, Ämter, Studium/Beruf, aktuelle bzw. letzte Tätigkeit, Wohnort, Über mich, Angebot für Jüngere, Telefon, Instagram, LinkedIn | lesen (Freigabe Gruppe/Domain) | jedes Mitglied selbst |
+| Profil-Zusatzangaben | JSON in der Beschreibung einer kleinen Datei im **eigenen** Drive (`appProperties.fbTyp = profil`), Ordner „Frankonia-Brunonia App – meine Beiträge und Profil“. Felder: Kneipname, Status, Rezeption, Ämter, Studium/Beruf, aktuelle bzw. letzte Tätigkeit, Wohnort, Über mich, Angebot für Jüngere, Telefon, Instagram, LinkedIn | lesen (Freigabe Gruppe/Domain) – nur, solange das Mitglied sichtbar ist (E40) | jedes Mitglied selbst |
 | Adressänderungen | keine Speicherung: „Mein Profil“ gleicht Anschrift und Stammdaten mit dem Adressverzeichnis ab (`js/lib/adressabgleich.js`) und bereitet eine E-Mail an `config.adressaenderung` vor | – | Mitglied schickt sie ab, Schriftwart pflegt das Verzeichnis |
 | Forum | je Beitrag eine kleine Datei im **eigenen** Drive des Verfassers (`fbTyp = forum`, `fbRolle = thema/antwort`, `fbThema`, `fbKategorie`) | lesen | jeder seine eigenen |
 | Status, Kneipname, Rezeption, Beruf, Wohnort | Adressverzeichnis. Der **Status** von dort hat immer Vorrang; die übrigen Angaben kann das Mitglied im eigenen Profil ergänzen oder überschreiben | lesen | Admins / Schriftwart |
@@ -72,9 +73,10 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Galerie | Bilder im Drive-Ordner; Unterordner = Alben (`JJJJ-MM Name`), lose Bilder = Album „Allgemein“ | lesen | Admins / Fotowart in Google Drive |
 | Chat | Google Chat (Räume des Workspace) | wie in Google Chat | – |
 | Datenschutz-Einwilligung | Datei *„Datenschutz-Einwilligung (Mitglieder-App).json“* im **eigenen** Drive (`appProperties.fbTyp = einwilligung`, öffentlich `properties.fbTyp` für das Apps-Script). Inhalt und Beschreibung: Entscheidungen, Zeitpunkt, Fassung, Prüfsumme des Wortlauts, Gerät, letzte 10 Entscheidungen | **kein Zugriff**; lesen nur Mitglied und Verantwortliche (`type: user`, `role: reader`) | jedes Mitglied selbst |
+| Sichtbarkeit (E40) | Datei *„Sichtbarkeit (Mitglieder-App).json“* im **eigenen** Drive (`fbTyp = sichtbarkeit`, `{ sichtbar, geaendert }`), entsteht beim Speichern der Datenschutz-Auswahl. Wer eine hat, hat die App genutzt („Nur App-Nutzer“); bei „nein“ blendet die App das Mitglied aus | lesen (Freigabe Gruppe/Domain) | jedes Mitglied selbst |
 | Einwilligungsliste | Google-Tabelle im Drive der Verantwortlichen, **außerhalb** des freigegebenen Ordners (`appProperties.fbTyp = einwilligungen-tabelle`), Blätter „Stand“, „Verlauf“, „Fassungen“ | **kein Zugriff** | nur das Konto, dem sie gehört (App oder Apps-Script) |
 
-**Wer hat das geschrieben?** Für Profile, Forumsbeiträge und Einwilligungen nimmt die App den Verfasser aus dem Dateieigentümer, den Google selbst meldet (`owners[0]`). Angaben in der Datei selbst, z. B. eine eingetragene E-Mail-Adresse, werden dafür nicht verwendet. Damit kann niemand im Namen eines anderen auftreten. Hat jemand mehrere solcher Dateien, zählt die zuletzt geänderte.
+**Wer hat das geschrieben?** Für Profile, Forumsbeiträge, Einwilligungen und Sichtbarkeit nimmt die App den Verfasser aus dem Dateieigentümer, den Google selbst meldet (`owners[0]`). Angaben in der Datei selbst, z. B. eine eingetragene E-Mail-Adresse, werden dafür nicht verwendet. Damit kann niemand im Namen eines anderen auftreten. Hat jemand mehrere solcher Dateien, zählt die zuletzt geänderte.
 
 **Einwilligungen nachvollziehbar:** Jede Entscheidung entsteht in der angemeldeten Google-Sitzung des Mitglieds und liegt als dessen eigene Datei vor; Inhaber und Änderungszeit setzt Google. Die Sammeltabelle übernimmt jede Erklärung in den „Verlauf“ (nur anhängen, Schlüssel = Datei-ID + Zeitstempel) und hält im Blatt „Fassungen“ den genauen Wortlaut mit Prüfsumme fest. Die Freigabe jeder Einwilligung wird beim Öffnen der App an die aktuelle Liste der Verantwortlichen angepasst; andere Freigaben (Gruppe, Domain, Link) werden entfernt. Wird die Fassung in `config.js` erhöht, fragt die App alle Mitglieder erneut.
 

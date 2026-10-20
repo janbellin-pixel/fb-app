@@ -307,3 +307,16 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
   - Lässt sich nichts davon erkennen, entscheiden die Zahlen im Namen (Zahl für Zahl von vorn: „… 12“ vor „… 9“), danach der Name selbst. Das Upload-Datum zählt nur noch bei gleichem Namen.
   - Sechsstellige Kurzdaten („261125“) sind mehrdeutig (TTMMJJ oder JJMMTT) und zählen nur als Zahl.
 - **Folgen:** Dateinamen sollten ein Datum oder Jahr und Nummer (bzw. Monat) tragen – wie bisher empfohlen, aber in mehr Schreibweisen. Die App zeigt dann „26.11.2025“, „März 2026“ oder „Ausgabe 3/2026“. Tests mit absichtlich verkehrter Upload-Reihenfolge in `tests/google-mock.js`.
+
+## E40 · Sichtbarkeit selbst wählen, Mitgliederliste „Nur App-Nutzer“
+*2026-10-20 – Wunsch der Verbindung: Mitglieder sollen selbst entscheiden, ob andere sie sehen – abgefragt mit der Datenschutzerklärung –, und die Mitgliederliste soll standardmäßig nur zeigen, wer die App schon genutzt hat*
+
+- **Kontext:** Die Mitgliederliste zeigte alle Konten des Google-Verzeichnisses, auch frisch angelegte, die die App nie geöffnet haben. Wer im Google-Verzeichnis steht, legt nur ein Super-Admin fest (Verzeichnisfreigabe je Nutzer); Mitglieder selbst können das nicht. Die App sieht nicht, wer sich wann angemeldet hat.
+- **Entscheidung:**
+  - **Abfrage:** Als dritter Punkt der Datenschutz-Abfrage (`einwilligungen()`, id `sichtbar`) wählt jedes Mitglied „Ja, sichtbar“ oder „Nein, nicht anzeigen“; änderbar unter Mehr → Datenschutz. Fassung 3, damit alle beim nächsten Öffnen gefragt werden. Die Wahl steht im Nachweis der Einwilligung (`sichtbar`), in der Übersicht der Verantwortlichen (Filter „Nicht sichtbar“) und in der Sammeltabelle (Spalte „Sichtbar in der App“, im Verlauf am Ende).
+  - **Eigene Datei:** Beim Speichern legt die App „Sichtbarkeit (Mitglieder-App).json“ im eigenen Drive an (`fbTyp=sichtbarkeit`, `{ sichtbar, geaendert }`), für die Mitglieder lesbar, auch bei „Nein“. Ihr Vorhandensein heißt: hat die App genutzt. Identität = Dateieigentümer (E3), gefälschte Dateien anderer wirken nicht.
+  - **Wirkung von „Nein“:** Das Mitglied fehlt in der Mitgliederliste (auch bei „alle zeigen“) und als Profilseite; die Freigaben des eigenen Profils werden zurückgenommen (neu angelegte Profile bleiben privat), bei „Ja“ wieder gesetzt. Wo man selbst handelt (Chat, Forum, Zusagen), steht der Name weiter. Man selbst sieht sich immer.
+  - **„Nur App-Nutzer“:** Schalter in der Mitgliederliste, standardmäßig an (auf dem Gerät gemerkt); aus = auch Konten ohne Sichtbarkeits-Datei.
+  - **Google-Verzeichnis:** bleibt unberührt – ausblenden kann dort nur ein Super-Admin von Hand (Nutzer → Nutzerinformationen → Verzeichnisfreigabe). Kein Admin-Skript, auf Wunsch der Verbindung.
+- **Verworfen:** Die Wahl automatisch ins Google-Verzeichnis übernehmen (bräuchte eine Admin-Berechtigung und würde gemeinsame Daten ändern, Regel 1); die Einwilligungs-Datei als Kennzeichen (nur für Verantwortliche lesbar).
+- **Folgen:** Kein neuer Scope; die Schreibregeln für eigene Dateien (anlegen, ändern, Freigabe setzen und zurücknehmen) genügen, Tests positiv und negativ. Direkt nach dem Update zeigt „Nur App-Nutzer“ nur, wer die neue Abfrage schon beantwortet hat. Bereits eingerichtete Apps-Scripts (`apps-script/Einwilligungen.gs`) müssen den neuen Stand übernehmen (Spalte „Sichtbar in der App“).

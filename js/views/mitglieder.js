@@ -32,6 +32,10 @@ export default async function mitglieder(ctx) {
   let list = [];
   let q = local.get('fb.memberSearch', '');
   let group = 'Alle';
+  // Standard: nur Mitglieder, die die App schon genutzt haben (E40)
+  let nurApp = local.get('fb.nurAppNutzer', true) !== false;
+  const meEmail = String(app.user?.email || '').toLowerCase();
+  const isAppUser = (m) => m.appNutzer || m.email === meEmail;
 
   setHtml(el, html`
     ${hero('Mitglieder', 'Bundesbrüder im Überblick', html`<a class="btn" href="#/profil">${icon('user', 'icon-sm')}Mein Profil bearbeiten</a>`)}
@@ -65,14 +69,20 @@ export default async function mitglieder(ctx) {
 
   function render() {
     renderDirectoryHint();
+    const appUsers = list.filter(isAppUser);
+    const base = nurApp ? appUsers : list;
     const groups = ['Alle', ...Object.keys(config.statusGruppen || {}), ANGEBOTE];
-    const counts = Object.fromEntries(groups.map((g) => [g, list.filter((m) => inGroup(m, g)).length]));
-    setHtml(el.querySelector('#groups'), html`${groups.filter((g) => g === 'Alle' || counts[g]).map((g) => html`
+    const counts = Object.fromEntries(groups.map((g) => [g, base.filter((m) => inGroup(m, g)).length]));
+    setHtml(el.querySelector('#groups'), html`
+      <button class="chip" data-action="nur-app" aria-pressed="${nurApp}" title="Nur Mitglieder, die die App schon genutzt haben">${icon('smartphone', 'icon-sm')}Nur App-Nutzer <span class="count">${appUsers.length}</span></button>
+      ${groups.filter((g) => g === 'Alle' || counts[g]).map((g) => html`
       <button class="chip" data-group="${g}" aria-pressed="${group === g}">${g === ANGEBOTE ? icon('gift', 'icon-sm') : ''}${g} <span class="count">${counts[g]}</span></button>`)}`);
-    const shown = list.filter((m) => inGroup(m, group)
+    const shown = base.filter((m) => inGroup(m, group)
       && matchesQuery([m.name, m.kneipname, m.status, m.studium, m.taetigkeit, m.wohnort, m.aemter, m.angebot, m.email].join(' '), q));
+    const others = list.length - appUsers.length;
     setHtml(listEl, shown.length
-      ? html`<p class="small muted" style="margin:0 0 .625rem">${shown.length} ${shown.length === 1 ? 'Mitglied' : 'Mitglieder'}</p>
+      ? html`<p class="small muted" style="margin:0 0 .625rem">${shown.length} ${shown.length === 1 ? 'Mitglied' : 'Mitglieder'}${nurApp && others > 0
+        ? html` · ${others} ${others === 1 ? 'weiteres hat' : 'weitere haben'} die App noch nicht genutzt – <button class="link-btn" data-action="nur-app">alle zeigen</button>` : ''}</p>
         <div class="members-grid">${shown.map((m) => html`
         <a class="card member-card" href="#/mitglied/${encodeURIComponent(m.email)}">
           ${avatar(m, 88)}
@@ -82,7 +92,8 @@ export default async function mitglieder(ctx) {
           ${m.aemter ? html`<span class="tiny muted" style="margin-top:.25rem">${m.aemter}</span>` : ''}
           ${m.angebot ? html`<span class="badge badge-green" style="margin-top:.375rem" title="${m.angebot}">${icon('gift', 'icon-sm')}bietet Unterstützung an</span>` : ''}
         </a>`)}</div>`
-      : html`<div class="card">${emptyState('users', 'Niemand gefunden', q ? `Keine Treffer für „${q}“.` : '')}</div>`);
+      : html`<div class="card">${emptyState('users', 'Niemand gefunden', q ? `Keine Treffer für „${q}“.` : nurApp && others > 0 ? 'Bisher hat hier noch niemand die App genutzt.' : '')}
+        ${nurApp && others > 0 ? html`<p style="text-align:center;margin:0 0 1rem"><button class="btn btn-sm" data-action="nur-app">${icon('users', 'icon-sm')}Alle ${list.length} zeigen</button></p>` : ''}</div>`);
   }
 
   el.addEventListener('input', (e) => {
@@ -91,6 +102,7 @@ export default async function mitglieder(ctx) {
   el.addEventListener('click', (e) => {
     const g = e.target.closest('[data-group]');
     if (g) { group = g.dataset.group; render(); }
+    if (e.target.closest('[data-action=nur-app]')) { nurApp = !nurApp; local.set('fb.nurAppNutzer', nurApp); render(); }
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
     if (e.target.closest('[data-action=grant-directory]')) auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: '#/mitglieder' });
@@ -118,7 +130,7 @@ export async function detail(ctx) {
   }
   if (!ctx.alive()) return;
   if (!m) {
-    setHtml(c, html`<div class="card">${emptyState('user', 'Profil nicht gefunden', `Für ${email} gibt es (noch) kein Profil.`)}</div>`);
+    setHtml(c, html`<div class="card">${emptyState('user', 'Profil nicht verfügbar', `Für ${email} gibt es (noch) kein Profil, oder das Mitglied möchte in der App nicht angezeigt werden.`)}</div>`);
     return;
   }
   const isMe = email === app.user.email.toLowerCase();

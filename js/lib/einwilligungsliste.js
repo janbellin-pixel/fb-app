@@ -15,10 +15,11 @@ export const TABLE_TYPE = 'einwilligungen-tabelle';
 export function headers() {
   const kurz = dsConfig().dachverbandKurz;
   return {
-    [TABS.stand]: ['E-Mail (Google-Konto)', 'Name', 'Vereinsübliche Zwecke', `Weitergabe an ${kurz}`, 'Fassung',
+    [TABS.stand]: ['E-Mail (Google-Konto)', 'Name', 'Vereinsübliche Zwecke', `Weitergabe an ${kurz}`, 'Sichtbar in der App', 'Fassung',
       'Zuletzt entschieden', 'Erstmals entschieden', 'Datei geändert (Zeit laut Google)', 'Nachweis (Datei)', 'Hinweis'],
+    // „Sichtbar in der App“ am Ende, damit ältere Zeilen (ohne diese Angabe) an ihrem Platz bleiben
     [TABS.verlauf]: ['Zeitpunkt', 'E-Mail (Google-Konto)', 'Name', 'Vereinsübliche Zwecke', `Weitergabe an ${kurz}`, 'Fassung',
-      'Prüfsumme', 'Gerät', 'Datei-ID', 'Übernommen am', 'Zeitstempel (UTC)'],
+      'Prüfsumme', 'Gerät', 'Datei-ID', 'Übernommen am', 'Zeitstempel (UTC)', 'Sichtbar in der App'],
     [TABS.fassungen]: ['Fassung', 'Prüfsumme', 'Stand', 'Einwilligung', 'Wortlaut'],
   };
 }
@@ -71,11 +72,11 @@ export async function syncConsentSheet(id, { consents, members = [] }) {
     const hint = [];
     if (c.fassung !== ds.fassung) hint.push(`ältere Fassung ${c.fassung || '?'} – wird beim nächsten Öffnen neu gefragt`);
     if (c.kontoAbweichend) hint.push('Achtung: Konto in der Datei weicht vom Inhaber ab – Inhaber gilt');
-    return [c.email, c.name, ja(c.vereinszwecke), ja(c.dachverband), c.fassung, zeit(c.zeitpunkt), zeit(c.erstmals), zeit(c.geaendert), c.link, hint.join(' · ')];
+    return [c.email, c.name, ja(c.vereinszwecke), ja(c.dachverband), ja(c.sichtbar), c.fassung, zeit(c.zeitpunkt), zeit(c.erstmals), zeit(c.geaendert), c.link, hint.join(' · ')];
   });
   for (const m of members) {
     const email = String(m.email || '').toLowerCase();
-    if (email && !byEmail.has(email)) rows.push([email, m.name || email, '', '', '', '', '', '', '', 'keine Rückmeldung']);
+    if (email && !byEmail.has(email)) rows.push([email, m.name || email, '', '', '', '', '', '', '', '', 'keine Rückmeldung']);
   }
   rows.sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'de'));
   const width = h[TABS.stand].length;
@@ -94,10 +95,12 @@ export async function syncConsentSheet(id, { consents, members = [] }) {
       const key = `${c.fileId}|${stamp}`;
       if (!stamp || seen.has(key)) continue;
       seen.add(key);
-      neu.push([zeit(stamp), c.email, c.name, ja(v.vereinszwecke), ja(v.dachverband), v.fassung || '', v.pruefsumme || '', v.geraet || '', c.fileId, now, stamp]);
+      neu.push([zeit(stamp), c.email, c.name, ja(v.vereinszwecke), ja(v.dachverband), v.fassung || '', v.pruefsumme || '', v.geraet || '', c.fileId, now, stamp, ja(v.sichtbar)]);
     }
   }
   neu.sort((a, b) => a[10].localeCompare(b[10]));
+  // Kopfzeile auf den aktuellen Stand (ältere Tabellen kennen „Sichtbar in der App“ noch nicht)
+  if (String((verlaufOld[0] || [])[11] || '') !== h[TABS.verlauf][11]) await sheets.update(id, `${sheets.quoteSheet(TABS.verlauf)}!A1`, [h[TABS.verlauf]]);
   if (neu.length) await sheets.append(id, `${sheets.quoteSheet(TABS.verlauf)}!A1`, neu);
 
   // ---- Fassungen: Wortlaut der aktuellen Fassung festhalten

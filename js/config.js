@@ -36,8 +36,8 @@ const DEFAULTS = {
     email: '', // Kontakt für Datenschutzfragen
     dachverband: 'Deutsche Sängerschaft (DS)',
     dachverbandKurz: 'DS',
-    fassung: '2', // erhöhen, wenn sich die Einwilligungstexte ändern – dann werden alle erneut gefragt
-    stand: '18.10.2026',
+    fassung: '3', // erhöhen, wenn sich die Einwilligungstexte ändern – dann werden alle erneut gefragt (3: Sichtbarkeit, E40)
+    stand: '20.10.2026',
     empfaenger: [], // wer die Einwilligungen einsehen darf; leer = die Admins
   },
   // Nur für den Prototyp ohne Workspace: diese Konten werden zu Terminen eingeladen

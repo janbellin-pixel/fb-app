@@ -16,11 +16,12 @@ Auf **„Mit Google anmelden“** tippen und das **Google-Konto der Verbindung**
 
 ## 3. Datenschutz bestätigen
 
-Beim ersten Öffnen kurz die Hinweise lesen und bei den zwei Fragen jeweils **Ja** oder **Nein** antippen:
+Beim ersten Öffnen kurz die Hinweise lesen und bei den drei Fragen jeweils **Ja** oder **Nein** antippen:
 - Nutzung der Daten zu vereinsüblichen Zwecken
 - Weitergabe an die Deutsche Sängerschaft (DS)
+- Sichtbarkeit: ob dich andere Mitglieder in der Mitgliederliste der App sehen und dein Profil aufrufen können
 
-Dann **„Speichern und weiter“**. Beides ist freiwillig und lässt sich jederzeit ändern (Mehr › Datenschutz).
+Dann **„Speichern und weiter“**. Alles ist freiwillig und lässt sich jederzeit ändern (Mehr › Datenschutz).
 
 ## 4. Auf den Startbildschirm legen
 
@@ -44,7 +45,7 @@ Unten in der App gibt es fünf Bereiche:
 | **Start** | Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos. |
 | **Termine** | Alle Veranstaltungen als Liste oder Monat. Termin antippen › **Zusagen, Vielleicht oder Absagen**, Gäste und Kommentar angeben, sehen wer kommt. „Kalender abonnieren“ holt alle Termine in den eigenen Kalender. |
 | **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“. |
-| **Mitglieder** | Alle Bundesbrüder mit Foto und Profil. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
+| **Mitglieder** | Alle, die die App nutzen und sichtbar sein möchten, mit Foto und Profil. Mit **„Nur App-Nutzer“** (antippen zum Abschalten) siehst du auch die übrigen Konten der Verbindung. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
 | **Mehr** | **Bundesbote** und **DS-Zeitung** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
 
 ## Gut zu wissen

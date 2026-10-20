@@ -247,12 +247,15 @@ Die App erhält keine dauerhaften Schlüssel (kein Refresh-Token). Ein bereits a
 
 ### Was die Mitglieder sehen
 
-Beim **ersten Öffnen** der App erscheint die Datenschutzerklärung mit zwei Einwilligungen. Sie sind getrennt und jeweils mit **Ja** oder **Nein** zu beantworten:
+Beim **ersten Öffnen** der App erscheint die Datenschutzerklärung mit zwei Einwilligungen und der Frage nach der Sichtbarkeit. Alle drei sind getrennt und jeweils mit **Ja** oder **Nein** zu beantworten:
 
 1. **Nutzung zu vereinsüblichen Zwecken** – Einladungen und Rundschreiben, Zusendung des Bundesboten, Glückwünsche zu Geburtstagen und Jubiläen (auch auf der Startseite der App), internes Mitglieder- und Adressverzeichnis, Fotos und Berichte von Veranstaltungen (Galerie, Zeitung, Chronik), Kontaktpflege zwischen Aktiven und Alten Herren, Archiv.
 2. **Weitergabe an die Deutsche Sängerschaft (DS)** – zur Kontaktaufnahme, zum Versand der Verbandszeitung, zur Bestimmung des DS-Beitrags und für allgemeine verbands- und vereinsbezogene Zwecke.
+3. **Sichtbarkeit in der Mitgliederliste der App** (E40) – bei „Nein“ fehlt das Mitglied in der Mitgliederliste und als Profilseite, sein Profil ist nicht mehr freigegeben. Im **Google-Verzeichnis** (Adressvorschläge in Gmail, Kontakte) ändert sich dadurch nichts: Dort blendet nur ein Super-Admin jemanden aus (Admin-Konsole → Verzeichnis → Nutzer → Person → Nutzerinformationen → *Verzeichnisfreigabe*). Wer „Nein“ gewählt hat, zeigt die Übersicht unter **Mehr → Datenschutz → Einwilligungen aller Mitglieder** mit dem Filter „Nicht sichtbar“; die Sammeltabelle hat dafür die Spalte „Sichtbar in der App“.
 
-Erst nach der Entscheidung geht es in die App. Beide Einwilligungen sind freiwillig; auch mit „Nein“ funktioniert die App ganz normal. Unter **Mehr → Datenschutz** kann jedes Mitglied seine Entscheidung jederzeit ändern oder widerrufen und sieht seine bisherigen Entscheidungen. Die Erklärung ist auch ohne Anmeldung lesbar (Link auf der Anmeldeseite und unten in jeder Seite).
+Die Mitgliederliste zeigt standardmäßig nur, wer die App schon genutzt (die Abfrage gespeichert) hat; der Schalter „Nur App-Nutzer“ blendet die übrigen Konten ein.
+
+Erst nach der Entscheidung geht es in die App. Alles ist freiwillig; auch mit „Nein“ funktioniert die App ganz normal. Unter **Mehr → Datenschutz** kann jedes Mitglied seine Entscheidung jederzeit ändern oder widerrufen und sieht seine bisherigen Entscheidungen. Die Erklärung ist auch ohne Anmeldung lesbar (Link auf der Anmeldeseite und unten in jeder Seite).
 
 > **Wichtig:** Die Texte sind ein **Muster** (`js/lib/datenschutz.js`) und ersetzen keine Rechtsberatung. Bitte vom Vorstand bzw. Datenschutzbeauftragten prüfen lassen. Was für die Mitgliedschaft nötig ist (Mitgliederverwaltung, Beiträge, Einladungen zu Conventen), beruht laut Erklärung auf der Satzung und hängt nicht von der Einwilligung ab.
 
@@ -316,7 +319,7 @@ Die App ist so gebaut, dass Mitglieder damit **nichts außer ihren eigenen Daten
 2. **Berechtigungen beim Anmelden:** Die App fragt für Google Drive nur „Dateien ansehen“ (`drive.readonly`) und „von dieser App angelegte Dateien“ (`drive.file`) an, für Google Tabellen gar keine Schreibberechtigung. Fremde Dateien kann sie damit technisch nicht ändern, auch nicht im Konto eines Admins.
 3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird vor dem Absenden geprüft. Erlaubt sind nur:
    - die eigene Antwort auf einen Termin, nur im eigenen Kalender und nur die Teilnehmerliste;
-   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung), und deren Lese-Freigaben;
+   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung, Sichtbarkeit), und deren Lese-Freigaben;
    - eigene Chat-Nachrichten, neue Unterhaltungen nur mit Personen und das Hinzufügen von Personen;
    - für die Datenschutz-Verantwortlichen: die **eigene**, von der App angelegte Einwilligungsliste.
 
