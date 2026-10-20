@@ -384,13 +384,23 @@ async function run() {
   const mail = ab.mailEntwurf({ user: { name: me.name, email: me.email }, eingabe: { ...eing, strasse: 'Neuer Weg 9' }, diffs, gefunden: true });
   const body = decodeURIComponent(mail.href.split('body=')[1]);
   check(mail.href.startsWith(`mailto:${config.adressaenderung}?subject=`) && config.adressaenderung === 'adressaenderung@frankonia-brunonia.de', 'E-Mail an das Postfach für Adressänderungen', mail.href.slice(0, 80));
-  check(body.includes('falsch oder unvollständig') && body.includes('Neuer Weg 9') && body.includes('bisher: Alter Weg 1') && body.includes(`Google-Konto: ${me.email}`), 'E-Mail enthält die neuen Angaben und den Hinweis', body.slice(0, 200));
+  check(body.includes('falsch oder unvollstaendig') && body.includes('Neuer Weg 9') && body.includes('bisher: Alter Weg 1') && body.includes(`Google-Konto: ${me.email}`), 'E-Mail enthält die neuen Angaben und den Hinweis', body.slice(0, 200));
+  // Yahoo Mail & Co. entschlüsseln Umlaute im mailto-Link falsch („f%3%Cr“) – im Link nur ASCII (E37)
+  const umlautEingabe = { ...eing, strasse: 'Lindenstraße 5', ort: 'Köln' };
+  const umlautMail = ab.mailEntwurf({ user: { name: 'Jörg Müßig', email: me.email }, eingabe: umlautEingabe, diffs: ab.vergleiche(umlautEingabe, entry), gefunden: true });
+  const umlautBody = decodeURIComponent(umlautMail.href.split('body=')[1]);
+  const umlautBetreff = decodeURIComponent(umlautMail.href.split('subject=')[1].split('&')[0]);
+  check(/^[\x21-\x7e]+$/.test(umlautMail.href) && !/%[89a-f]/i.test(umlautMail.href), 'E-Mail-Link nur mit ASCII-Zeichen (sonst „f%3%Cr“ in Yahoo Mail)', umlautMail.href.slice(0, 160));
+  check(umlautBetreff === 'Adressaenderung: Joerg Muessig' && umlautBody.includes('- Strasse und Hausnummer: Lindenstrasse 5 - bisher: Alter Weg 1') && umlautBody.includes('Ort: Koeln') && umlautBody.includes('Viele Gruesse') && !/[^\x00-\x7f]/.test(umlautBody),
+    'im Link: Umlaute als ae/oe/ue/ss, Aufzählungspunkt und Gedankenstrich als „-“', `${umlautBetreff} | ${umlautBody.slice(0, 200)}`);
+  check(umlautMail.subject === 'Adressänderung: Jörg Müßig' && umlautMail.body.includes('• Straße und Hausnummer: Lindenstraße 5 – bisher: Alter Weg 1'), '„Text kopieren“ behält Umlaute und Zeichen', umlautMail.body.slice(0, 160));
+  check(ab.mailAscii('Grüße aus Köln – „Straße“ • é') === 'Gruesse aus Koeln - "Strasse" - e', 'mailAscii: Umlaute, Anführungszeichen, Striche, Akzente', ab.mailAscii('Grüße aus Köln – „Straße“ • é'));
   const cfgMod = await import('../js/config.js');
   check(cfgMod.statusGroup('Aktiver Bursche') === 'Aktivitas' && cfgMod.statusGroup('Inaktiver Bursch') === 'Aktivitas' && cfgMod.statusGroup('Chordame') === 'Chor' && cfgMod.statusGroup('Verkehrsgast') === 'Verkehrsgäste',
     'Status: „Bursche“ (auch alte Schreibweise „Bursch“), Chor und Verkehrsgäste als Gruppen');
   check(ab.vergleichsWert('status', 'Aktiver Bursch') === ab.vergleichsWert('status', 'aktiver  Bursche'), 'Status „Bursch“ und „Bursche“ gelten nicht als Abweichung');
   const vorlage = ab.adressaenderungMail({ name: me.name, email: me.email });
-  check(vorlage.href.startsWith(`mailto:${config.adressaenderung || 'adressaenderung@frankonia-brunonia.de'}?subject=`) && decodeURIComponent(vorlage.href).includes(`Adressänderung: ${me.name}`) && vorlage.body.includes('Gültig ab:'),
+  check(vorlage.href.startsWith(`mailto:${config.adressaenderung || 'adressaenderung@frankonia-brunonia.de'}?subject=`) && decodeURIComponent(vorlage.href).includes(`Adressaenderung: ${ab.mailAscii(me.name)}`) && vorlage.body.includes('Gültig ab:'),
     'Knopf „Adressänderung per E-Mail mitteilen“: Vorlage an das Postfach', vorlage.href.slice(0, 120));
   const writesNow = fake.state.writes.length;
   ab.mailEntwurf({ user: { name: me.name, email: me.email }, eingabe: eing, diffs, gefunden: false });

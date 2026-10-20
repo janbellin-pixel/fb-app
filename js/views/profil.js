@@ -78,7 +78,7 @@ export default async function profil(ctx) {
         <h2 class="card-title" style="margin:0">Adressänderungen</h2>
         <p style="margin:.25rem 0 .75rem">Bitte teile uns Adressänderungen per E-Mail mit – zum Beispiel nach einem Umzug oder mit neuer Telefonnummer. Der Schriftwart trägt sie ins Adressverzeichnis ein.</p>
         <a class="btn btn-primary" id="adr-mail" href="${vorlage.href}">${icon('mail', 'icon-sm')}Adressänderung per E-Mail mitteilen</a>
-        <p class="tiny muted" style="margin:.5rem 0 0">Öffnet eine E-Mail an <strong>${mailTo}</strong> in deinem E-Mail-Programm. Hast du unten unter „Anschrift und Kontakt“ etwas geändert, steht es schon drin.</p>
+        <p class="tiny muted" style="margin:.5rem 0 0">Öffnet eine E-Mail an <strong>${mailTo}</strong> in deinem E-Mail-Programm. Hast du unten unter „Anschrift und Kontakt“ etwas geändert, steht es schon drin. Umlaute stehen darin als ae, oe, ue und ss – so kommen sie in jedem E-Mail-Programm richtig an.</p>
       </div>
     </section>` : ''}
     ${editable ? html`
@@ -179,7 +179,7 @@ export default async function profil(ctx) {
           ${mail.href ? html`<a class="btn btn-primary" href="${mail.href}" data-action="mail">${icon('mail', 'icon-sm')}Änderung per E-Mail melden</a>` : ''}
           <button class="btn" type="button" data-action="copy-mail">${icon('copy', 'icon-sm')}Text kopieren</button>
         </div>
-        <p class="tiny muted" style="margin:.5rem 0 0">${mail.an ? `Die E-Mail geht an ${mail.an}` : 'Es ist noch keine Adresse für Adressänderungen eingerichtet'} und wird erst verschickt, wenn du sie in deinem E-Mail-Programm absendest.</p>
+        <p class="tiny muted" style="margin:.5rem 0 0">${mail.an ? `Die E-Mail geht an ${mail.an}` : 'Es ist noch keine Adresse für Adressänderungen eingerichtet'} und wird erst verschickt, wenn du sie in deinem E-Mail-Programm absendest. Umlaute stehen darin als ae, oe, ue und ss; „Text kopieren“ übernimmt den Text mit Umlauten.</p>
       </div></div>`);
   }
 

@@ -117,7 +117,25 @@ export function vergleiche(eingabe, entry) {
 
 /* ------------------------------------------------------------------ E-Mail vorbereiten */
 
-const mailEnc = (s) => encodeURIComponent(s).replace(/%0A/g, '%0D%0A');
+const UMLAUTE = { ä: 'ae', ö: 'oe', ü: 'ue', Ä: 'Ae', Ö: 'Oe', Ü: 'Ue', ß: 'ss', ẞ: 'SS' };
+
+/**
+ * Text für den mailto-Link nur mit ASCII-Zeichen (E37): Manche E-Mail-Apps (z. B. Yahoo Mail) entschlüsseln
+ * Umlaute im Link falsch („f%3%Cr“ statt „für“). Umlaute → ae/oe/ue/ss, typografische Zeichen → " ' - ...,
+ * andere Akzente entfallen (é → e); seltene andere Schriftzeichen bleiben. „Text kopieren“ nutzt das Original.
+ */
+export function mailAscii(s) {
+  return String(s ?? '').normalize('NFC')
+    .replace(/[äöüÄÖÜßẞ]/g, (c) => UMLAUTE[c])
+    .replace(/[\u2010-\u2015\u2212\u2022\u00b7]/g, '-')
+    .replace(/[\u201c-\u201f\u00ab\u00bb]/g, '"')
+    .replace(/[\u2018-\u201b\u2039\u203a]/g, "'")
+    .replace(/\u2026/g, '...')
+    .replace(/[\u00a0\u2007\u2009\u202f]/g, ' ')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC');
+}
+
+const mailEnc = (s) => encodeURIComponent(mailAscii(s)).replace(/%0A/g, '%0D%0A');
 
 /**
  * Leere Vorlage für eine Adressänderung (Knopf oben im Profil): Betreff mit Namen, Felder zum Ausfüllen.
