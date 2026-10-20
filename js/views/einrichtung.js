@@ -4,6 +4,7 @@ import { config, saveOverride, currentBaseUrl, appBaseUrl, configFileContent, is
 import * as auth from '../auth.js';
 import { downloadFile } from '../lib/export.js';
 import { RESOURCES, missingResources, idFromUrl } from '../lib/setup.js';
+import { gruppenAdressen } from '../lib/gruppen.js';
 import { GOOGLE_G } from '../icons.js';
 
 const CLOUD = 'https://console.cloud.google.com';
@@ -36,7 +37,12 @@ function resourceStatus() {
 /** Inhalt von „2. Fehlendes neu anlegen“ – passend zu dem, was noch fehlt */
 function createBox(google) {
   const missing = missingResources();
-  if (!missing.length) return html`<p class="small muted">Es fehlt nichts – alle Datenquellen sind eingetragen. Unten kannst du sie prüfen.</p>`;
+  // Gruppen (E41): je Gruppe eine Kennungsdatei, nur für diese Gruppe lesbar – fehlende legt der Knopf an
+  const gruppen = Object.values(gruppenAdressen());
+  const gruppenBox = gruppen.length ? html`
+    <p class="small" style="margin:.875rem 0 0"><strong>Gruppen:</strong> ${gruppen.join(', ')}. Damit die App weiß, wer zu welcher Gruppe gehört, braucht jede Gruppe eine kleine Kennungsdatei, die nur sie lesen kann. Vorher die Gruppen in der Admin-Konsole anlegen.</p>
+    <p style="margin:.5rem 0 0"><button class="btn" data-action="create-gruppen" ${google ? '' : 'disabled'}>${icon('users', 'icon-sm')}Fehlende Gruppen-Kennungen anlegen</button></p>` : '';
+  if (!missing.length) return html`<p class="small muted">Es fehlt nichts – alle Datenquellen sind eingetragen. Unten kannst du sie prüfen.</p>${gruppenBox}`;
   // Beispieldaten nur beim Test von Grund auf vorschlagen, nie neben echten Daten
   const fresh = missing.length === RESOURCES.length;
   const sampleKinds = [missing.includes('kalender') && 'Termine', missing.includes('news') && 'News', missing.includes('adressen') && 'Adressen'].filter(Boolean);
@@ -47,7 +53,8 @@ function createBox(google) {
     ${missing.includes('zeitung') ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-issues" ${fresh ? 'checked' : ''}> Drei Beispielausgaben des Bundesboten hochladen</label>` : ''}
     ${missing.includes('galerie') ? html`<label class="checkbox small" style="margin-bottom:.375rem"><input type="checkbox" id="c-photos" ${fresh ? 'checked' : ''}> Beispielbilder für die Galerie hochladen</label>` : ''}
     <p style="margin:.75rem 0 0"><button class="btn btn-primary" data-action="create" ${google ? '' : 'disabled'}>${icon('sparkle', 'icon-sm')}Fehlendes neu anlegen</button></p>
-    ${google && missing.includes('kalender') && !auth.hasScope(auth.SCOPES.setup[0]) ? html`<p class="tiny muted">Für den neuen Kalender fragt Google einmal nach der zusätzlichen Berechtigung „Kalender verwalten“.</p>` : ''}`;
+    ${google && missing.includes('kalender') && !auth.hasScope(auth.SCOPES.setup[0]) ? html`<p class="tiny muted">Für den neuen Kalender fragt Google einmal nach der zusätzlichen Berechtigung „Kalender verwalten“.</p>` : ''}
+    ${gruppenBox}`;
 }
 
 function checkCard(c) {
@@ -312,15 +319,15 @@ export default async function einrichtung(ctx) {
     toast('Übernommen – jetzt „Verbindung prüfen“');
   });
 
-  async function runCreate() {
-    const btn = el.querySelector('[data-action=create]');
+  async function runCreate({ nurGruppen = false } = {}) {
+    const btn = el.querySelector(nurGruppen ? '[data-action=create-gruppen]' : '[data-action=create]');
     setBusy(btn, true, 'Wird angelegt …');
     logEl.innerHTML = '';
     try {
       const { createMissing } = await import('../lib/setup.js');
       saveOverride({ appUrl: config.appUrl || currentBaseUrl() });
       const res = await createMissing({
-        only: missingResources(),
+        only: nurGruppen ? [] : missingResources(),
         withSamples: !!el.querySelector('#c-samples')?.checked,
         withIssues: !!el.querySelector('#c-issues')?.checked,
         withPhotos: !!el.querySelector('#c-photos')?.checked,
@@ -384,6 +391,9 @@ export default async function einrichtung(ctx) {
         runCreate();
         break;
       }
+      case 'create-gruppen':
+        runCreate({ nurGruppen: true });
+        break;
       case 'check': {
         const box = el.querySelector('#check');
         setHtml(box, html`<div class="center-load"><span class="spinner"></span></div>`);

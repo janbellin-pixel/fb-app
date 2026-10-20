@@ -23,8 +23,12 @@ const DEFAULTS = {
   chat: { aktiv: true, newsRaum: '' },
   forum: { aktiv: true },
   profilBearbeiten: true,
-  // Weitere Links im Schnellzugriff und unter „Mehr“, z. B. [{ titel: 'Wiki', url: 'https://…' }] – nur https
+  // Weitere Links im Schnellzugriff und unter „Mehr“, z. B. [{ titel: 'Wiki', url: 'https://…' }] – nur https;
+  // ohne: ['gaeste'] blendet einen Link für diese Gruppen aus (E41)
   links: [],
+  // Gruppen der Verbindung (E41): adressen = Google-Gruppen, z. B. { gaeste: 'gaeste@…' } – die Einrichtung legt je Gruppe
+  // eine nur für sie lesbare Kennungsdatei an; ohne = Bereiche, die eine Gruppe nicht sieht, z. B. { forum: ['gaeste'] }
+  gruppen: { adressen: {}, ohne: {} },
   // Postfach für Adressänderungen: „Mein Profil“ bereitet bei Abweichungen vom Adressverzeichnis eine E-Mail vor.
   // (Umlaute sind in E-Mail-Adressen bei Google Workspace nicht möglich – daher „ae“.)
   adressaenderung: 'adressaenderung@frankonia-brunonia.de',
@@ -163,7 +167,7 @@ export function extraLinks() {
     const titel = String(l?.titel || '').trim();
     try {
       const u = new URL(String(l?.url || '').trim());
-      return titel && u.protocol === 'https:' ? { titel, url: u.href, host: u.hostname, symbol: String(l?.symbol || 'globe') } : null;
+      return titel && u.protocol === 'https:' ? { titel, url: u.href, host: u.hostname, symbol: String(l?.symbol || 'globe'), ohne: Array.isArray(l?.ohne) ? l.ohne : [] } : null;
     } catch {
       return null;
     }
@@ -191,7 +195,7 @@ export function statusGroup(status) {
 export function configFileContent(values) {
   const c = merge(deployedConfig, values);
   const keep = ['appName', 'googleClientId', 'workspaceDomain', 'mitgliederGruppe', 'admins', 'redaktion', 'appUrl',
-    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
+    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links', 'gruppen',
     'adressaenderung', 'datenschutz',
     'demoErlaubt', 'testMitglieder'];
   // eigene Zusatzeinstellungen aus der bisherigen config.js behalten

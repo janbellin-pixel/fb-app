@@ -7,6 +7,7 @@ import { ICON_NAMES } from '../icons.js';
 import * as hinweise from '../lib/hinweise.js';
 import * as auth from '../auth.js';
 import { schriftAuswahl, bindSchriftAuswahl } from '../lib/schrift.js';
+import { gesperrt, linkGesperrt } from '../lib/gruppen.js';
 
 function menuItem(href, ic, label, sub = '', extra = '') {
   return html`<a class="menu-item" href="${href}" ${extra}>${icon(ic)}<span class="grow">${label}${sub ? html`<small>${sub}</small>` : ''}</span>${icon('chevronRight', 'icon-sm chev')}</a>`;
@@ -16,6 +17,7 @@ export default async function mehr(ctx) {
   const { el, app } = ctx;
   const me = app.user;
   const admin = app.isAdmin();
+  const zeig = (bereich) => !gesperrt(bereich); // je Gruppe ausgeblendete Bereiche (E41)
   setHtml(el, html`
     ${hero('Mehr', config.appName)}
     <div class="card account-card">
@@ -34,15 +36,15 @@ export default async function mehr(ctx) {
     </section>
     <div class="grid-2" style="margin-top:1rem">
       <div class="card menu-list">
-        ${menuItem('#/news', 'news', html`Neuigkeiten<span class="menu-badge hidden" data-badge="news"></span>`, 'Aus dem Bundesleben')}
-        ${menuItem('#/forum', 'forum', 'Forum', 'Diskussionen und Fragen')}
-        ${menuItem('#/zeitung', 'paper', 'Bundesbote', 'Alle Ausgaben zum Blättern')}
-        ${app.mode === 'demo' || hasDsZeitung() ? menuItem('#/ds-zeitung', 'newspaper', 'DS-Zeitung', 'Zeitung der Deutschen Sängerschaft') : ''}
-        ${app.mode === 'demo' || hasSongbook() ? menuItem('#/lieder', 'music', 'Liedermappe', 'Noten und Texte zum Mitsingen') : ''}
-        ${menuItem('#/galerie', 'image', 'Galerie', 'Fotos aus dem Bundesleben')}
-        ${menuItem('#/adressen', 'book', 'Adressverzeichnis', 'Nachschlagen, anrufen, in Kontakte übernehmen')}
-        ${menuItem('#/termine?abo=1', 'calendarPlus', 'Kalender abonnieren', 'Termine im eigenen Kalender')}
-        ${extraLinks().map((l) => html`<a class="menu-item" href="${l.url}" target="_blank" rel="noopener">${icon(ICON_NAMES.includes(l.symbol) ? l.symbol : 'globe')}<span class="grow">${l.titel}<small>${l.host} – öffnet sich außerhalb der App</small></span>${icon('external', 'icon-sm chev')}</a>`)}
+        ${zeig('news') ? menuItem('#/news', 'news', html`Neuigkeiten<span class="menu-badge hidden" data-badge="news"></span>`, 'Aus dem Bundesleben') : ''}
+        ${zeig('forum') ? menuItem('#/forum', 'forum', 'Forum', 'Diskussionen und Fragen') : ''}
+        ${zeig('zeitung') ? menuItem('#/zeitung', 'paper', 'Bundesbote', 'Alle Ausgaben zum Blättern') : ''}
+        ${(app.mode === 'demo' || hasDsZeitung()) && zeig('dsZeitung') ? menuItem('#/ds-zeitung', 'newspaper', 'DS-Zeitung', 'Zeitung der Deutschen Sängerschaft') : ''}
+        ${(app.mode === 'demo' || hasSongbook()) && zeig('lieder') ? menuItem('#/lieder', 'music', 'Liedermappe', 'Noten und Texte zum Mitsingen') : ''}
+        ${zeig('galerie') ? menuItem('#/galerie', 'image', 'Galerie', 'Fotos aus dem Bundesleben') : ''}
+        ${zeig('adressen') ? menuItem('#/adressen', 'book', 'Adressverzeichnis', 'Nachschlagen, anrufen, in Kontakte übernehmen') : ''}
+        ${zeig('termine') ? menuItem('#/termine?abo=1', 'calendarPlus', 'Kalender abonnieren', 'Termine im eigenen Kalender') : ''}
+        ${extraLinks().filter((l) => !linkGesperrt(l)).map((l) => html`<a class="menu-item" href="${l.url}" target="_blank" rel="noopener">${icon(ICON_NAMES.includes(l.symbol) ? l.symbol : 'globe')}<span class="grow">${l.titel}<small>${l.host} – öffnet sich außerhalb der App</small></span>${icon('external', 'icon-sm chev')}</a>`)}
       </div>
       <div class="card menu-list">
         ${menuItem('#/profil', 'user', 'Mein Profil', 'Kneipname, Status, Ämter, Über mich')}

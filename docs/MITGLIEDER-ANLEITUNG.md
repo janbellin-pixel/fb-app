@@ -48,6 +48,8 @@ Unten in der App gibt es fünf Bereiche:
 | **Mitglieder** | Alle, die die App nutzen und sichtbar sein möchten, mit Foto und Profil. Mit **„Nur App-Nutzer“** (antippen zum Abschalten) siehst du auch die übrigen Konten der Verbindung. Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
 | **Mehr** | **Bundesbote** und **DS-Zeitung** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
 
+Je nach Gruppe (z. B. Chordamen, Verkehrsgäste, Gäste) blendet die App einzelne Bereiche aus, etwa das Adressverzeichnis.
+
 ## Gut zu wissen
 
 - **Schrift zu klein?** Mehr › Schriftgröße › „Groß“ oder „Sehr groß“.

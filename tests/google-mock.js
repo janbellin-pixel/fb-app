@@ -701,6 +701,53 @@ async function run() {
   const consentsV = await b.listConsents();
   check(consentsV.find((x) => x.email === me.email)?.sichtbar === true, 'Übersicht der Verantwortlichen kennt die Wahl (zum Abgleich mit dem Google-Verzeichnis)');
 
+  /* ---------------------------------------------------------------- Gruppen (E41) */
+  section('Gruppen: Bereiche je Gruppe ausblenden (E41)');
+  const gr = await import('../js/lib/gruppen.js');
+  const savedGruppen = config.gruppen;
+  config.gruppen = {
+    adressen: { bundesbrueder: 'bundesbrueder@beispiel.de', chordamen: 'chordamen@beispiel.de', gaeste: 'gaeste@beispiel.de' },
+    ohne: { adressen: ['chordamen', 'gaeste'], forum: ['gaeste'], galerie: ['gaeste'] },
+  };
+  const S = (...k) => new Set(k);
+  check(gr.gesperrt('adressen', S('gaeste')) && gr.gesperrt('forum', S('gaeste')) && gr.gesperrt('adressen', S('chordamen')) && !gr.gesperrt('forum', S('chordamen')),
+    'Gäste: kein Adressverzeichnis, kein Forum; Chordamen: nur kein Adressverzeichnis');
+  check(!gr.gesperrt('adressen', S('gaeste', 'bundesbrueder')) && !gr.gesperrt('adressen', S()) && !gr.gesperrt('adressen', null) && !gr.gesperrt('termine', S('gaeste')),
+    'wer zusätzlich Bundesbruder ist, sieht alles; ohne bekannte Gruppe ist nichts gesperrt');
+  check(gr.linkGesperrt({ titel: 'Wiki', ohne: ['gaeste'] }, S('gaeste')) && !gr.linkGesperrt({ titel: 'Wiki', ohne: ['gaeste'] }, S('bundesbrueder')), 'Links wie das Wiki je Gruppe ausblendbar');
+  const resG = await step('createMissing (Gruppen-Kennungen)', () => setup.createMissing({ only: [], me, log: () => {} }));
+  const markersOf = (email) => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'gruppe' && f.ownerEmail === email);
+  check(resG?.gruppen?.length === 3 && markersOf(me.email).length === 3, 'Einrichtung legt je Gruppe eine Kennungsdatei an', JSON.stringify(resG?.gruppen));
+  check(markersOf(me.email).every((f) => {
+    const ps = fake.state.permissions.filter((p) => p.file === f.id);
+    return !f.parents.length && ps.length === 1 && ps[0].type === 'group' && ps[0].role === 'reader' && ps[0].emailAddress === config.gruppen.adressen[f.appProperties.fbGruppe];
+  }), 'jede Kennung nur für ihre Gruppe lesbar – nicht für die Domain, nicht im freigegebenen Ordner');
+  const resG2 = await step('createMissing (Gruppen, erneut)', () => setup.createMissing({ only: [], me, log: () => {} }));
+  check(resG2?.gruppen?.length === 0 && markersOf(me.email).length === 3, 'erneut ausgeführt: nichts doppelt');
+  b.invalidate('gruppen');
+  check((await b.myGroups()).length === 3, 'Admin besitzt alle Kennungen und sieht damit alles');
+  // Sicht eines Mitglieds, das nur die Gäste-Kennung lesen kann (Kennungen gehören dem Vorstand)
+  const savedAdminsG = config.admins;
+  config.admins = ['vorstand@beispiel.de'];
+  const VS = { ownerEmail: 'vorstand@beispiel.de', ownerName: 'Vorstand' };
+  const gastKennung = fake.addFile({ ...VS, name: 'Gruppe gaeste@beispiel.de – Kennung', appProperties: { fbTyp: 'gruppe', fbGruppe: 'gaeste' } });
+  // Fälschungsversuch: Anna legt eine „Bundesbrüder“-Kennung an, die jeder lesen kann
+  fake.addFile({ name: 'Gruppe bundesbrueder', appProperties: { fbTyp: 'gruppe', fbGruppe: 'bundesbrueder' }, ownerEmail: ANNA, ownerName: 'Anna Andere' });
+  fake.addFile({ ...VS, name: 'Gruppe unbekannt', appProperties: { fbTyp: 'gruppe', fbGruppe: 'kegelclub' } });
+  b.invalidate('gruppen');
+  const gastGruppen = await step('myGroups (Gast)', () => b.myGroups());
+  check(gastGruppen?.join() === 'gaeste', 'nur Kennungen von Admins zählen – gefälschte und unbekannte nicht', JSON.stringify(gastGruppen));
+  await blocked('fremde Kennung für die Domain freigeben', fake, () => drive.addPermission(gastKennung.id, { type: 'domain', role: 'reader', domain: 'beispiel.de' }));
+  gr.setMeineGruppen(me.email, gastGruppen);
+  b.invalidate(b.addressKey(), 'profiles', 'visibility');
+  const logG = fake.state.log.length;
+  await step('listMembers (als Gast)', () => b.listMembers());
+  check(!fake.state.log.slice(logG).some((l) => l.includes(config.tabellen.adressen)), 'Gast: Mitgliederliste liest das Adressverzeichnis nicht');
+  gr.setMeineGruppen(me.email, []);
+  config.admins = savedAdminsG;
+  config.gruppen = savedGruppen;
+  b.invalidate('gruppen');
+
   /* ---------------------------------------------------------------- Vorhandenes verbinden */
   section('Einrichtung mit vorhandenen Daten: nur Fehlendes anlegen');
   const calIdT = 'c_abc123@group.calendar.google.com';

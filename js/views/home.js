@@ -7,6 +7,7 @@ import { hasSongbook, hasDsZeitung, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
 import { albumInfo } from './galerie.js';
 import { isNewNews } from '../lib/hinweise.js';
+import { gesperrt, linkGesperrt } from '../lib/gruppen.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -20,8 +21,11 @@ export default async function home(ctx) {
   const b = app.backend;
   const me = app.user;
   const showInstall = !isStandalone() && !local.get('fb.installDismissed');
-  const songs = app.mode === 'demo' || hasSongbook();
-  const dsZeitung = app.mode === 'demo' || hasDsZeitung();
+  // Bereiche, die die eigene Gruppe nicht sieht, fehlen auf der Startseite (E41)
+  const zeig = (bereich) => !gesperrt(bereich);
+  const songs = (app.mode === 'demo' || hasSongbook()) && zeig('lieder');
+  const dsZeitung = (app.mode === 'demo' || hasDsZeitung()) && zeig('dsZeitung');
+  const tile = (bereich, href, ic, label) => (zeig(bereich) ? html`<a class="tile" href="${href}">${icon(ic)}${label}</a>` : '');
 
   setHtml(el, html`
     <section class="home-hero">
@@ -40,33 +44,33 @@ export default async function home(ctx) {
       </div>` : ''}
     <div class="grid-2-1">
       <div>
-        ${sectionTitle('Nächste Termine', { href: '#/termine', label: 'Alle Termine' })}
-        <div id="h-events">${skeletonList(3)}</div>
+        ${zeig('termine') ? html`${sectionTitle('Nächste Termine', { href: '#/termine', label: 'Alle Termine' })}
+        <div id="h-events">${skeletonList(3)}</div>` : ''}
         <div id="h-birthdays"></div>
-        ${sectionTitle('Neuigkeiten', { href: '#/news', label: 'Alle News' })}
-        <div id="h-news">${skeletonList(2)}</div>
+        ${zeig('news') ? html`${sectionTitle('Neuigkeiten', { href: '#/news', label: 'Alle News' })}
+        <div id="h-news">${skeletonList(2)}</div>` : ''}
       </div>
       <aside>
         ${sectionTitle('Schnellzugriff')}
         <div class="tiles">
-          <a class="tile" href="#/chat">${icon('chat')}Chat</a>
-          <a class="tile" href="#/mitglieder">${icon('users')}Mitglieder</a>
-          <a class="tile" href="#/adressen">${icon('book')}Adressen</a>
-          <a class="tile" href="#/zeitung">${icon('paper')}Bundesbote</a>
+          ${tile('chat', '#/chat', 'chat', 'Chat')}
+          ${tile('mitglieder', '#/mitglieder', 'users', 'Mitglieder')}
+          ${tile('adressen', '#/adressen', 'book', 'Adressen')}
+          ${tile('zeitung', '#/zeitung', 'paper', 'Bundesbote')}
           ${dsZeitung ? html`<a class="tile" href="#/ds-zeitung">${icon('newspaper')}DS-Zeitung</a>` : ''}
           ${songs ? html`<a class="tile" href="#/lieder">${icon('music')}Lieder&shy;mappe</a>` : ''}
-          <a class="tile" href="#/galerie">${icon('image')}Galerie</a>
-          <a class="tile" href="#/forum">${icon('forum')}Forum</a>
-          <a class="tile" href="#/news">${icon('news')}News</a>
+          ${tile('galerie', '#/galerie', 'image', 'Galerie')}
+          ${tile('forum', '#/forum', 'forum', 'Forum')}
+          ${tile('news', '#/news', 'news', 'News')}
           <a class="tile" href="#/profil">${icon('user')}Profil</a>
-          <a class="tile" href="#/termine?abo=1">${icon('calendarPlus')}Kalender</a>
-          ${extraLinks().map((l) => html`<a class="tile" href="${l.url}" target="_blank" rel="noopener" title="${l.titel} (${l.host}) – öffnet sich außerhalb der App">${icon(ICON_NAMES.includes(l.symbol) ? l.symbol : 'globe')}${l.titel}</a>`)}
+          ${tile('termine', '#/termine?abo=1', 'calendarPlus', 'Kalender')}
+          ${extraLinks().filter((l) => !linkGesperrt(l)).map((l) => html`<a class="tile" href="${l.url}" target="_blank" rel="noopener" title="${l.titel} (${l.host}) – öffnet sich außerhalb der App">${icon(ICON_NAMES.includes(l.symbol) ? l.symbol : 'globe')}${l.titel}</a>`)}
         </div>
-        ${sectionTitle('Bundesbote', { href: '#/zeitung', label: 'Archiv' })}
-        <div id="h-zeitung"><div class="skeleton" style="height:7.5rem"></div></div>
+        ${zeig('zeitung') ? html`${sectionTitle('Bundesbote', { href: '#/zeitung', label: 'Archiv' })}
+        <div id="h-zeitung"><div class="skeleton" style="height:7.5rem"></div></div>` : ''}
         <div id="h-photos"></div>
-        ${sectionTitle('Aus dem Forum', { href: '#/forum', label: 'Zum Forum' })}
-        <div id="h-forum">${skeletonList(2)}</div>
+        ${zeig('forum') ? html`${sectionTitle('Aus dem Forum', { href: '#/forum', label: 'Zum Forum' })}
+        <div id="h-forum">${skeletonList(2)}</div>` : ''}
       </aside>
     </div>`);
 
@@ -177,9 +181,9 @@ export default async function home(ctx) {
       if (lastForum) renderForum(lastForum);
       if (lastAddresses) renderBirthdays(lastAddresses);
     }, { maxAge: 10 * 60_000 }).catch(() => {}),
-    app.load('events-home', () => b.listEvents({ from, to }), renderEvents, { maxAge: 2 * 60_000 })
+    zeig('termine') && app.load('events-home', () => b.listEvents({ from, to }), renderEvents, { maxAge: 2 * 60_000 })
       .catch(failed('#h-events', 'Termine konnten nicht geladen werden')),
-    app.load('news', () => b.listNews(), async (items) => {
+    zeig('news') && app.load('news', () => b.listNews(), async (items) => {
       const top = items.slice(0, 2);
       const urls = await Promise.all(top.map((n) => b.imageUrl(n.image).catch(() => '')));
       if (!ctx.alive()) return;
@@ -187,7 +191,7 @@ export default async function home(ctx) {
         ? html`<div class="news-grid">${top.map((n, i) => newsCard(n, urls[i], { isNew: isNewNews(n) }))}</div>`
         : html`<div class="card">${emptyState('news', 'Noch keine Neuigkeiten')}</div>`);
     }, { maxAge: 5 * 60_000 }).catch(failed('#h-news', 'News nicht verfügbar')),
-    app.load('issues', () => b.listIssues(), (issues) => {
+    zeig('zeitung') && app.load('issues', () => b.listIssues(), (issues) => {
       const latest = issues[0];
       setHtml(q('#h-zeitung'), latest
         ? html`<a class="card card-pad row" href="#/zeitung/${encodeURIComponent(latest.id)}" style="align-items:center;gap:1rem">
@@ -197,9 +201,9 @@ export default async function home(ctx) {
           </a>`
         : html`<div class="card">${emptyState('paper', 'Noch keine Ausgaben')}</div>`);
     }, { maxAge: 30 * 60_000 }).catch(failed('#h-zeitung', 'Bundesbote nicht verfügbar')),
-    app.load('forum', () => b.listForum(), renderForum, { maxAge: 2 * 60_000 }).catch(failed('#h-forum', 'Forum nicht verfügbar')),
-    app.load('addresses', () => b.listAddresses(), renderBirthdays, { maxAge: 60 * 60_000 }).catch(() => {}),
-    app.load('gallery', () => b.listGallery(), (data) => {
+    zeig('forum') && app.load('forum', () => b.listForum(), renderForum, { maxAge: 2 * 60_000 }).catch(failed('#h-forum', 'Forum nicht verfügbar')),
+    zeig('adressen') && app.load('addresses', () => b.listAddresses(), renderBirthdays, { maxAge: 60 * 60_000 }).catch(() => {}),
+    zeig('galerie') && app.load('gallery', () => b.listGallery(), (data) => {
       const a = data.albums[0];
       if (!a || !ctx.alive()) return;
       const shown = a.photos.slice(0, 6);

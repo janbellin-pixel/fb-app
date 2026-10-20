@@ -34,6 +34,7 @@ import { isoLocal } from '../lib/dates.js';
 import { resizeImage } from '../ui.js';
 import { findOwnAddress, nameKey } from '../lib/adressabgleich.js';
 import { local } from '../lib/store.js';
+import { gesperrt, gruppenAdressen } from '../lib/gruppen.js';
 
 const SCOPE_DIRECTORY = 'https://www.googleapis.com/auth/directory.readonly';
 const SCOPE_CHAT_READ = 'https://www.googleapis.com/auth/chat.spaces.readonly';
@@ -225,7 +226,8 @@ export class GoogleBackend {
     const [dir, files, addr, vis] = await Promise.all([
       this.directory().catch(() => []),
       this.profileFiles().catch(() => []),
-      config.tabellen?.adressen ? this.cached(this.addressKey(), 10 * 60_000, () => this.loadAddresses()).catch(() => null) : Promise.resolve(null),
+      // Kneipname und Status aus dem Adressverzeichnis – nicht, wenn es für die eigene Gruppe ausgeblendet ist (E41)
+      config.tabellen?.adressen && !gesperrt('adressen') ? this.cached(this.addressKey(), 10 * 60_000, () => this.loadAddresses()).catch(() => null) : Promise.resolve(null),
       this.visibilityFiles().catch(() => []),
     ]);
     // Sichtbarkeit (E40): je Mitglied die zuletzt geänderte eigene Datei – Inhaber laut Google, nicht fälschbar.
@@ -337,6 +339,26 @@ export class GoogleBackend {
       if ((await this.myVisibility()) === false) await this.unshareOwnFile(f.id);
     }
     this.invalidate('profiles');
+  }
+
+  /* ================================================================ Gruppen (E41) */
+
+  /**
+   * Eigene Gruppen: Kennungsdateien (fbTyp=gruppe, fbGruppe=<Schlüssel>), die ein Admin in der Einrichtung angelegt
+   * und nur für die jeweilige Google-Gruppe freigegeben hat. Wer eine lesen kann, gehört dazu. Gezählt werden nur
+   * Dateien von Admins (Inhaber laut Google) – sonst könnte jedes Mitglied Kennungen fälschen.
+   */
+  async myGroups() {
+    const keys = Object.keys(gruppenAdressen());
+    if (!keys.length) return [];
+    const admins = new Set((config.admins || []).map((e) => String(e).toLowerCase()));
+    const files = await this.cached('gruppen', 30 * 60_000, () => this.listAppFiles('gruppe'));
+    const out = new Set();
+    for (const f of files) {
+      const key = String(f.appProperties?.fbGruppe || '');
+      if (keys.includes(key) && admins.has(this.ownerOf(f).email)) out.add(key);
+    }
+    return [...out];
   }
 
   /* ================================================================ Sichtbarkeit in der App (E40) */

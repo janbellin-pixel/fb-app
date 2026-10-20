@@ -34,6 +34,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 - Seiten: `js/views/<bereich>.js`; Leseansicht für PDFs und Bilder (Bundesbote, Liedermappe): `js/views/reader.js`
 - Google-Zugriffe: `js/google/*.js`; Schreibschutz: `js/google/guard.js`
 - Benachrichtigungen (nur nach Einschalten, E34): `js/lib/hinweise.js`
+- Gruppen (Bereiche je Google-Gruppe ausblenden, E41): `js/lib/gruppen.js`, Kennungsdateien in `js/lib/setup.js`; Sichtbarkeit (E40): `js/backend/google-backend.js`
 - Datenmodelle: `js/backend/common.js`; Einwilligungen: `js/lib/datenschutz.js`, `js/lib/einwilligungsliste.js`; Adressabgleich: `js/lib/adressabgleich.js`
 - Einrichtung (verbindet Vorhandenes, legt nur Fehlendes neu an, prüft Freigaben nur lesend): `js/lib/setup.js`, `js/views/einrichtung.js`
 - Gestaltung: `css/app.css` (Tokens in `:root`, Navigation nur an einer Media-Query, siehe E17)

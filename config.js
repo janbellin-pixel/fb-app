@@ -75,10 +75,28 @@ window.FB_CONFIG = {
   },
 
   // Weitere Links im Schnellzugriff (Startseite) und unter „Mehr“ – nur https-Adressen;
-  // symbol optional (Name eines App-Symbols, Standard 'globe')
+  // symbol optional (Name eines App-Symbols, Standard 'globe'); ohne = Gruppen, die den Link nicht sehen
   links: [
-    { titel: 'Wiki', url: 'https://frbr-bookstack.cubiga.to/login' }
+    { titel: 'Wiki', url: 'https://frbr-bookstack.cubiga.to/login', ohne: ['gaeste'] }
   ],
+
+  // Gruppen der Verbindung: Die Einrichtung („Fehlendes neu anlegen“) legt je Gruppe eine kleine Kennungsdatei an,
+  // die nur diese Gruppe lesen kann – daran erkennt die App, wer dazugehört. Unter „ohne“ steht, welche Bereiche
+  // eine Gruppe NICHT sieht (gehört jemand zusätzlich zu einer anderen Gruppe, zählt diese). Nur die Oberfläche:
+  // Die Daten selbst schützen die Drive-Freigaben (Adressverzeichnis nur für die Bundesbrüder freigeben).
+  gruppen: {
+    adressen: {
+      bundesbrueder: 'bundesbrueder@frankonia-brunonia.de',
+      chordamen: 'chordamen@frankonia-brunonia.de',
+      verkehrsgaeste: 'verkehrsgaeste@frankonia-brunonia.de',
+      gaeste: 'gaeste@frankonia-brunonia.de'
+    },
+    ohne: {
+      adressen: ['chordamen', 'verkehrsgaeste', 'gaeste'],
+      forum: ['gaeste'],
+      galerie: ['gaeste']
+    }
+  },
 
   // Mitglieder dürfen eigene Profilangaben (Kneipname, Tätigkeit, Angebot für Jüngere …) ergänzen
   profilBearbeiten: true,

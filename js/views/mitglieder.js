@@ -4,6 +4,7 @@ import { matchesQuery, linkify } from '../lib/text.js';
 import { config, statusGroup } from '../config.js';
 import { local } from '../lib/store.js';
 import * as auth from '../auth.js';
+import { gesperrt } from '../lib/gruppen.js';
 
 export function instagramUrl(v) {
   const s = String(v || '').trim();
@@ -180,7 +181,7 @@ export async function detail(ctx) {
           ${m.instagram ? html`<div><dt>Instagram</dt><dd><a href="${instagramUrl(m.instagram)}" target="_blank" rel="noopener">${m.instagram}</a></dd></div>` : ''}
           ${m.linkedin ? html`<div><dt>LinkedIn</dt><dd><a href="${linkedinUrl(m.linkedin)}" target="_blank" rel="noopener">Profil öffnen</a></dd></div>` : ''}
         </dl>
-        <p style="margin:.875rem 0 0"><a class="small" href="#/adressen?q=${encodeURIComponent(m.name.split(' ').pop())}">${icon('book', 'icon-sm')} Im Adressverzeichnis suchen</a></p>
+        ${gesperrt('adressen') ? '' : html`<p style="margin:.875rem 0 0"><a class="small" href="#/adressen?q=${encodeURIComponent(m.name.split(' ').pop())}">${icon('book', 'icon-sm')} Im Adressverzeichnis suchen</a></p>`}
       </div>
     </div>`);
 

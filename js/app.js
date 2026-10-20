@@ -6,6 +6,7 @@ import { startRouter, navigate, refresh, lastRenderTime } from './router.js';
 import { cachedLoad, local, kv } from './lib/store.js';
 import { firstName } from './lib/text.js';
 import { watchKeyboard } from './lib/tastatur.js';
+import { gesperrt, ladeGemerkteGruppen, setMeineGruppen, meineGruppen } from './lib/gruppen.js';
 
 export const APP_VERSION = '1.0.0';
 
@@ -100,6 +101,12 @@ const app = {
       navigate(`#/datenschutz?erstmals=1&weiter=${encodeURIComponent(weiter)}`, { replace: true });
       return false;
     }
+    // Bereiche, die die eigene Gruppe nicht sieht (E41): zurück zur Startseite
+    if (this.user && match.route.bereich && gesperrt(match.route.bereich)) {
+      navigate('#/', { replace: true });
+      toast('Dieser Bereich ist für deine Gruppe nicht vorgesehen.', { type: 'info' });
+      return false;
+    }
     if (this.mode !== 'google' || !navigator.onLine) return true;
     const left = auth.tokenExpiresIn();
     if (left > 4 * 60_000) return true;
@@ -112,6 +119,7 @@ const app = {
   },
 
   onRoute(match) {
+    applyGruppen();
     document.body.classList.toggle('logged-out', !this.user);
     // während der Datenschutz-Abfrage keine Navigation zeigen (sie führt ohnehin zurück)
     document.body.classList.toggle('consent-gate', !!(this.consentPending && this.user && match.route.path === 'datenschutz'));
@@ -215,10 +223,13 @@ async function boot() {
   }
 
   if (app.user) await initConsent();
+  if (app.user) ladeGemerkteGruppen(app.user.email);
 
   auth.setUnauthorizedHandler(onUnauthorized);
   renderShell();
+  applyGruppen();
   startRouter(app);
+  if (app.user) initGruppen();
   watchConnection();
   watchVisibility();
   watchKeyboard();
@@ -268,6 +279,30 @@ async function initConsent() {
     console.warn('Einwilligung nicht geladen', e);
     app.consentPending = false;
   }
+}
+
+/**
+ * Gruppen (E41): zuerst der Stand auf dem Gerät, dann Google (Kennungsdateien). Ändert sich etwas,
+ * passen sich Navigation und die aktuelle Seite an.
+ */
+async function initGruppen() {
+  if (!app.backend?.myGroups) return;
+  try {
+    const before = JSON.stringify([...(meineGruppen() || [])].sort());
+    const keys = await app.backend.myGroups();
+    setMeineGruppen(app.user.email, keys);
+    if (JSON.stringify([...keys].sort()) === before) return;
+    applyGruppen();
+    refresh();
+  } catch (e) {
+    console.warn('Gruppen nicht geladen', e);
+  }
+}
+
+/** Navigation: Bereiche ausblenden, die die eigene Gruppe nicht sieht */
+function applyGruppen() {
+  $$('.topnav a[data-nav]').forEach((a) => a.classList.toggle('hidden', gesperrt(a.dataset.nav)));
+  $$('.tabbar a[data-tab]').forEach((a) => a.classList.toggle('hidden', gesperrt(a.dataset.tab)));
 }
 
 let reloginOpen = false;

@@ -27,6 +27,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Forum** | Kategorien, Themen und Antworten. Jeder Beitrag liegt im eigenen Drive des Verfassers, nur er kann ihn ändern oder löschen. |
 | **Schriftgröße** | Klein, Normal, Groß und Sehr groß, damit auch Menschen mit schlechten Augen auf dem Handy alles lesen können. Einstellbar unter Mehr. |
 | **Datenschutz** | Beim ersten Öffnen: Datenschutzerklärung, zwei getrennte Einwilligungen (vereinsübliche Zwecke; Weitergabe an die Deutsche Sängerschaft) und die Wahl, ob man in der Mitgliederliste der App sichtbar ist, jeweils Ja oder Nein. Unter Mehr → Datenschutz jederzeit änderbar. Jede Entscheidung liegt nachweisbar im eigenen Drive und wird in einer vertraulichen Sammeltabelle der Verantwortlichen zusammengeführt. |
+| **Gruppen** | Bereiche lassen sich je Google-Gruppe ausblenden (`config.gruppen`, z. B. Adressverzeichnis nur für die Bundesbrüder). Erkannt wird die Gruppe ohne zusätzliche Berechtigung über kleine, nur für die Gruppe lesbare Kennungsdateien aus der Einrichtung. |
 | **Geräte** | Handy, Phablet und Tablet in jeder Ausrichtung sowie PC. Auf Touch-Geräten gibt es immer die große Leiste unten, ab iPad-Breite zweispaltig, mit Schutzabständen für Kameraaussparungen im Querformat. |
 | **Gestaltung** | Im Stil der Website: hellgrau, schwarze Titelkästen, Raleway, Grün aus dem Wappen. Wappen klein oben, Skyline unten. |
 

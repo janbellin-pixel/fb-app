@@ -96,6 +96,12 @@ export class DemoBackend {
     this.save();
   }
 
+  /** Demo: Das Demo-Mitglied ist Bundesbruder und sieht alle Bereiche (E41) */
+  async myGroups() {
+    await wait(30);
+    return ['bundesbrueder'];
+  }
+
   /* ---------------------------------------------------------- Datenschutz-Einwilligungen */
   async getMyConsent() {
     await wait(60);

@@ -18,6 +18,7 @@ import { calendarEventId, newId } from './text.js';
 import { addDays, startOfDay, isoDate } from './dates.js';
 import { consentRecipients } from './datenschutz.js';
 import { prepareConsentSheet, TABLE_TYPE, TABS as CONSENT_TABS } from './einwilligungsliste.js';
+import { gruppenAdressen } from './gruppen.js';
 
 const SPREADSHEET = 'application/vnd.google-apps.spreadsheet';
 
@@ -66,6 +67,17 @@ export const RESOURCES = [
 /** Schlüssel der Datenquellen, für die noch nichts eingetragen ist */
 export function missingResources(c = config) {
   return RESOURCES.filter((r) => !String(r.id(c) || '').trim()).map((r) => r.key);
+}
+
+const GRUPPE_Q = "appProperties has { key='fbTyp' and value='gruppe' } and 'me' in owners and trashed = false";
+
+/** Gruppen aus config.gruppen.adressen, für die ich noch keine Kennungsdatei angelegt habe (E41) */
+export async function missingGroupMarkers() {
+  const keys = Object.keys(gruppenAdressen());
+  if (!keys.length) return [];
+  const own = await drive.listFiles(GRUPPE_Q, { fields: 'id,appProperties' });
+  const have = new Set(own.map((f) => f.appProperties?.fbGruppe));
+  return keys.filter((k) => !have.has(k));
 }
 
 async function newFolder(name, parentId) {
@@ -203,13 +215,28 @@ export async function createMissing({
   const want = new Set(only);
   const name = config.appName;
   const targets = shareTargets({ group, domain, testUsers });
-  const out = { created: [], tabellen: {} };
-  if (!want.size) {
+  const out = { created: [], tabellen: {}, gruppen: [] };
+  const fehlendeGruppen = await missingGroupMarkers().catch(() => []);
+  if (!want.size && !fehlendeGruppen.length) {
     log('Es fehlt nichts – alle Datenquellen sind eingetragen.', 'ok');
     return out;
   }
   beginSetup();
   try {
+    // Gruppen (E41): je Gruppe eine Kennungsdatei, NUR für diese Gruppe lesbar (nicht im freigegebenen Ordner)
+    for (const key of fehlendeGruppen) {
+      const email = gruppenAdressen()[key];
+      const f = await drive.createFile({
+        name: `Gruppe ${email} – Kennung für die Mitglieder-App (bitte nicht löschen)`,
+        mimeType: 'application/json',
+        appProperties: { fbTyp: 'gruppe', fbGruppe: key },
+        description: JSON.stringify({ gruppe: key, adresse: email, zweck: 'Wer diese Datei lesen kann, gehört zur Gruppe (E41).' }),
+      });
+      registerSetupResource(f.id);
+      await drive.addPermission(f.id, { type: 'group', role: 'reader', emailAddress: email });
+      out.gruppen.push(key);
+      log(`Kennung für die Gruppe ${email} angelegt – nur diese Gruppe kann sie lesen`, 'ok');
+    }
     // Neue Tabellen und Ordner kommen in einen gemeinsamen Ordner (die Einwilligungsliste bewusst nicht)
     let root = null;
     if (['adressen', 'news', 'zeitung', 'lieder', 'ds', 'galerie'].some((k) => want.has(k))) {
@@ -609,6 +636,24 @@ export async function checkSetup() {
     const readers = (perms || []).filter((p) => p.role !== 'owner');
     const access = readers.length ? `lesbar für ${readers.length === 1 ? 'eine weitere verantwortliche Person' : `${readers.length} weitere Verantwortliche`}` : 'nur für den Inhaber lesbar';
     c.detail = `„${meta.properties.title}“${perms ? ` · ${access}, nicht für Gruppe oder Domain` : ''}`;
+  });
+  await add('Gruppen (Kennungsdateien)', async (c) => {
+    const adressen = gruppenAdressen();
+    const keys = Object.keys(adressen);
+    if (!keys.length) { c.detail = 'Keine Gruppen eingetragen – alle sehen alle Bereiche (freiwillig).'; return; }
+    const own = await drive.listFiles(GRUPPE_Q, { fields: 'id,name,appProperties' });
+    const have = new Map(own.map((f) => [f.appProperties?.fbGruppe, f]));
+    const missing = keys.filter((k) => !have.has(k));
+    c.detail = `${keys.length - missing.length} von ${keys.length} Kennungsdateien vorhanden`;
+    if (missing.length) c.warn.push(`Es fehlen Kennungen für ${missing.map((k) => adressen[k]).join(', ')} – „Fehlendes neu anlegen“ legt sie an.`);
+    for (const k of keys.filter((x) => have.has(x))) {
+      const perms = await drive.listPermissions(have.get(k).id).catch(() => []);
+      const mine = (p) => p.type === 'group' && String(p.emailAddress || '').toLowerCase() === adressen[k];
+      const wide = perms.filter((p) => WIDE.includes(p.type) && !mine(p));
+      if (wide.length) c.warn.push(`Kennung „${k}“ ist zusätzlich für ${wide.map(who).join(', ')} freigegeben – dann zählen auch diese zur Gruppe.`);
+      if (!perms.some(mine)) c.warn.push(`Kennung „${k}“ ist nicht für ${adressen[k]} freigegeben.`);
+    }
+    c.lines.push('Die App blendet damit nur Bereiche aus. Die Daten schützen die Drive-Freigaben – z. B. das Adressverzeichnis nur für die Bundesbrüder freigeben.');
   });
   await add('Google-Verzeichnis (Mitgliederliste)', async (c) => {
     if (!d) { c.detail = 'Nur mit Google Workspace (Workspace-Domain eintragen)'; return; }

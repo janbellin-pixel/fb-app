@@ -137,7 +137,10 @@ In der App unter **Einrichtung** (als Admin angemeldet):
 2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit dem Bundesboten, mit der DS-Zeitung, mit der Liedermappe und mit den Fotos → „Übernehmen“. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
 3. **„Verbindung prüfen (nur lesend)“** und die Hinweise abarbeiten (siehe unten). Die Prüfung ändert nichts.
 4. **„2. Fehlendes neu anlegen“:** legt nur noch an, was nicht verbunden ist – typischerweise die **News-Tabelle** und die **Einwilligungsliste**. Was verbunden ist, wird dabei weder verändert noch neu freigegeben; Beispieldaten sind hier nicht vorausgewählt.
-5. Noch einmal prüfen, dann **config.js** herunterladen (siehe unten).
+5. **Gruppen (E41, freiwillig):** Stehen in `config.js` unter `gruppen.adressen` Google-Gruppen (z. B. `bundesbrueder@`, `chordamen@`, `verkehrsgaeste@`, `gaeste@`), legt **„Fehlende Gruppen-Kennungen anlegen“** je Gruppe eine kleine Datei in deiner „Meine Ablage“ an, die nur diese Gruppe lesen kann (ohne Benachrichtigung). Daran erkennt die App, wer zu welcher Gruppe gehört; unter `gruppen.ohne` steht, welche Bereiche eine Gruppe nicht sieht (Links: `links[].ohne`). Vorher die Gruppen in der Admin-Konsole anlegen und füllen. Die Kennungen bitte nicht löschen oder weiter freigeben – die Prüfung meldet beides.
+   - Ausblenden betrifft nur die App. **Die Daten selbst schützen die Drive-Freigaben:** das Adressverzeichnis nur für `bundesbrueder@` freigeben, den Galerie-Ordner für `bundesbrueder@`, `chordamen@` und `verkehrsgaeste@` (nicht für die Domain). Forumsbeiträge bleiben für die Domain lesbar.
+   - Wer noch in keiner Gruppe ist, sieht alles. Admins sehen immer alles.
+6. Noch einmal prüfen, dann **config.js** herunterladen (siehe unten).
 
 Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browser – so kannst du alles in Ruhe prüfen, bevor die IDs öffentlich werden.
 

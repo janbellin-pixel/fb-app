@@ -15,6 +15,7 @@ import { PROFILE_MAX } from '../backend/common.js';
 import {
   ADRESS_FELDER, PROFIL_FELDER, findOwnAddress, anzeigeWert, vergleiche, mailEntwurf, adressaenderungEmail, adressaenderungMail,
 } from '../lib/adressabgleich.js';
+import { gesperrt } from '../lib/gruppen.js';
 
 export default async function profil(ctx) {
   const { el, app } = ctx;
@@ -26,10 +27,12 @@ export default async function profil(ctx) {
   let m;
   let addr = null;
   let addrError = null;
+  // Adressverzeichnis für die eigene Gruppe ausgeblendet (E41): kein Abgleich, Änderungen weiter per E-Mail
+  const adrGesperrt = gesperrt('adressen');
   try {
     [m] = await Promise.all([
       b.getMember(me.email).then((x) => x || { email: me.email, name: me.name, photo: me.photo }),
-      b.listAddresses().then((d) => { addr = d; }).catch((e) => { addrError = e; }),
+      adrGesperrt ? null : b.listAddresses().then((d) => { addr = d; }).catch((e) => { addrError = e; }),
     ]);
   } catch (err) {
     setHtml(c, errorBox(err));
@@ -62,7 +65,7 @@ export default async function profil(ctx) {
   const ownLine = () => (own.entry
     ? html`${icon('check', 'icon-sm')} Dein Eintrag im Adressverzeichnis${own.via === 'name' ? ' (über deinen Namen gefunden)' : own.via === 'auswahl' ? ` (ausgewählt: ${own.entry.name})` : ''}.`
     : addrError ? html`${icon('alert', 'icon-sm')} Das Adressverzeichnis ist gerade nicht erreichbar.`
-      : !addr ? html`${icon('info', 'icon-sm')} Kein Adressverzeichnis eingerichtet.`
+      : !addr ? html`${icon('info', 'icon-sm')} ${adrGesperrt ? 'Das Adressverzeichnis ist für deine Gruppe nicht freigegeben. Änderungen meldest du per E-Mail.' : 'Kein Adressverzeichnis eingerichtet.'}`
         : own.mehrdeutig ? html`${icon('alert', 'icon-sm')} Es gibt mehrere mögliche Einträge mit deinem Namen. Trag deine Angaben ein – der Schriftwart ordnet sie zu.`
           : html`${icon('alert', 'icon-sm')} Für dich gibt es noch keinen Eintrag. Trag deine Angaben ein und melde sie.`);
 
