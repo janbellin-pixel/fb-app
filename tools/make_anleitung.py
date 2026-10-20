@@ -1,5 +1,5 @@
 """
-Erzeugt die Kurzanleitung für die Mitglieder als PDF (2 Seiten A4) mit QR-Code
+Erzeugt die Kurzanleitung für die Mitglieder als PDF (3 Seiten A4: Installieren, Überblick, Hintergrund) mit QR-Code
 und den QR-Code zusätzlich als Bild:
 
     docs/Anleitung-Mitglieder-App.pdf
@@ -37,6 +37,7 @@ FONTS = ROOT / "tools" / "out" / "fonts"
 OUT_PDF = ROOT / "docs" / "Anleitung-Mitglieder-App.pdf"
 OUT_QR = ROOT / "docs" / "qr-code.png"
 PLACEHOLDER = "https://DEINNAME.github.io/fb-app/"
+PAGES = 3
 
 W, H = A4
 M = 16 * mm
@@ -259,6 +260,19 @@ def icon(c, name, cx, cy, s, color=BLACK, width=None):
         c.drawCentredString(*P(8, 18), "A")
         c.setFont(F["semi"], 15 * u)
         c.drawCentredString(*P(16.5, 19), "A")
+    elif name == "mail":
+        c.roundRect(*P(3, 19), 18 * u, 14 * u, 2 * u, stroke=1, fill=0)
+        p = c.beginPath()
+        p.moveTo(*P(3.5, 6)); p.lineTo(*P(12, 12.5)); p.lineTo(*P(20.5, 6))
+        c.drawPath(p, stroke=1, fill=0)
+    elif name == "tablet":
+        c.roundRect(*P(4, 22), 16 * u, 20 * u, 2.5 * u, stroke=1, fill=0)
+        c.setFillColor(color)
+        c.circle(*P(12, 18.5), 1.1 * u, stroke=0, fill=1)
+    elif name == "folder":
+        p = c.beginPath()
+        p.moveTo(*P(3, 19)); p.lineTo(*P(3, 6)); p.lineTo(*P(9, 6)); p.lineTo(*P(11, 8.5)); p.lineTo(*P(21, 8.5)); p.lineTo(*P(21, 19)); p.close()
+        c.drawPath(p, stroke=1, fill=0)
 
 
 def number_badge(c, n, x, y, r=11):
@@ -308,7 +322,7 @@ def footer(c, page, sample):
     c.setFillColor(GREY)
     c.setFont(F["regular"], 8.5)
     c.drawString(M, M, "Frankonia-Brunonia · Mitglieder-App · Kurzanleitung" + (" · MUSTER – Adresse noch nicht eingetragen" if sample else ""))
-    c.drawRightString(W - M, M, f"Seite {page} von 2")
+    c.drawRightString(W - M, M, f"Seite {page} von {PAGES}")
 
 
 # ------------------------------------------------------------------ Seite 1: Installieren
@@ -372,14 +386,15 @@ def page_install(c, url, sample, domain, crest):
     # 2 · Anmelden
     y = step(2, "Anmelden – nur einmal", y)
     konto = f"dein Google-Konto der Verbindung ({b('…@' + domain)})" if domain else "dein Google-Konto der Verbindung"
-    y -= para(c, f"Auf {b('„Mit Google anmelden“')} tippen und {konto} wählen. Ein eigenes Passwort für die App gibt es nicht – die App merkt sich die Anmeldung.", body, M + 30, y, tw - 30)
-    y -= 4.5 * mm
+    y -= para(c, f"Auf {b('„Mit Google anmelden“')} tippen und {konto} wählen – die App merkt sich die Anmeldung. "
+                 f"{b('Beim allerersten Anmelden')} verlangt Google ein neues, eigenes Passwort.", body, M + 30, y, tw - 30)
+    y -= 3.5 * mm
 
     # 3 · Datenschutz
     y = step(3, "Datenschutz bestätigen", y)
-    y -= para(c, f"Beim ersten Öffnen kurz die Hinweise lesen und bei den drei Fragen (Einwilligungen, Sichtbarkeit) jeweils {b('Ja')} oder {b('Nein')} antippen, dann {b('„Speichern und weiter“')}. "
-                 "Das lässt sich später jederzeit ändern (Mehr › Datenschutz).", body, M + 30, y, tw - 30)
-    y -= 4.5 * mm
+    y -= para(c, f"Hinweise lesen, bei den drei Fragen jeweils {b('Ja')} oder {b('Nein')} antippen, dann {b('„Speichern und weiter“')} – "
+                 "änderbar unter Mehr › Datenschutz.", body, M + 30, y, tw - 30)
+    y -= 3.5 * mm
 
     # 4 · Startbildschirm
     y = step(4, "Auf den Startbildschirm legen", y)
@@ -422,7 +437,8 @@ def page_install(c, url, sample, domain, crest):
             yy -= para(c, t, style(11, leading=15), bx + 14 * mm, yy, col_w - 16 * mm) + 3 * mm
     y = box_top - bh - 4 * mm
 
-    done = Paragraph(f"{b('Fertig!')} Ab jetzt öffnest du die App mit dem Wappen auf deinem Startbildschirm.", style(11.5, color=GREEN_INK, leading=15.5))
+    done = Paragraph(f"{b('Fertig!')} Ab jetzt öffnest du die App mit dem Wappen auf deinem Startbildschirm. "
+                     f"{b('Hilfe?')} Die Aktiven unterstützen gern.", style(11.5, color=GREEN_INK, leading=15.5))
     dh = done.wrap(tw - 10 * mm, 1000)[1] + 6 * mm
     c.setFillColor(GREEN_SOFT)
     c.roundRect(M, y - dh, tw, dh, 6, stroke=0, fill=1)
@@ -508,18 +524,101 @@ def page_overview(c, sample, kontakt, crest, skyline):
         yy -= h + 3 * mm
     y -= box_h
     check_fits(y, "Seite 2")
-
-    # Skyline und Wahlspruch unten, klein
-    if skyline:
-        reader, (iw, ih) = skyline
-        sw = 80 * mm
-        sh = sw * ih / iw
-        if y - sh - 14 * mm > M + 6 * mm:
-            c.drawImage(reader, (W - sw) / 2, M + 13 * mm, sw, sh, mask="auto")
-            c.setFillColor(GREY)
-            c.setFont(F["fraktur"], 15)
-            c.drawCentredString(W / 2, M + 8 * mm, "Auf ewig ungeteilt.")
     footer(c, 2, sample)
+
+
+def draw_skyline(c, y, skyline):
+    """Skyline und Wahlspruch unten, klein – nur, wenn Platz ist"""
+    if not skyline:
+        return
+    reader, (iw, ih) = skyline
+    sw = 80 * mm
+    sh = sw * ih / iw
+    if y - sh - 14 * mm > M + 6 * mm:
+        c.drawImage(reader, (W - sw) / 2, M + 13 * mm, sw, sh, mask="auto")
+        c.setFillColor(GREY)
+        c.setFont(F["fraktur"], 15)
+        c.drawCentredString(W / 2, M + 8 * mm, "Auf ewig ungeteilt.")
+
+
+# ------------------------------------------------------------------ Seite 3: Was steckt dahinter?
+
+def page_background(c, sample, crest, skyline):
+    if sample:
+        watermark(c)
+    y = header(c, "Was steckt dahinter?", "Google Workspace, Sicherheit, Tablet und Hilfe", crest) - 7 * mm
+    tw = W - 2 * M
+    body = style(12, leading=16.5)
+    y -= para(c, f"Die App ist eigentlich nur eine {b('Oberfläche für den Google Workspace der Verbindung')}. Alles, was sie zeigt, liegt dort – "
+                 f"und ist mit deinem FrBr-Konto auch {b('ohne die App')} erreichbar:", body, M, y, tw)
+    y -= 3.5 * mm
+    services = [
+        ("calendar", "Termine", "Google Kalender · calendar.google.com"),
+        ("chat", "Chat", "Google Chat · chat.google.com"),
+        ("folder", "Bundesbote, DS-Zeitung, Fotos,<br/>Liedermappe, Adressverzeichnis", "Google Drive · drive.google.com"),
+        ("mail", "E-Mail", "Gmail · mail.google.com"),
+    ]
+    row = style(11, leading=14.5)
+    col_w = (tw - 6 * mm) / 2
+    for r in range(0, len(services), 2):  # zwei Spalten, damit unten Platz für die Skyline bleibt
+        hs = []
+        for i, (ic, what, where) in enumerate(services[r:r + 2]):
+            x = M + i * (col_w + 6 * mm)
+            c.setFillColor(GREEN_SOFT)
+            c.circle(x + 5 * mm, y - 4.2 * mm, 4.4 * mm, stroke=0, fill=1)
+            icon(c, ic, x + 5 * mm, y - 4.2 * mm, 4.8 * mm, GREEN_INK)
+            hs.append(para(c, f"{b(what)}<br/>{where}", row, x + 13 * mm, y - 0.6 * mm, col_w - 13 * mm))
+        y -= max(10 * mm, max(hs) + 2.5 * mm)
+    y -= para(c, "Die App bündelt das nur übersichtlich an einem Ort – auf Handy, Tablet und Computer.", style(11, color=GREY, leading=14.5), M, y, tw)
+    y -= 5 * mm
+
+    # Sicherheit
+    tips = [
+        f"{b('Keine eigenen Server, keine eigene Datenbank:')} Die App ist nur eine Webseite. Die Daten liegen allein im Google Workspace der Verbindung – mit dessen Schutz (Verschlüsselung, Schutz vor verdächtigen Anmeldungen).",
+        f"{b('Dein Passwort bekommt nur Google:')} Du meldest dich direkt bei Google an; die App erhält nur einen Zugangsschlüssel, der eine Stunde gilt.",
+        f"{b('Wer was sieht, regelt allein Google:')} Es gelten die Freigaben des Workspace – die App zeigt nie mehr, als du ohnehin sehen darfst.",
+        f"{b('Nur lesen:')} Gemeinsame Daten kann die App nicht verändern, nur deine eigenen Angaben, Zusagen und Beiträge.",
+        f"{b('Nichts geht verloren:')} Fällt die App aus oder wird sie abgeschaltet, bleiben alle Daten erhalten und über Google erreichbar.",
+        f"{b('Volle Kontrolle:')} Keine Werbung, keine Tracker. Den Zugriff der App kannst du in deinem Google-Konto jederzeit widerrufen; endet eine Mitgliedschaft, sperrt der Admin das Konto.",
+    ]
+    tip_st = style(10.5, leading=14)
+    inner_w = tw - 20 * mm
+    hs = [Paragraph(t, tip_st).wrap(inner_w, 1000)[1] for t in tips]
+    box_h = 14 * mm + sum(hs) + len(tips) * 2.6 * mm
+    c.setFillColor(GREY_BG)
+    c.roundRect(M, y - box_h, tw, box_h, 6, stroke=0, fill=1)
+    icon(c, "shield", M + 9 * mm, y - 7 * mm, 5.5 * mm, GREEN_INK)
+    c.setFillColor(BLACK)
+    c.setFont(F["bold"], 13)
+    c.drawString(M + 15 * mm, y - 8.5 * mm, "Warum das sicher ist")
+    yy = y - 13 * mm
+    for t, h in zip(tips, hs):
+        icon(c, "check", M + 9 * mm, yy - 2.8 * mm, 4.4 * mm, GREEN_INK)
+        para(c, t, tip_st, M + 15 * mm, yy, inner_w)
+        yy -= h + 2.6 * mm
+    y -= box_h + 5 * mm
+
+    # Tablet und Hilfe nebeneinander
+    col_w = (tw - 5 * mm) / 2
+    boxes = [
+        ("tablet", "Auch auf dem Tablet", "Die App läuft genauso gut auf iPad und Android-Tablets – zum Schmökern im Bundesboten oder in der DS-Zeitung noch bequemer. Installieren wie auf dem Handy (Seite 1)."),
+        ("users", "Hilfe beim Einrichten", "Die Aktiven unterstützen gern bei allem rund um die Einrichtung: Anmelden, neues Passwort, Installieren auf Handy oder Tablet. Einfach ansprechen."),
+    ]
+    st = style(10.5, leading=14)
+    bh = max(Paragraph(t, st).wrap(col_w - 10 * mm, 1000)[1] for _, _, t in boxes) + 15 * mm
+    for i, (ic, title, text) in enumerate(boxes):
+        bx = M + i * (col_w + 5 * mm)
+        c.setFillColor(GREEN_SOFT)
+        c.roundRect(bx, y - bh, col_w, bh, 6, stroke=0, fill=1)
+        icon(c, ic, bx + 8 * mm, y - 7 * mm, 5.5 * mm, GREEN_INK)
+        c.setFillColor(BLACK)
+        c.setFont(F["bold"], 12.5)
+        c.drawString(bx + 14 * mm, y - 8.5 * mm, title)
+        para(c, text, st, bx + 5 * mm, y - 12.5 * mm, col_w - 10 * mm)
+    y -= bh
+    check_fits(y, "Seite 3")
+    draw_skyline(c, y, skyline)
+    footer(c, 3, sample)
 
 
 def shown(path):
@@ -545,7 +644,7 @@ def main():
     sample = "DEINNAME" in url or not url.startswith("http")
     if not sample and not url.startswith("https://"):
         print("Hinweis: Die App braucht im Echtbetrieb eine https-Adresse.", file=sys.stderr)
-    kontakt = args.kontakt.strip() or "Einfach im Chat fragen oder den Admins der App schreiben."
+    kontakt = args.kontakt.strip() or "Im Chat fragen oder die Aktiven bzw. Admins ansprechen."
 
     register_fonts()
     crest = image(ROOT / "assets" / "wappen.webp") if (ROOT / "assets" / "wappen.webp").exists() else None
@@ -559,6 +658,8 @@ def main():
     page_install(c, url, sample, args.domain.strip().lstrip("@"), crest)
     c.showPage()
     page_overview(c, sample, kontakt, crest, skyline)
+    c.showPage()
+    page_background(c, sample, crest, skyline)
     c.showPage()
     c.save()
     print(f"PDF:  {shown(OUT_PDF)}" + ("  (MUSTER – ohne echte Adresse)" if sample else ""))

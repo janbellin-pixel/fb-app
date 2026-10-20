@@ -70,7 +70,7 @@ python tools/serve.py
 ## Für die Mitglieder: Link, QR-Code, Anleitung
 
 - **Adresse der App:** <https://janbellin-pixel.github.io/fb-app/> (Repository: <https://github.com/janbellin-pixel/fb-app>)
-- **[docs/Anleitung-Mitglieder-App.pdf](docs/Anleitung-Mitglieder-App.pdf)** – zwei Seiten zum Verschicken oder Ausdrucken: QR-Code, Anmeldung, Datenschutz-Abfrage, Installation auf iPhone und Android, „Was finde ich wo?“.
+- **[docs/Anleitung-Mitglieder-App.pdf](docs/Anleitung-Mitglieder-App.pdf)** – drei Seiten zum Verschicken oder Ausdrucken: QR-Code, Anmeldung (beim ersten Mal mit neuem Passwort), Datenschutz-Abfrage, Installation auf iPhone und Android, „Was finde ich wo?“ und „Was steckt dahinter?“ (Google Workspace, Sicherheit, Tablet, Hilfe durch die Aktiven).
 - **[docs/qr-code.png](docs/qr-code.png)** – der QR-Code allein, z. B. für Aushang oder Rundmail.
 - Neu erzeugen, z. B. nach Änderungen an der App oder mit Ansprechpartner (Domain und Ansprechpartner optional):
 

@@ -154,8 +154,9 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 ## E20 · Mitglieder-Anleitung als erzeugtes PDF mit QR-Code
 *2026-10-17*
 
-- **Entscheidung:** `tools/make_anleitung.py <Adresse>` erzeugt ein zweiseitiges PDF (Installation, Anmeldung, Datenschutz, „Was finde ich wo?“) und `qr-code.png`. Ohne Adresse entsteht ein als MUSTER markierter Entwurf ohne QR-Code. Das Skript warnt, wenn Text in die Fußzeile ragt.
+- **Entscheidung:** `tools/make_anleitung.py <Adresse>` erzeugt ein dreiseitiges PDF (Installation, Anmeldung, Datenschutz · „Was finde ich wo?“ · „Was steckt dahinter?“) und `qr-code.png`. Ohne Adresse entsteht ein als MUSTER markierter Entwurf ohne QR-Code. Das Skript warnt, wenn Text in die Fußzeile ragt.
 - **Folgen:** Die Anleitung lässt sich nach jeder Änderung der App oder der Adresse neu erzeugen. Die Raleway-Schnitte haben eindeutige interne Namen, weil PDF-Betrachter sie sonst verwechseln (kein Fettdruck).
+- **Ergänzt 2026-10-20:** Dritte Seite „Was steckt dahinter?“: Die App ist nur eine Oberfläche für den Google Workspace, alles ist auch ohne sie erreichbar; dazu, warum das sicher ist, der Hinweis auf Tablets und die Hilfe durch die Aktiven. Beim Anmelden steht nur, dass Google beim ersten Mal ein neues Passwort verlangt – wie das Startpasswort gebildet wird, steht bewusst nicht in der Anleitung, weil sie öffentlich im Repository liegt.
 
 ## E21 · Postfach für Adressänderungen ohne Umlaut
 *2026-10-17*
