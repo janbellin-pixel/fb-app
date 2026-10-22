@@ -563,7 +563,7 @@ async function run() {
   fake.state.chatSendDenied = '';
   check(denied?.status === 403 && !denied.code && /install this Chat app/.test(denied.message), 'Senden von Google abgelehnt: Grund kommt für die Meldung im Chat an', JSON.stringify([denied?.status, denied?.code, denied?.message]));
   // Direktnachricht, die jemand anderes angefangen hat – ohne Zustimmung aus E30 sind die Mitglieder nicht lesbar
-  fake.state.spaces.push({ name: 'spaces/DM9', spaceType: 'DIRECT_MESSAGE', lastActiveTime: new Date().toISOString() });
+  fake.state.spaces.push({ name: 'spaces/DM9', spaceType: 'DIRECT_MESSAGE', lastActiveTime: new Date().toISOString(), spaceUri: 'https://chat.google.com/dm/DM9?cls=11' });
   fake.state.chatMembers['spaces/DM9'] = ['111', '222'];
   fake.state.messages['spaces/DM9'] = [{ name: 'spaces/DM9/messages/1', text: 'Eine Anmerkung zur App', createTime: new Date().toISOString(), sender: { name: 'users/222', type: 'HUMAN' } }];
   const tokenBackup = localStorage.getItem('fb.token');
@@ -575,6 +575,8 @@ async function run() {
   localStorage.setItem('fb.token', tokenBackup);
   check(dm9?.name === 'Anna Andere' && dm9.with === ANNA, 'Direktnachricht von jemand anderem: Name aus ihren Nachrichten statt „Direktnachricht“', JSON.stringify(dm9));
   check(dm9b?.name === 'Anna Andere' && reads9 === 1 && reads9b === 1, 'Name danach gemerkt – Nachrichten nicht erneut gelesen', JSON.stringify([dm9b?.name, reads9, reads9b]));
+  const allg = sp2?.find((s) => s.id === 'spaces/AAA');
+  check(dm9?.url === 'https://chat.google.com/dm/DM9?cls=11' && allg?.url === 'https://chat.google.com/room/AAA', 'Link nach Google Chat: von Google (spaceUri), sonst gebaut', JSON.stringify([dm9?.url, allg?.url]));
 
   /* ---------------------------------------------------------------- privates Konto */
   section('Privates Google-Konto (Prototyp)');

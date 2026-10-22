@@ -288,16 +288,17 @@ function dayLabel(d) {
 }
 
 /**
- * Senden abgelehnt (403): Google nennt den Grund (z. B. Chat-Apps in der Admin-Konsole nicht erlaubt).
- * Statt der allgemeinen Meldung „Freigabe fehlt“ den Grund zeigen und auf Google Chat verweisen.
+ * Senden abgelehnt (403): Meist ist die Unterhaltung bei Google noch eine Nachrichtenanfrage bzw. Einladung –
+ * lesen geht, antworten erst nach dem Annehmen in Google Chat. Das erklärt ein Hinweis über dem Eingabefeld
+ * (mit dem Grund von Google) statt der allgemeinen Meldung „Freigabe fehlt“. Andere Fehler: null.
  */
-function sendFailed(err) {
-  if (err?.status !== 403 || err.code || describeError(err).relogin) return showError(err);
-  console.error(err);
-  const why = /chat app|allowlist/i.test(err.message || '')
-    ? 'Die Admins müssen in der Google-Admin-Konsole Chat-Apps erlauben (Apps › Google Workspace › Google Chat › Chat-Apps).'
-    : `Grund laut Google: „${err.message || 'keine Berechtigung'}“.`;
-  toast(`Google hat das Senden über die App abgelehnt. ${why} Antworte so lange direkt in Google Chat (Knopf oben rechts).`, { type: 'err', timeout: 15000 });
+function sendRefusal(err) {
+  if (err?.status !== 403 || err.code || describeError(err).relogin) return null;
+  const google = err.message ? html`<br><span class="muted">Google: „${err.message}“</span>` : '';
+  if (/chat app|allowlist/i.test(err.message || '')) {
+    return notice('gold', 'Chat-Apps nicht erlaubt', html`Die Admins müssen in der Google-Admin-Konsole Chat-Apps erlauben (Apps › Google Workspace › Google Chat › Chat-Apps).${google}`);
+  }
+  return notice('gold', 'Antworten noch nicht möglich', html`Vermutlich eine noch nicht angenommene <b>Nachrichtenanfrage</b> oder Einladung. Annehmen in Google Chat: <b>Neuer Chat › Nachrichtenanfragen</b>. Danach klappt es auch hier.${google}`);
 }
 
 export async function room(ctx) {
@@ -323,6 +324,7 @@ export async function room(ctx) {
         <a class="btn btn-ghost btn-sm" id="open-ext" href="${CHAT_HOME}" target="_blank" rel="noopener" title="In Google Chat öffnen">${icon('external', 'icon-sm')}<span class="hide-sm">Google Chat</span></a>
       </div>
       <div class="chat-scroll" id="scroll" aria-live="polite">${loading()}</div>
+      <div class="chat-hint hidden" id="send-hint" role="status"></div>
       <form class="chat-compose" id="compose">
         <textarea class="textarea" id="msg" rows="1" placeholder="Nachricht schreiben …" aria-label="Nachricht" maxlength="4000">${local.get(draftKey, '')}</textarea>
         <button class="btn btn-primary" type="submit" aria-label="Senden">${icon('send', 'icon-sm')}</button>
@@ -331,6 +333,7 @@ export async function room(ctx) {
 
   const scroll = el.querySelector('#scroll');
   const input = el.querySelector('#msg');
+  const hintBox = el.querySelector('#send-hint');
   let messages = [];
   let timer = null;
   let stopped = false;
@@ -434,12 +437,19 @@ export async function room(ctx) {
       input.value = '';
       local.del(draftKey);
       autosize();
+      hintBox.classList.add('hidden');
       if (!messages.some((m) => m.id === msg.id)) messages.push(msg);
       render(true);
       markChatRead(spaceId, msg.created);
       setTimeout(poll, 4500);
     } catch (err) {
-      sendFailed(err);
+      const hint = sendRefusal(err);
+      if (!hint) showError(err);
+      else {
+        console.error(err);
+        setHtml(hintBox, hint);
+        hintBox.classList.remove('hidden');
+      }
     } finally {
       btn.disabled = false;
       input.focus();

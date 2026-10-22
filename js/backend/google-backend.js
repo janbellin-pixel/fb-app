@@ -1169,7 +1169,7 @@ export class GoogleBackend {
       });
     }
     this.rememberChatName(s.name, { name: name || e, email: e });
-    return { id: s.name, url: chat.spaceUrl(s.name) };
+    return { id: s.name, url: s.spaceUri || chat.spaceUrl(s.name) };
   }
 
   /** Neue Gruppe: mit Namen als Raum (SPACE), ohne Namen als Gruppenunterhaltung (GROUP_CHAT) */
@@ -1191,7 +1191,7 @@ export class GoogleBackend {
       throw err;
     }
     if (!title) this.rememberChatName(s.name, { name: 'Gruppe' });
-    return { id: s.name, name: title, url: chat.spaceUrl(s.name) };
+    return { id: s.name, name: title, url: s.spaceUri || chat.spaceUrl(s.name) };
   }
 
   /** Personen zu einer Unterhaltung hinzufügen, in der man selbst ist (ob man das darf, entscheidet Google) */
@@ -1243,7 +1243,7 @@ export class GoogleBackend {
     const names = local.get(CHAT_NAMES, {});
     const rows = await Promise.all(spaces.map(async (s) => {
       const type = s.spaceType || (s.type === 'DM' ? 'DIRECT_MESSAGE' : s.type === 'ROOM' ? 'SPACE' : s.type) || '';
-      const base = { id: s.name, type, lastActive: s.lastActiveTime || s.createTime || '', url: chat.spaceUrl(s.name), description: s.spaceDetails?.description || '' };
+      const base = { id: s.name, type, lastActive: s.lastActiveTime || s.createTime || '', url: s.spaceUri || chat.spaceUrl(s.name), description: s.spaceDetails?.description || '' };
       if (type === 'SPACE') return (s.displayName || '').trim() ? { ...base, name: s.displayName } : null;
       if ((type !== 'DIRECT_MESSAGE' && type !== 'GROUP_CHAT') || s.singleUserBotDm) return null;
       const others = (await this.spaceMembers(s.name, dir).catch(() => [])).filter((p) => p.id !== myId && p.email !== this.myEmail);
@@ -1311,7 +1311,7 @@ export class GoogleBackend {
 
   async findDirectChat(email) {
     const s = await chat.findDirectMessage(email);
-    return s?.name ? { id: s.name, url: chat.spaceUrl(s.name) } : null;
+    return s?.name ? { id: s.name, url: s.spaceUri || chat.spaceUrl(s.name) } : null;
   }
 
   chatOpenUrl(space) {

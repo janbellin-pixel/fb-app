@@ -128,6 +128,7 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 | Freigabe **außerhalb der Organisation** einschränken (empfohlen, falls ihr nichts nach außen teilt) | Apps → Google Workspace → Drive und Docs → Freigabeeinstellungen | „Jeder mit dem Link“ ist dann nicht mehr möglich. Wichtig, weil die IDs in der öffentlichen `config.js` stehen |
 | Google Chat aktiviert, Räume angelegt (z. B. „Allgemein“, „Aktivitas“, „Altherrenschaft“) | Apps → Google Workspace → Google Chat | Chat in der App |
 | **Chat-Apps erlauben:** „Nutzern erlauben, Chat-Apps zu installieren“ (engl. „Allow users to install Chat apps“) auf **An** – für die oberste Organisationseinheit, nicht nur für eine Unter-Einheit | Apps → Google Workspace → Google Chat → Chat-Apps | Senden aus der App. Sonst kann Google das Senden ablehnen, Lesen geht trotzdem |
+| **Chateinladungen automatisch annehmen:** „Ein“ (gilt für Personen in der eigenen Organisation) | Apps → Google Workspace → Google Chat → Chateinladungen | Sonst ist die erste Direktnachricht von jemandem bei Google eine **Nachrichtenanfrage**: Der Empfänger kann sie lesen (auch in der App), antworten aber erst, wenn er sie in Google Chat unter „Neuer Chat › Nachrichtenanfragen“ annimmt |
 | **Postfach `adressaenderung@…`** (Gruppe oder Alias, z. B. für den Schriftwart) | Verzeichnis → Gruppen bzw. Nutzer → Alternative E-Mail-Adressen | Empfänger der vorbereiteten Adressänderungen aus „Mein Profil“ (ohne Umlaut, siehe `adressaenderung` in config.js) |
 
 ### B3. Daten einrichten
@@ -158,7 +159,7 @@ Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browse
 | Freigaben nicht einsehbar | Nur Inhaber und Bearbeiter sehen Freigaben | Als Inhaber/Bearbeiter prüfen oder in Google Drive selbst nachsehen |
 | Google-Verzeichnis: nur ein Konto bzw. „People API … disabled“ | „Mitglieder“ zeigt dann nur das eigene Konto | Admin-Konsole → Verzeichnis → Verzeichniseinstellungen → Freigabeeinstellungen → **Kontaktfreigabe** einschalten bzw. in der Cloud Console die People API aktivieren. Neue Konten erscheinen teils erst nach einigen Stunden |
 | Google Chat: „Google Chat app not found“ | Die Chat-Schnittstelle ist im Cloud-Projekt nicht konfiguriert | Cloud Console → Google Chat API → Konfiguration: App-Name, Avatar, Beschreibung (B1, Schritt 4) |
-| Google Chat: Lesen geht, Senden nicht („Google hat das Senden über die App abgelehnt“) | Den genauen Grund von Google nennt die Meldung in der App. Mögliche Ursache: Chat-Apps sind in der Admin-Konsole gesperrt (auch nur für eine Organisationseinheit) – Nachrichten aus der App rechnet Google der Chat-App zu, das Lesen nicht | Je nach Grund; bei gesperrten Chat-Apps: Admin-Konsole → Apps → Google Workspace → Google Chat → Chat-Apps: Installieren von Chat-Apps erlauben (B2). Bis dahin direkt in Google Chat antworten |
+| Google Chat: Lesen geht, Antworten nicht („Antworten noch nicht möglich“) | Meist eine noch nicht angenommene **Nachrichtenanfrage**: Schreibt jemand zum ersten Mal, muss der Empfänger sie annehmen – bis dahin kann er nur lesen; Google Chat meldet beim Öffnen „kein Mitglied“. Seltener: Chat-Apps in der Admin-Konsole gesperrt (Grund steht dann in der Meldung) | Empfänger: Google Chat → Neuer Chat → Nachrichtenanfragen → Annehmen. Dauerhaft: Chateinladungen automatisch annehmen (B2). Bei gesperrten Chat-Apps: Chat-Apps erlauben (B2) |
 | Liedermappe: weitere Dateien bzw. ohne Liednummer (Hinweis) | Word-, MuseScore- oder HEIC-Dateien zeigt die App nicht an; Lieder ohne Nummer stehen nach Titel am Ende | Als PDF oder JPG ablegen; Dateiname mit Nummer, z. B. „012 Titel.pdf“ |
 | Google Chat: keine Räume | Jeder sieht nur Unterhaltungen, in denen er Mitglied ist | In der App „Neue Nachricht“ bzw. „Neue Gruppe“ – oder in einer Gruppe unter „Personen“ neue Konten hinzufügen |
 
@@ -352,7 +353,7 @@ Der automatische Test `tests/google-mock.html` spielt alle Funktionen gegen eine
 | „Chat braucht Google Workspace“ | Privates Konto | Normal im Prototyp, Chat geht nur mit Workspace |
 | „Mitgliederliste unvollständig“ (ein Konto sieht andere, ein anderes nicht) | Diesem Konto fehlt die Berechtigung für das Verzeichnis (bei der Anmeldung abgewählt oder nie erteilt) | Auf der Mitglieder-Seite „Berechtigung erteilen“ bzw. ab- und wieder anmelden und alle Häkchen setzen; danach ggf. Mehr › Einstellungen › „Zwischenspeicher leeren“ |
 | Chat: 403 / „Chat app not found“ | Chat-API-Konfiguration fehlt | B1 Schritt 4 |
-| Chat: „Google hat das Senden über die App abgelehnt“ | Grund steht in der Meldung, z. B. Chat-Apps in der Admin-Konsole nicht erlaubt | Je nach Grund, z. B. B2 („Chat-Apps erlauben“) |
+| Chat: „Antworten noch nicht möglich“ | Nachrichtenanfrage noch nicht angenommen (oder Chat-Apps gesperrt – dann steht das in der Meldung) | In Google Chat annehmen; dauerhaft B2 („Chateinladungen automatisch annehmen“) |
 | Neue Version erscheint nicht | Handy hat alte Version zwischengespeichert | App schließen und neu öffnen; es erscheint „Neue Version verfügbar → Neu laden“ |
 
 ## Zusätzliche Einstellungen in config.js (optional)

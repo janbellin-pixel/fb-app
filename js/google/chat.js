@@ -43,6 +43,7 @@ export const addMember = (space, member) => api(`${BASE}/${space}/members`, { me
 export const findDirectMessage = (email) =>
   api(`${BASE}/spaces:findDirectMessage`, { query: { name: `users/${email}` } });
 
+/** Ersatz, falls Google keinen Link (spaceUri) mitliefert – für Direktnachrichten nicht immer passend */
 export function spaceUrl(spaceName) {
   const id = String(spaceName).replace('spaces/', '');
   return `https://chat.google.com/room/${enc(id)}`;
