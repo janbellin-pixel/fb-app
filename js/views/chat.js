@@ -288,7 +288,7 @@ function dayLabel(d) {
 }
 
 /**
- * Senden abgelehnt (403): Google nennt den Grund – meist sind Chat-Apps in der Admin-Konsole nicht erlaubt.
+ * Senden abgelehnt (403): Google nennt den Grund (z. B. Chat-Apps in der Admin-Konsole nicht erlaubt).
  * Statt der allgemeinen Meldung „Freigabe fehlt“ den Grund zeigen und auf Google Chat verweisen.
  */
 function sendFailed(err) {
