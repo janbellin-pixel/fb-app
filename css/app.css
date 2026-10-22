@@ -365,6 +365,8 @@ button.link { background: none; border: 0; padding: 0; color: var(--green-ink); 
 /* ---------- Chips, Badges, Pillen ---------- */
 .chips { display: flex; gap: .5rem; overflow-x: auto; padding: .125rem .125rem .5rem; margin: 0 -.125rem .375rem; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
+/* Umschalter mit wenigen Knöpfen: lieber umbrechen als seitlich verstecken (Mitglieder: App-Nutzer | Alle Mitglieder) */
+.chips-wrap { flex-wrap: wrap; overflow: visible; }
 .chip {
   flex: none;
   display: inline-flex;

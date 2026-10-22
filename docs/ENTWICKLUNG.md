@@ -213,7 +213,7 @@ Der Workflow läuft nur bei Uploads in `main` und bei manuellem Start, nicht bei
 
 - **Kein Test mit echtem Google:** Alles ist gegen den Nachbau und im Demo-Modus geprüft. Vor dem Start einmal komplett mit echtem Workspace testen (Teil A/B der EINRICHTUNG).
 - **Gruppen (E41) nur in der Oberfläche:** Forumsbeiträge (und Profile, Zusagen) sind weiter für die Domain freigegeben; über Google Drive könnten Gäste sie technisch finden. Echter Ausschluss bräuchte Freigaben je Gruppe statt Domain (`shareOwnFile`). Mit echten Gruppen prüfen, dass die Kennungsdateien über die Gruppenmitgliedschaft lesbar sind (der Nachbau kennt keine Gruppen).
-- **Sichtbarkeit (E40):** Direkt nach dem Update zeigt „Nur App-Nutzer“ nur, wer die Abfrage der Fassung 3 schon beantwortet hat.
+- **Sichtbarkeit (E40):** Direkt nach dem Update zeigt „App-Nutzer“ nur, wer die Abfrage der Fassung 3 schon beantwortet hat.
 - **Länge der Drive-Beschreibung:** Das Limit ist nicht dokumentiert. Beiträge (bis 4000 Zeichen) und Einwilligungen sind daher kompakt gehalten; mit echtem Drive prüfen.
 - **Apps-Scripts** (`Automatik.gs`, `Einwilligungen.gs`) sind nur auf Syntax geprüft und mit nachgebauten Diensten simuliert, nicht in echtem Apps Script ausgeführt.
 - **Einwilligungsliste nach Eigentümerwechsel:** `drive.file` erlaubt das Schreiben nur dem Konto, das die Tabelle mit der App angelegt hat. Nach einer Übertragung schreibt die App sie nicht mehr; dann übernimmt `Einwilligungen.gs` im Konto des neuen Eigentümers (vollständige Drive-Rechte des Skripts), oder es wird eine neue Liste angelegt (EINRICHTUNG, Teil D).

@@ -259,7 +259,7 @@ Beim **ersten Öffnen** der App erscheint die Datenschutzerklärung mit zwei Ein
 2. **Weitergabe an die Deutsche Sängerschaft (DS)** – zur Kontaktaufnahme, zum Versand der Verbandszeitung, zur Bestimmung des DS-Beitrags und für allgemeine verbands- und vereinsbezogene Zwecke.
 3. **Sichtbarkeit in der Mitgliederliste der App** (E40) – bei „Nein“ fehlt das Mitglied in der Mitgliederliste und als Profilseite, sein Profil ist nicht mehr freigegeben. Im **Google-Verzeichnis** (Adressvorschläge in Gmail, Kontakte) ändert sich dadurch nichts: Dort blendet nur ein Super-Admin jemanden aus (Admin-Konsole → Verzeichnis → Nutzer → Person → Nutzerinformationen → *Verzeichnisfreigabe*). Wer „Nein“ gewählt hat, zeigt die Übersicht unter **Mehr → Datenschutz → Einwilligungen aller Mitglieder** mit dem Filter „Nicht sichtbar“; die Sammeltabelle hat dafür die Spalte „Sichtbar in der App“.
 
-Die Mitgliederliste zeigt standardmäßig nur, wer die App schon genutzt (die Abfrage gespeichert) hat; der Schalter „Nur App-Nutzer“ blendet die übrigen Konten ein.
+Die Mitgliederliste zeigt standardmäßig nur, wer die App schon genutzt (die Abfrage gespeichert) hat; mit „Alle Mitglieder“ erscheinen auch die übrigen Konten.
 
 Erst nach der Entscheidung geht es in die App. Alles ist freiwillig; auch mit „Nein“ funktioniert die App ganz normal. Unter **Mehr → Datenschutz** kann jedes Mitglied seine Entscheidung jederzeit ändern oder widerrufen und sieht seine bisherigen Entscheidungen. Die Erklärung ist auch ohne Anmeldung lesbar (Link auf der Anmeldeseite und unten in jeder Seite).
 

@@ -480,7 +480,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
         ("calendar", "Termine", f"Alle Veranstaltungen als Liste oder Monat. Termin antippen › {b('Zusagen, Vielleicht oder Absagen')}, Gäste und Kommentar angeben, sehen wer kommt. "
                                 f"„Kalender abonnieren“ holt alle Termine in deinen eigenen Kalender."),
         ("chat", "Chat", "Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“."),
-        ("users", "Mitglieder", f"Wer die App nutzt, mit Foto und Profil ({b('„Nur App-Nutzer“')} abschaltbar). Antippen › anrufen, E-Mail oder Nachricht schreiben. Unter {b('„Angebote für Jüngere“')} steht, wer Praktika, Mentoring & Co. anbietet."),
+        ("users", "Mitglieder", f"Wer die App nutzt, mit Foto und Profil ({b('„Alle Mitglieder“')}: alle Konten). Antippen › anrufen, E-Mail oder Nachricht schreiben. Unter {b('„Angebote für Jüngere“')} steht, wer Praktika, Mentoring & Co. anbietet."),
         ("grid", "Mehr", f"{b('Bundesbote')} · {b('DS-Zeitung')} · {b('Liedermappe')} · {b('Galerie')} · {b('News')} · {b('Forum')} · {b('Adressverzeichnis')} · {b('Wiki')} · "
                          f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Schriftgröße')} · Einstellungen"),
     ]
