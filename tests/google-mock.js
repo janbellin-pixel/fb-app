@@ -722,6 +722,31 @@ async function run() {
   check(consentsV.find((x) => x.email === me.email)?.sichtbar === true, 'Übersicht der Verantwortlichen kennt die Wahl (zum Abgleich mit dem Google-Verzeichnis)');
 
   /* ---------------------------------------------------------------- Gruppen (E41) */
+  // Abgelaufene Anmeldung, Netz weg, Google kurz gestört: keine fast leere Liste, die sich die App merken würde
+  const { cachedLoad, kv } = await import('../js/lib/store.js');
+  const good = await step('listMembers (vollständig)', () => new GoogleBackend(me).listMembers());
+  const tokenSaved = localStorage.getItem('fb.token');
+  localStorage.setItem('fb.token', JSON.stringify({ ...JSON.parse(tokenSaved), expires_at: Date.now() - 1000 }));
+  const expired = await new GoogleBackend(me).listMembers().then(() => null).catch((e) => e);
+  await kv.set('test:members', { t: 0, v: good });
+  let shownMembers = null;
+  const keptErr = await cachedLoad('test:members', () => new GoogleBackend(me).listMembers(), (v) => { shownMembers = v; }).then(() => null).catch((e) => e);
+  const storedMembers = (await kv.get('test:members'))?.v;
+  localStorage.setItem('fb.token', tokenSaved);
+  await kv.del('test:members');
+  check(expired?.status === 401, 'Anmeldung abgelaufen: Mitgliederliste bricht ab, statt nur einen selbst zu liefern', JSON.stringify([expired?.status, expired?.message]));
+  check(keptErr && good?.length > 2 && shownMembers?.length === good.length && storedMembers?.length === good.length,
+    'dann bleibt der zuletzt gespeicherte Stand – angezeigt und nicht überschrieben', JSON.stringify([shownMembers?.length, storedMembers?.length, good?.length]));
+  fake.state.domainError = 408;
+  const domainDown = await new GoogleBackend(me).listMembers().then(() => null).catch((e) => e);
+  fake.state.domainError = 0;
+  check(domainDown?.status === 408, 'Suche in der Domain kurz gestört: Abbruch statt „Nur App-Nutzer“ ohne die anderen', JSON.stringify([domainDown?.status, domainDown?.message]));
+  fake.state.peopleError = 403;
+  const noDir = await new GoogleBackend(me).listMembers().catch((e) => e);
+  fake.state.peopleError = 0;
+  check(Array.isArray(noDir) && noDir.some((m) => m.email === ANNA && m.appNutzer) && !noDir.some((m) => m.email === KARL),
+    'Verzeichnis dauerhaft gesperrt (403): Liste kommt weiter, ohne Verzeichnis', JSON.stringify(Array.isArray(noDir) ? noDir.map((m) => m.email) : noDir?.message));
+
   section('Gruppen: Bereiche je Gruppe ausblenden (E41)');
   const gr = await import('../js/lib/gruppen.js');
   const savedGruppen = config.gruppen;

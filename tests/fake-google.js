@@ -327,6 +327,8 @@ export function createFakeGoogle({ me, workspace = true }) {
       const driveId = url.searchParams.get('driveId') || '';
       const allDrives = url.searchParams.get('includeItemsFromAllDrives') === 'true';
       state.queries.push({ q, driveId, corpora: url.searchParams.get('corpora') || '' });
+      // Suche in der Domain kurz gestört (z. B. 408) – für den Test „keine fast leere Mitgliederliste“
+      if (state.domainError && url.searchParams.get('corpora') === 'domain') return error(state.domainError, 'Request timed out.', 'timeout');
       // Dateien aus geteilten Ablagen nur mit includeItemsFromAllDrives (wie bei Google)
       const files = [...state.files.values()].filter((f) => (!f.driveId || allDrives) && (!driveId || f.driveId === driveId) && matches(f, q));
       return json({ files: files.map(view) });
@@ -448,6 +450,7 @@ export function createFakeGoogle({ me, workspace = true }) {
   function peopleApi(url) {
     if (url.pathname.includes('listDirectoryPeople')) {
       if (!workspace) return error(400, 'Must be a G Suite domain user.', 'FAILED_PRECONDITION');
+      if (state.peopleError) return error(state.peopleError, 'People API has not been used in project 1 before or it is disabled.', 'PERMISSION_DENIED');
       return json({ people: state.directory });
     }
     return error(400, 'Unbekannter People-Aufruf');

@@ -64,6 +64,21 @@ function notConfigured(what) {
 const nowIso = () => new Date().toISOString();
 const clip = (v, n) => String(v ?? '').trim().slice(0, n);
 
+/** Vorübergehender Fehler: Netz weg, Anmeldung abgelaufen (nach einer Stunde), Google überlastet */
+export function isTransient(err) {
+  const s = err?.status;
+  return !s || s === 401 || s === 408 || s === 429 || s >= 500;
+}
+
+/**
+ * Für .catch bei Listen aus mehreren Quellen: dauerhafte Fehler (z. B. fehlende Freigabe) → Ersatzwert,
+ * vorübergehende weiterwerfen. Sonst entsteht eine fast leere Liste, die sich die App als aktuellen Stand merkt.
+ */
+const unlessTransient = (fallback) => (err) => {
+  if (isTransient(err)) throw err;
+  return fallback;
+};
+
 const ANTWORTEN = ['accepted', 'tentative', 'declined'];
 
 /** Schlüssel eines Termins für appProperties (Google erlaubt höchstens 124 Byte je Eintrag) */
@@ -162,7 +177,7 @@ export class GoogleBackend {
     const lists = await Promise.all([
       drive.listFiles(q, { fields: OWN_FIELDS, orderBy: 'createdTime' }),
       this.isWorkspace && config.workspaceDomain
-        ? drive.listFiles(q, { fields: OWN_FIELDS, orderBy: 'createdTime', corpora: 'domain' }).catch(() => [])
+        ? drive.listFiles(q, { fields: OWN_FIELDS, orderBy: 'createdTime', corpora: 'domain' }).catch(unlessTransient([]))
         : Promise.resolve([]),
     ]);
     const byId = new Map();
@@ -223,12 +238,14 @@ export class GoogleBackend {
   }
 
   async listMembers() {
+    // Vorübergehende Fehler (z. B. abgelaufene Anmeldung) brechen ab: Dann zeigt die App den zuletzt gespeicherten
+    // Stand, statt sich eine Liste zu merken, in der alle außer einem selbst fehlen
     const [dir, files, addr, vis] = await Promise.all([
-      this.directory().catch(() => []),
-      this.profileFiles().catch(() => []),
+      this.directory().catch(unlessTransient([])),
+      this.profileFiles().catch(unlessTransient([])),
       // Kneipname und Status aus dem Adressverzeichnis – nicht, wenn es für die eigene Gruppe ausgeblendet ist (E41)
-      config.tabellen?.adressen && !gesperrt('adressen') ? this.cached(this.addressKey(), 10 * 60_000, () => this.loadAddresses()).catch(() => null) : Promise.resolve(null),
-      this.visibilityFiles().catch(() => []),
+      config.tabellen?.adressen && !gesperrt('adressen') ? this.cached(this.addressKey(), 10 * 60_000, () => this.loadAddresses()).catch(unlessTransient(null)) : Promise.resolve(null),
+      this.visibilityFiles().catch(unlessTransient([])),
     ]);
     // Sichtbarkeit (E40): je Mitglied die zuletzt geänderte eigene Datei – Inhaber laut Google, nicht fälschbar.
     // Wer „nicht sichtbar“ gewählt hat, fehlt in der Liste (nur man selbst sieht sich immer).
