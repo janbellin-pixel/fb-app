@@ -428,7 +428,9 @@ export function createFakeGoogle({ me, workspace = true }) {
       const list = (state.messages[m[1]] = state.messages[m[1]] || []);
       if (method === 'POST') {
         write('Chat-Nachricht', m[1], true);
-        const msg = { name: `${m[1]}/messages/${uid('m')}`, text: body.text, createTime: new Date().toISOString(), sender: { name: `users/${state.myDirectoryId}`, type: 'HUMAN' } };
+        // wie bei Google, wenn z. B. Chat-Apps in der Admin-Konsole nicht erlaubt sind (Lesen geht weiter)
+        if (state.chatSendDenied) return error(403, state.chatSendDenied, 'PERMISSION_DENIED');
+        const msg ={ name: `${m[1]}/messages/${uid('m')}`, text: body.text, createTime: new Date().toISOString(), sender: { name: `users/${state.myDirectoryId}`, type: 'HUMAN' } };
         list.push(msg);
         return json(msg);
       }

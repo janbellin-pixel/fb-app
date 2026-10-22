@@ -1249,7 +1249,8 @@ export class GoogleBackend {
       const others = (await this.spaceMembers(s.name, dir).catch(() => [])).filter((p) => p.id !== myId && p.email !== this.myEmail);
       const hint = names[s.name];
       if (type === 'DIRECT_MESSAGE') {
-        const p = others[0];
+        const known = hint?.email ? [...dir.values()].find((x) => x.email === hint.email) : null;
+        const p = others[0] || known || (hint ? null : await this.dmPartner(s.name, dir, myId).catch(() => null));
         return { ...base, name: p?.name || hint?.name || 'Direktnachricht', with: p?.email || hint?.email || '', photo: p?.photo || '' };
       }
       const first = others.map((p) => p.name.split(' ')[0]);
@@ -1257,6 +1258,22 @@ export class GoogleBackend {
       return { ...base, name: label || hint?.name || 'Gruppe', members: others.map((p) => p.email) };
     }));
     return rows.filter(Boolean).sort((a, b) => String(b.lastActive).localeCompare(String(a.lastActive)));
+  }
+
+  /**
+   * Andere Person einer Direktnachricht aus deren Nachrichten – falls die Mitglieder nicht lesbar sind
+   * (z. B. ohne die Zustimmung aus E30) und jemand anderes die Unterhaltung angefangen hat. Das Gerät merkt sich den Namen.
+   */
+  dmPartner(spaceId, dir, myId) {
+    if (!myId) return Promise.resolve(null);
+    return this.cached(`dmPartner:${spaceId}`, 10 * 60_000, async () => {
+      const msgs = await chat.listMessages(spaceId, { pageSize: 20 });
+      const m = msgs.find((x) => x.sender?.name && x.sender.name !== `users/${myId}`);
+      const s = m ? this.mapMessage(m, dir, myId).sender : null;
+      if (!s?.email) return null; // nur Personen aus dem Verzeichnis
+      this.rememberChatName(spaceId, { name: s.name, email: s.email });
+      return s;
+    });
   }
 
   async listMessages(spaceId, opts = {}) {

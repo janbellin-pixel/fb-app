@@ -1,7 +1,7 @@
 // Chat über Google Chat: Direktnachrichten, Gruppen und Räume der Verbindung (E14, E30).
 // Neue Unterhaltungen legt die App nur mit Personen an; Räume löschen oder Mitglieder entfernen kann sie nicht.
 import {
-  html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, notice, toast, showError, loading, setBusy,
+  html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, notice, toast, showError, describeError, loading, setBusy,
 } from '../ui.js';
 import { relTime, fTime, isSameDay, addDays, fDateNoYear, toDate } from '../lib/dates.js';
 import { linkify, matchesQuery } from '../lib/text.js';
@@ -287,6 +287,19 @@ function dayLabel(d) {
   return fDateNoYear(d);
 }
 
+/**
+ * Senden abgelehnt (403): Google nennt den Grund – meist sind Chat-Apps in der Admin-Konsole nicht erlaubt.
+ * Statt der allgemeinen Meldung „Freigabe fehlt“ den Grund zeigen und auf Google Chat verweisen.
+ */
+function sendFailed(err) {
+  if (err?.status !== 403 || err.code || describeError(err).relogin) return showError(err);
+  console.error(err);
+  const why = /chat app|allowlist/i.test(err.message || '')
+    ? 'Die Admins müssen in der Google-Admin-Konsole Chat-Apps erlauben (Apps › Google Workspace › Google Chat › Chat-Apps).'
+    : `Grund laut Google: „${err.message || 'keine Berechtigung'}“.`;
+  toast(`Google hat das Senden über die App abgelehnt. ${why} Antworte so lange direkt in Google Chat (Knopf oben rechts).`, { type: 'err', timeout: 15000 });
+}
+
 export async function room(ctx) {
   const { el, app, params, query } = ctx;
   const b = app.backend;
@@ -426,7 +439,7 @@ export async function room(ctx) {
       markChatRead(spaceId, msg.created);
       setTimeout(poll, 4500);
     } catch (err) {
-      showError(err);
+      sendFailed(err);
     } finally {
       btn.disabled = false;
       input.focus();
