@@ -210,7 +210,7 @@ export function describeError(err) {
     if (/not enabled|has not been used|disabled/i.test(msg)) {
       return { title: 'Google-Schnittstelle nicht aktiviert', text: `Die benötigte Google-API ist im Cloud-Projekt nicht aktiviert. Details: ${msg}`, kind: 'red' };
     }
-    return { title: 'Kein Zugriff', text: 'Du hast keinen Zugriff auf diese Daten. Bitte wende dich an die Admins der App, damit sie dir die Freigabe erteilen.', kind: 'red' };
+    return { title: 'Kein Zugriff', text: 'Du hast keinen Zugriff auf diese Daten. Bitte wende dich an die Admins der App, damit sie dir die Freigabe erteilen.', kind: 'red', key: 'forbidden' };
   }
   if (status === 404) {
     return { title: 'Nicht gefunden', text: 'Die Daten wurden nicht gefunden. Vielleicht ist die Konfiguration unvollständig oder die Datei wurde gelöscht.', kind: 'red', setup: true };

@@ -26,6 +26,17 @@ function unavailable(status) {
   return notice('gold', 'Chat ist deaktiviert', 'Die Chat-Funktion wurde in der Konfiguration ausgeschaltet.');
 }
 
+/**
+ * Google verweigert schon das Lesen der Unterhaltungen (403): Meist ist Google Chat für dieses Konto aus, ohne Lizenz
+ * oder (neues Konto) noch nicht eingerichtet – das ändern nur Admins. Statt „Freigabe fehlt“ das erklären. Sonst null.
+ */
+function chatBlocked(err) {
+  if (describeError(err).key !== 'forbidden') return null;
+  return notice('gold', 'Google Chat für dein Konto nicht verfügbar',
+    html`Google lässt die App deine Unterhaltungen nicht lesen. Öffne einmal Google Chat mit deinem FrBr-Konto: Klappt es dort auch nicht, ist Google Chat für dein Konto ausgeschaltet oder noch nicht eingerichtet (bei neuen Konten manchmal einige Stunden) – dann bitte den Admins Bescheid geben.${err.message ? html`<br><span class="muted">Google: „${err.message}“</span>` : ''}`,
+    html`<p class="row wrap" style="margin-top:.625rem;gap:.5rem"><a class="btn btn-sm btn-primary" href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat öffnen</a><button class="btn btn-sm" data-action="retry">${icon('refresh', 'icon-sm')}Erneut versuchen</button></p>`);
+}
+
 /** Zustimmung für Chat (inkl. neue Unterhaltungen, E30) einholen und an dieselbe Stelle zurückkehren */
 function grantChat() {
   auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash || '#/chat' });
@@ -94,7 +105,7 @@ export default async function chat(ctx) {
         : html`<div class="card">${emptyState('chat', 'Noch keine Unterhaltungen', 'Schreib einem Bundesbruder über „Neue Nachricht“ oder gründe eine Gruppe.')}</div>`);
     }, { maxAge: 60_000 });
   } catch (err) {
-    setHtml(c, errorBox(err));
+    setHtml(c, chatBlocked(err) || errorBox(err));
   }
   return off;
 }

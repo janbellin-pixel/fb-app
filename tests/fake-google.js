@@ -394,7 +394,8 @@ export function createFakeGoogle({ me, workspace = true }) {
     if (!workspace) return error(403, 'Google Chat API is only available to Google Workspace users.', 'PERMISSION_DENIED');
     const path = decodeURIComponent(url.pathname.replace('/v1/', ''));
     let m;
-    if (path === 'spaces') return json({ spaces: state.spaces });
+    // Google Chat für das Konto aus (z. B. Dienst aus, keine Lizenz): Google verweigert schon das Lesen
+    if (path === 'spaces') return state.chatListError ? error(state.chatListError, 'The caller does not have permission', 'PERMISSION_DENIED') : json({ spaces: state.spaces });
     if (path === 'spaces:findDirectMessage') {
       const other = userKey(url.searchParams.get('name'));
       const dm = state.spaces.find((s) => s.spaceType === 'DIRECT_MESSAGE' && membersOf(s.name).includes(other));
