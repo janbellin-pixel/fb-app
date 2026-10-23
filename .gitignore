@@ -5,3 +5,6 @@ Thumbs.db
 *.log
 # persönliche, lokale Einstellungen von Claude Code (nicht ins Repository)
 .claude/settings.local.json
+# private Konfiguration der App (E43): liegt in Google Drive, nie ins Repository
+config_private.json
+config_private.js

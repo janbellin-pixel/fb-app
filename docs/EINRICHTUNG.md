@@ -92,7 +92,7 @@ So bleibt es dabei:
 
    Alles wird für die Mitglieder **nur lesbar** freigegeben, die Einwilligungsliste gar nicht. Für den neuen Kalender fragt Google einmal nach der Berechtigung „Kalender verwalten“; sie wird nur für diesen Schritt gebraucht. Die Beispieldaten sind nur beim Start von Grund auf vorausgewählt. Vorhandene Daten fasst der Knopf nie an (siehe B3).
 6. **„Verbindung prüfen (nur lesend)“** – alles sollte grün sein (gelb = Hinweis, rot = Fehler).
-7. **config.js herunterladen** und im GitHub-Repository die Datei `config.js` damit ersetzen (Datei öffnen → Stift-Symbol bzw. „Upload files“). Erst dann gelten die Einstellungen für alle, die die App öffnen, vorher nur in deinem Browser.
+7. **„Einstellungen in Google Drive speichern“**: legt `config_private.json` in deinem Drive an – lesbar für die Domain bzw. die Test-Mitglieder, nicht öffentlich (E43). Danach **config.js herunterladen** (es enthält nur noch Client-ID, Domain, die ID dieser Datei, den Demo-Schalter und die Datenschutz-Angaben) und im GitHub-Repository die Datei `config.js` damit ersetzen (Datei öffnen → Stift-Symbol bzw. „Upload files“). Erst dann gelten die Einstellungen für alle, die die App öffnen, vorher nur in deinem Browser. Spätere Änderungen genügt es in Drive zu speichern.
 
 ### A5. Testen
 
@@ -139,18 +139,18 @@ In der App unter **Einrichtung** (als Admin angemeldet):
 2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit dem Bundesboten, mit der DS-Zeitung, mit der Liedermappe und mit den Fotos → „Übernehmen“. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
 3. **„Verbindung prüfen (nur lesend)“** und die Hinweise abarbeiten (siehe unten). Die Prüfung ändert nichts.
 4. **„2. Fehlendes neu anlegen“:** legt nur noch an, was nicht verbunden ist – typischerweise die **News-Tabelle** und die **Einwilligungsliste**. Was verbunden ist, wird dabei weder verändert noch neu freigegeben; Beispieldaten sind hier nicht vorausgewählt.
-5. **Gruppen (E41, freiwillig):** Stehen in `config.js` unter `gruppen.adressen` Google-Gruppen (z. B. `bundesbrueder@`, `chordamen@`, `verkehrsgaeste@`, `gaeste@`), legt **„Fehlende Gruppen-Kennungen anlegen“** je Gruppe eine kleine Datei in deiner „Meine Ablage“ an, die nur diese Gruppe lesen kann (ohne Benachrichtigung). Daran erkennt die App, wer zu welcher Gruppe gehört; unter `gruppen.ohne` steht, welche Bereiche eine Gruppe nicht sieht (Links: `links[].ohne`). Vorher die Gruppen in der Admin-Konsole anlegen und füllen. Die Kennungen bitte nicht löschen oder weiter freigeben – die Prüfung meldet beides.
+5. **Gruppen (E41, freiwillig):** Stehen in der privaten Konfiguration (`config_private.json`, E43) unter `gruppen.adressen` Google-Gruppen (z. B. `bundesbrueder@`, `chordamen@`, `verkehrsgaeste@`, `gaeste@`), legt **„Fehlende Gruppen-Kennungen anlegen“** je Gruppe eine kleine Datei in deiner „Meine Ablage“ an, die nur diese Gruppe lesen kann (ohne Benachrichtigung). Daran erkennt die App, wer zu welcher Gruppe gehört; unter `gruppen.ohne` steht, welche Bereiche eine Gruppe nicht sieht (Links: `links[].ohne`). Vorher die Gruppen in der Admin-Konsole anlegen und füllen. Die Kennungen bitte nicht löschen oder weiter freigeben – die Prüfung meldet beides.
    - Ausblenden betrifft nur die App. **Die Daten selbst schützen die Drive-Freigaben:** das Adressverzeichnis nur für `bundesbrueder@` freigeben, den Galerie-Ordner für `bundesbrueder@`, `chordamen@` und `verkehrsgaeste@` (nicht für die Domain). Forumsbeiträge bleiben für die Domain lesbar.
    - Wer noch in keiner Gruppe ist, sieht alles. Admins sehen immer alles.
-6. Noch einmal prüfen, dann **config.js** herunterladen (siehe unten).
+6. Noch einmal prüfen, dann **„Einstellungen in Google Drive speichern“** und – nur beim ersten Mal – das neue **config.js** veröffentlichen (A4, Schritt 7).
 
-Bis zum Veröffentlichen der config.js gelten die Einträge nur in deinem Browser – so kannst du alles in Ruhe prüfen, bevor die IDs öffentlich werden.
+Bis zum Speichern in Google Drive gelten die Einträge nur in deinem Browser – so kannst du alles in Ruhe prüfen. Öffentlich werden die IDs dabei nicht: Sie stehen nur in der privaten Datei, die nur Konten der Domain lesen können (E43).
 
 **Was die Prüfung meldet** (gelb = bitte ansehen, rot = Fehler):
 
 | Meldung | Bedeutung | Abhilfe |
 |---|---|---|
-| „Jeder mit dem Link“ hat Zugriff | Die ID steht in der öffentlichen `config.js` – damit könnte jeder im Internet mitlesen | In Google Drive „Teilen → Allgemeiner Zugriff“ auf „Eingeschränkt“ oder die Domain stellen |
+| „Jeder mit dem Link“ hat Zugriff | Wer die ID kennt, könnte im Internet mitlesen (bis E43 stand sie im öffentlichen `config.js`, in dessen Versionsgeschichte steht sie weiter) | In Google Drive „Teilen → Allgemeiner Zugriff“ auf „Eingeschränkt“ oder die Domain stellen |
 | Bearbeiten dürfen Gruppe/Domain | Mitglieder könnten Daten ändern | Gruppe bzw. Domain auf „Betrachter“ stellen; Bearbeiten nur für einzelne Verantwortliche |
 | Keine Lesefreigabe für Gruppe/Domain | Die Mitglieder sehen die Daten in der App nicht | Gruppe bzw. Domain als „Betrachter“ hinzufügen |
 | Gehört einem Konto außerhalb der Domain | Die Datei liegt z. B. in einem privaten Google-Konto | Eigentum an ein Konto der Verbindung übertragen (oder in eine geteilte Ablage verschieben) |
@@ -185,7 +185,7 @@ Eine **bestehende Adressliste** kann weiterverwendet werden. Die App erkennt üb
 
 > Wichtig bei vorhandenen Dateien: Gib der Mitglieder-Gruppe bzw. der Domain dort **nur Leserechte** („Betrachter“) und nie „Jeder mit dem Link“. Die App schreibt nie hinein, Bearbeitungsrechte braucht also kein Mitglied.
 
-Danach **config.js herunterladen** und im GitHub-Repository ersetzen.
+Danach **„Einstellungen in Google Drive speichern“** (und beim ersten Mal das neue `config.js` veröffentlichen, A4 Schritt 7).
 
 ### B4. Termine automatisch verknüpfen (empfohlen, optional)
 
@@ -268,7 +268,7 @@ Erst nach der Entscheidung geht es in die App. Alles ist freiwillig; auch mit �
 
 ### Einstellungen
 
-Unter **Einrichtung → Optionen → Datenschutz** (landet in `config.js` unter `datenschutz`):
+Unter **Einrichtung → Optionen → Datenschutz**. Verantwortlicher, Anschrift, Kontakt, Dachverband und Fassung landen im öffentlichen `config.js` unter `datenschutz` – die Datenschutzerklärung ist auch ohne Anmeldung lesbar. „Wer darf die Einwilligungen sehen?“ (`empfaenger`) steht in der privaten Konfiguration:
 
 | Feld | Bedeutung |
 |---|---|
@@ -291,10 +291,10 @@ Unter **Einrichtung → Optionen → Datenschutz** (landet in `config.js` unter 
   - und auf Wunsch **stündlich** mit dem Skript [`apps-script/Einwilligungen.gs`](../apps-script/Einwilligungen.gs) (5 Minuten Einrichtung, Anleitung oben in der Datei).
 
   Die anderen Verantwortlichen sehen die Übersicht in der App und können die Tabelle lesen.
-- Gibt es noch keine Tabelle (z. B. weil vorhandene Dateien verbunden wurden), legt ein Verantwortlicher sie unter **Mehr → Datenschutz → Einwilligungen aller Mitglieder** mit einem Klick an. Danach die ID in der Einrichtung bei „Tabelle Einwilligungen“ eintragen und `config.js` neu herunterladen.
+- Gibt es noch keine Tabelle (z. B. weil vorhandene Dateien verbunden wurden), legt ein Verantwortlicher sie unter **Mehr → Datenschutz → Einwilligungen aller Mitglieder** mit einem Klick an. Danach die ID in der Einrichtung bei „Tabelle Einwilligungen“ eintragen und „Einstellungen in Google Drive speichern“.
 - **Empfehlung:** `Einwilligungen.gs` einrichten. Dann ist die Tabelle spätestens nach einer Stunde aktuell, auch wenn niemand die App öffnet. Für kürzere Abstände im Skript `everyHours(1)` durch `everyMinutes(15)` ersetzen.
 - **Wechsel der Verantwortlichen** (z. B. neuer Vorstand):
-  1. Unter „Wer darf die Einwilligungen sehen?“ die neuen Personen eintragen und `config.js` neu verteilen. Die Freigaben der einzelnen Einwilligungen passen sich an, sobald die Mitglieder die App öffnen.
+  1. Unter „Wer darf die Einwilligungen sehen?“ die neuen Personen eintragen und „Einstellungen in Google Drive speichern“. Die Freigaben der einzelnen Einwilligungen passen sich an, sobald die Mitglieder die App öffnen.
   2. Die Tabelle in Google Drive auf die neue Person übertragen (Freigeben → Eigentümer übertragen).
   3. Dort `Einwilligungen.gs` einrichten. Die App selbst darf eine übertragene Tabelle nicht beschreiben (Google-Recht `drive.file` gilt nur für den, der sie mit der App angelegt hat), das Skript schon.
 
@@ -349,21 +349,33 @@ Der automatische Test `tests/google-mock.html` spielt alle Funktionen gegen eine
 | „Kein Zugriff“ bei Tabellen, Kalender oder Ordnern | Freigabe fehlt | In Google Drive bzw. in den Kalender-Einstellungen für die Gruppe als „Betrachter“ freigeben |
 | „Schreibschutz: …“ | Die App sollte etwas Gemeinsames ändern; das ist absichtlich gesperrt | Direkt bei Google pflegen (Teil C) |
 | „Die Einwilligungsliste führt das Konto …“ | Die Tabelle gehört einer anderen Person | Normal: nur deren Konto aktualisiert sie (oder ihr Apps-Script) |
-| Verantwortliche sehen keine Einwilligungen | Sie stehen nicht unter „Wer darf die Einwilligungen sehen?“ bzw. sind keine Admins | Eintragen, `config.js` neu verteilen; die Freigaben passen sich beim nächsten Öffnen der Mitglieder an |
+| Verantwortliche sehen keine Einwilligungen | Sie stehen nicht unter „Wer darf die Einwilligungen sehen?“ bzw. sind keine Admins | Eintragen, „Einstellungen in Google Drive speichern“; die Freigaben passen sich beim nächsten Öffnen der Mitglieder an |
 | Profil oder Beitrag anderer nicht sichtbar | Freigabe innerhalb der Organisation ist in der Admin-Konsole gesperrt | Drive-Freigabe innerhalb der Organisation erlauben (B2) |
 | „Chat braucht Google Workspace“ | Privates Konto | Normal im Prototyp, Chat geht nur mit Workspace |
 | „Mitgliederliste unvollständig“ (ein Konto sieht andere, ein anderes nicht) | Diesem Konto fehlt die Berechtigung für das Verzeichnis (bei der Anmeldung abgewählt oder nie erteilt) | Auf der Mitglieder-Seite „Berechtigung erteilen“ bzw. ab- und wieder anmelden und alle Häkchen setzen; danach ggf. Mehr › Einstellungen › „Zwischenspeicher leeren“ |
 | Chat: 403 / „Chat app not found“ | Chat-API-Konfiguration fehlt | B1 Schritt 4 |
 | Chat: „Antworten noch nicht möglich“ | Nachrichtenanfrage noch nicht angenommen (oder Chat-Apps gesperrt – dann steht das in der Meldung) | In Google Chat annehmen; dauerhaft B2 („Chateinladungen automatisch annehmen“) |
 | Chat: „Google Chat für dein Konto nicht verfügbar“ | Chat für dieses Konto aus, keine Lizenz oder Konto ganz neu | Admin-Konsole: Nutzer → Apps/Lizenzen bzw. Google Chat → Dienststatus |
+| „App-Einstellungen nicht erreichbar“ (Anmeldeseite) | Die private Konfiguration ist für dieses Konto nicht lesbar: falsche `privateConfigId` in `config.js`, Datei gelöscht oder nicht für die Domain freigegeben | Einrichtung → „Verbindung prüfen“; Datei für die Domain als „Betrachter“ freigeben (macht „Einstellungen in Google Drive speichern“) |
+| „App-Einstellungen fehlerhaft“ (Anmeldeseite) | Die Prüfung beim Start fand Fehler, z. B. falscher Wert, keine Admins oder die Datei gehört keinem Admin | Datei korrigieren (Einrichtung → speichern). Geräte mit einem früher geprüften Stand arbeiten so lange damit weiter |
 | Neue Version erscheint nicht | Handy hat alte Version zwischengespeichert | App schließen und neu öffnen; es erscheint „Neue Version verfügbar → Neu laden“ |
 
-## Zusätzliche Einstellungen in config.js (optional)
+## Private Konfiguration (config_private.json, E43)
 
-Neben den Werten aus der Einrichtung kann `config.js` diese Einstellungen anpassen:
+Im öffentlichen `config.js` (GitHub, für jeden im Internet lesbar) steht nur, was vor der Anmeldung gebraucht wird: `googleClientId`, `workspaceDomain`, `privateConfigId` (Drive-ID der privaten Datei), `demoErlaubt`, `appName` und die Angaben der Datenschutzerklärung (`datenschutz.verein`, `anschrift`, `email`, `dachverband`, `dachverbandKurz`, `fassung`, `stand`). Alles andere – Admins, Redaktion, Kalender-, Tabellen- und Ordner-IDs, Gruppen, Links, Postfach für Adressänderungen, `datenschutz.empfaenger` … – liegt in `config_private.json` in Google Drive.
+
+- **Anlegen und ändern:** Einrichtung → „Einstellungen in Google Drive speichern“. Die Datei liegt in deiner „Meine Ablage“ und ist für die Domain nur lesbar (ohne Suche). Nur ihr Inhaber kann sie über die App ändern; ein anderer Admin legt sonst eine eigene an (dann neue `privateConfigId` in `config.js`).
+- **Von Hand:** Datei herunterladen, bearbeiten (JSON, z. B. mit einem Texteditor) und in Drive über „Versionen verwalten → Neue Version hochladen“ ersetzen – so bleibt die ID gleich. Eine Vorlage mit allen Schlüsseln ist `config_private.beispiel.json` im Repository. Anmerkungen gehen als Schlüssel mit „_“ am Anfang (z. B. `"_hinweis"`).
+- **Prüfung beim Start:** Die App liest die Datei nur als JSON (kein Programmcode) und prüft jeden Wert. Sie gilt nur, wenn sie **einem Admin gehört** (Inhaber laut Google). Bei Fehlern nutzt die App den zuletzt geprüften Stand auf dem Gerät; ohne ihn erklärt die Anmeldeseite den Fehler. Unbekannte oder öffentliche Schlüssel ignoriert sie mit einem Hinweis in „Verbindung prüfen“.
+- **Freigabe:** nur „Betrachter“ für die Domain. Wer sie bearbeiten darf, steuert die App für alle – die Prüfung warnt davor und vor „Jeder mit dem Link“.
+- **Offline:** Die App merkt sich den zuletzt geprüften Stand auf dem Gerät; „Abmelden“ löscht ihn.
+
+## Zusätzliche Einstellungen (optional)
+
+Neben den Werten aus der Einrichtung kann die private Konfiguration (`config_private.json`, in JSON-Schreibweise) diese Einstellungen anpassen (hier gekürzt):
 
 ```js
-datenschutz: { verein: '…', anschrift: '…', email: '…', empfaenger: ['vorstand@…'], fassung: '1', stand: '17.10.2026' },
+datenschutz: { empfaenger: ['vorstand@…'] },   // wer die Einwilligungen sieht (Name, Anschrift, Fassung: im öffentlichen config.js)
 adressaenderung: 'adressaenderung@frankonia-brunonia.de', // Empfänger für Adressänderungen aus „Mein Profil“
 forum: { aktiv: false },                         // Forum ausblenden
 profilBearbeiten: false,                         // keine eigenen Profilangaben (nur Adressverzeichnis + Google-Konto)
@@ -376,5 +388,11 @@ forumKategorien: ['Allgemeines', 'Aktivitas', …],
 newsKategorien: ['Allgemein', 'Aktivitas', …],
 ausgeblendeteKonten: ['info@…', 'kasse@…'],      // Funktionskonten nicht als Mitglied zeigen
 links: [{ titel: 'Wiki', url: 'https://…' }],   // weitere Links im Schnellzugriff und unter „Mehr“ (nur https; symbol optional, z. B. 'book')
+```
+
+Im öffentlichen `config.js`:
+
+```js
 demoErlaubt: false,                              // Demo-Knopf auf der Anmeldeseite ausblenden
+debug: { privateConfigFile: 'config_private.json' }, // nur auf localhost: private Konfiguration aus einer lokalen Datei (steht in .gitignore)
 ```

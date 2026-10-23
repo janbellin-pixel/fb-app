@@ -28,7 +28,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Pfad | Inhalt |
 |---|---|
 | `index.html`, `manifest.webmanifest`, `sw.js` | App-Hülle, PWA-Manifest, Service Worker (Offline, Updates) |
-| `config.js` | Konfiguration (wird vom Einrichtungs-Assistenten erzeugt) |
+| `config.js` | Öffentliche Konfiguration: nur, was vor der Anmeldung gebraucht wird (Client-ID, Domain, ID der privaten Konfiguration, Demo-Schalter, Angaben der Datenschutzerklärung). Alles Weitere liegt als `config_private.json` in Google Drive, nur für Konten der Domain lesbar; die App lädt und prüft sie nach der Anmeldung (E43, `js/lib/konfiguration.js`) |
 | `css/app.css` | Gestaltung; alle Größen in `rem`, damit die Schriftgröße-Stufen alles mitskalieren |
 | `js/boot.js` | setzt die gewählte Schriftgröße schon vor dem ersten Bild (kein Springen) |
 | `js/app.js`, `js/router.js` | Start, Anmeldefluss, Navigation (Hash-Routen wie `#/termin/<id>`) |
@@ -68,7 +68,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Bundesbote (Zeitung) | PDF-Dateien im Drive-Ordner, Dateiname `JJJJ-N Titel.pdf` | lesen | Redaktion in Google Drive |
 | DS-Zeitung | PDF-Dateien im eigenen Drive-Ordner (`dsZeitungOrdnerId`, freiwillig), Dateiname `JJJJ-N DS-Zeitung.pdf`; gelesene Ausgaben wie beim Bundesboten im Cache-Speicher `fb-zeitung` (E38) | lesen | Verantwortliche der Verbindung in Google Drive |
 | Liedermappe | PDFs und Bilder im Drive-Ordner (`liedermappeOrdnerId`), Unterordner = Rubriken, Dateiname `012 Titel.pdf`; geöffnete bzw. gespeicherte Lieder im Cache-Speicher `fb-lieder` | lesen | Liederwart in Google Drive |
-| Weitere Links (z. B. Wiki) | `config.links`, öffnen sich außerhalb der App (E32) | – | Admins in `config.js` |
+| Weitere Links (z. B. Wiki) | `config.links`, öffnen sich außerhalb der App (E32) | – | Admins in der privaten Konfiguration |
 | Benachrichtigungen | nur auf dem Gerät: ein/aus und was gelesen ist (`fb.benachrichtigungen.<email>`, `fb.gelesen.<email>`); Mitteilungen über den Service Worker, solange die App läuft (E34). Ankündigung neuer News = eigene Chat-Nachricht (E33) | – | jedes Mitglied selbst |
 | Galerie | Bilder im Drive-Ordner; Unterordner = Alben (`JJJJ-MM Name`), lose Bilder = Album „Allgemein“ | lesen | Admins / Fotowart in Google Drive |
 | Chat | Google Chat (Räume des Workspace) | wie in Google Chat | – |

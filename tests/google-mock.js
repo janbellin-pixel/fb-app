@@ -957,6 +957,89 @@ async function run() {
   check(annaM?.wohnort === 'Braunschweig' && annaM?.kneipname === 'Annabella', 'private E-Mail im Verzeichnis: Zuordnung über den eindeutigen Namen (eigenes Profil hat Vorrang)', JSON.stringify(annaM));
   Object.assign(config, savedCfg);
 
+  /* ---------------------------------------------------------------- Private Konfiguration (E43) */
+  section('Private Konfiguration in Google Drive (E43)');
+  const kf = await import('../js/lib/konfiguration.js');
+  const cfgBefore = JSON.parse(JSON.stringify(config));
+  const asJson = (o) => new TextEncoder().encode(typeof o === 'string' ? o : JSON.stringify(o)).buffer;
+  const fromJson = (buf) => JSON.parse(new TextDecoder().decode(buf));
+  const privOk = {
+    _hinweis: 'Anmerkungen mit „_“ ignoriert die App', admins: [me.email], kalenderId: 'privat@group.calendar.google.com',
+    tabellen: { adressen: '1PUfw03rWme3QXVzluFMWSa', news: '', einwilligungen: '' }, zeitungOrdnerId: '1sZ9aHz2aiOPqNiyEVxRbJ',
+    links: [{ titel: 'Wiki', url: 'https://wiki.beispiel.de/', ohne: ['gaeste'] }], gruppen: { adressen: { gaeste: 'gaeste@beispiel.de' }, ohne: { forum: ['gaeste'] } },
+    datenschutz: { empfaenger: ['Vorstand@Beispiel.de'] },
+  };
+  const v1 = kf.validatePrivateConfig(privOk, { owner: me.email });
+  check(!v1.errors.length && !v1.warnings.length && v1.values.datenschutz?.empfaenger?.[0] === 'vorstand@beispiel.de' && !('_hinweis' in v1.values),
+    'gültige private Konfiguration: keine Fehler, Anmerkungen ignoriert, E-Mail-Adressen klein', JSON.stringify(v1));
+  const v2 = kf.validatePrivateConfig({ ...privOk, googleClientId: 'x', datenschutz: { verein: 'X', empfaenger: [] }, kalenderID: 'Tippfehler' }, { owner: me.email });
+  check(!v2.errors.length && v2.warnings.length === 3 && !('googleClientId' in v2.values) && !('kalenderID' in v2.values) && !v2.values.datenschutz?.verein,
+    'öffentliche und unbekannte Schlüssel: Hinweis, werden ignoriert', JSON.stringify(v2.warnings));
+  const v3 = kf.validatePrivateConfig({ ...privOk, admins: [], links: [{ titel: 'X', url: 'http://unsicher.de' }], zeitungOrdnerId: 'a b' }, { owner: me.email });
+  check(v3.errors.length === 3, 'Fehler: keine Admins, Link ohne https, ungültige Ordner-ID', JSON.stringify(v3.errors));
+  const v4 = kf.validatePrivateConfig(privOk, { owner: 'fremd@beispiel.de' });
+  check(v4.errors.length === 1 && /fremd@beispiel\.de/.test(v4.errors[0]), 'Datei gehört keinem Admin (Inhaber laut Google): Fehler', JSON.stringify(v4.errors));
+  check(kf.validatePrivateConfig([1, 2]).errors.length === 1 && kf.validatePrivateConfig({ kalenderId: '' }).errors.some((e) => /admins/.test(e)), 'kein Objekt bzw. ohne „admins“: Fehler');
+  const vb = kf.validatePrivateConfig(await (await fetch('../config_private.beispiel.json')).json());
+  check(!vb.errors.length && !vb.warnings.length, 'Vorlage config_private.beispiel.json ist gültig', JSON.stringify([vb.errors, vb.warnings]));
+  // Laden aus Drive (nur lesen), Vorrang: lokale Werte der Einrichtung vor der privaten Konfiguration
+  localStorage.removeItem('fb.privateKonfig');
+  const privFile = fake.addFile({ name: 'config_private.json', mimeType: 'application/json', content: asJson(privOk) });
+  config.privateConfigId = privFile.id;
+  cfgMod.saveOverride({ adressenBlatt: 'Lokal' });
+  const st1 = await step('loadPrivateConfig', () => kf.loadPrivateConfig());
+  check(st1?.status === 'ok' && config.kalenderId === 'privat@group.calendar.google.com' && config.links?.[0]?.titel === 'Wiki' && config.privateConfigId === privFile.id
+    && config.googleClientId === 'test.apps.googleusercontent.com' && config.adressenBlatt === 'Lokal',
+  'aus Drive geladen, geprüft, übernommen – öffentliche Werte bleiben, lokale Werte der Einrichtung haben Vorrang', JSON.stringify([st1?.status, config.kalenderId, config.adressenBlatt]));
+  cfgMod.clearOverride();
+  privFile.content = asJson('{ "admins": [ kaputt');
+  const st2 = await step('loadPrivateConfig (kaputtes JSON)', () => kf.loadPrivateConfig());
+  check(st2?.status === 'cache' && st2.error?.code === 'config_invalid' && config.kalenderId === 'privat@group.calendar.google.com',
+    'kaputtes JSON: der zuletzt geprüfte Stand gilt weiter', JSON.stringify([st2?.status, st2?.error?.message]));
+  const fetchBefore = window.fetch;
+  window.fetch = (input, init) => (String(input?.url || input).includes(privFile.id) ? Promise.reject(new TypeError('Failed to fetch')) : fetchBefore(input, init));
+  const st3 = await kf.loadPrivateConfig().catch((e) => e);
+  window.fetch = fetchBefore;
+  check(st3?.status === 'cache' && st3.error?.status === 0, 'Netz weg: der zuletzt geprüfte Stand gilt weiter', JSON.stringify([st3?.status, st3?.error?.message]));
+  localStorage.removeItem('fb.privateKonfig');
+  const foreignPriv = fake.addFile({ name: 'config_private.json', mimeType: 'application/json', ownerEmail: 'fremd@beispiel.de', ownerName: 'Fremd', content: asJson(privOk) });
+  config.privateConfigId = foreignPriv.id;
+  const e1 = await kf.loadPrivateConfig().then(() => null).catch((e) => e);
+  check(e1?.code === 'config_invalid' && /fremd@beispiel\.de/.test(e1.message), 'Datei eines Nicht-Admins: ohne gespeicherten Stand startet die App nicht damit', e1?.message);
+  config.privateConfigId = 'gibtesnicht1234567890';
+  const e2 = await kf.loadPrivateConfig().then(() => null).catch((e) => e);
+  check(e2?.status === 404 && kf.privateConfigStatus().status === 'fehler', 'nicht gefunden bzw. nicht freigegeben: Fehler (die Anmeldeseite erklärt ihn)', JSON.stringify([e2?.status, e2?.message]));
+  const gdoc = fake.addFile({ name: 'config_private', mimeType: 'application/vnd.google-apps.document' });
+  config.privateConfigId = gdoc.id;
+  const e3 = await kf.loadPrivateConfig().then(() => null).catch((e) => e);
+  check(e3?.code === 'config_invalid' && /Google-Dokument/.test(e3.message), 'Google-Dokument statt JSON-Datei: verständlicher Fehler', e3?.message);
+  // Speichern (Einrichtung): eigene Datei mit JSON-Inhalt, für die Domain nur lesbar
+  config.privateConfigId = '';
+  const privSaved = await step('savePrivateConfig (neu)', () => kf.savePrivateConfig(privOk, { owner: me.email }));
+  const savedFile = fake.state.files.get(privSaved?.id);
+  const savedPerms = () => fake.state.permissions.filter((p) => p.file === privSaved?.id);
+  check(privSaved?.neu && savedFile?.ownerEmail === me.email && savedFile.appProperties.fbTyp === 'konfiguration' && fromJson(savedFile.content).admins?.[0] === me.email,
+    'neu angelegt: eigene Datei „config_private.json“ mit JSON-Inhalt', JSON.stringify(privSaved));
+  check(savedPerms().length === 1 && savedPerms()[0].type === 'domain' && savedPerms()[0].role === 'reader' && savedPerms()[0].allowFileDiscovery === false,
+    'nur für die Domain lesbar (ohne Suche), nicht bearbeitbar', JSON.stringify(savedPerms()));
+  config.privateConfigId = privSaved?.id;
+  const privSaved2 = await step('savePrivateConfig (ändern)', () => kf.savePrivateConfig({ ...privOk, redaktion: ['red@beispiel.de'] }, { owner: me.email }));
+  check(privSaved2?.id === privSaved?.id && !privSaved2.neu && fromJson(fake.state.files.get(privSaved.id).content).redaktion?.[0] === 'red@beispiel.de' && savedPerms().length === 1,
+    'erneut gespeichert: dieselbe Datei, Inhalt ersetzt, keine doppelte Freigabe');
+  config.privateConfigId = foreignPriv.id;
+  const privSaved3 = await step('savePrivateConfig (ID gehört einem anderen Admin)', () => kf.savePrivateConfig(privOk, { owner: me.email }));
+  check(privSaved3?.id === privSaved?.id && fromJson(foreignPriv.content).admins?.[0] === me.email && !fake.state.permissions.some((p) => p.file === foreignPriv.id),
+    'fremde Datei bleibt unverändert – die eigene wird verwendet');
+  const notAdmin = await kf.savePrivateConfig({ ...privOk, admins: ['anderer@beispiel.de'] }, { owner: me.email }).then(() => null).catch((e) => e);
+  check(notAdmin?.code === 'config_invalid', 'nicht gespeichert, wenn man selbst nicht unter „admins“ steht (die Datei würde nicht geladen)', notAdmin?.message);
+  await blocked('fremde private Konfiguration überschreiben', fake, () => drive.updateWithContent(foreignPriv.id, {}, new Blob(['{"admins":["boese@beispiel.de"]}'], { type: 'application/json' })));
+  const pub = cfgMod.publicConfigContent({ privateConfigId: 'abc1234567890' });
+  check(/privateConfigId/.test(pub) && /googleClientId/.test(pub) && !/kalenderId|admins|tabellen|gruppen|empfaenger/.test(pub),
+    'öffentliches config.js enthält nur Client-ID, Domain, ID der privaten Datei, Demo-Schalter und Datenschutz-Angaben', pub);
+  localStorage.removeItem('fb.privateKonfig');
+  for (const k of Object.keys(config)) delete config[k];
+  Object.assign(config, cfgBefore);
+
   /* ---------------------------------------------------------------- Gesamtbilanz */
   section('Gesamtbilanz');
   const ownWrites = fake.state.writes.filter((w) => w.own).length;

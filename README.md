@@ -21,7 +21,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Bundesbote** | Die Zeitung der Verbindung: PDFs aus einem Drive-Ordner mit allen Ausgaben, immer eine Seite (Doppelseiten aus Scans werden geteilt), **realistische Umblätter-Animation**, Zoom, offline verfügbar. |
 | **DS-Zeitung** | Die Zeitung der Deutschen Sängerschaft: PDFs aus einem eigenen Drive-Ordner, Archiv und Blättern wie beim Bundesboten. Freiwillig – ohne Ordner ausgeblendet. |
 | **Liedermappe** | Noten aus einem Drive-Ordner (PDFs oder Scans), Rubriken aus Unterordnern, Suche nach Titel oder Liednummer, Blättern wie beim Bundesboten. Der Bildschirm bleibt beim Singen an; auf Wunsch liegt die ganze Mappe offline auf dem Gerät. |
-| **Weitere Links** | Schaltflächen im Schnellzugriff zu weiteren Angeboten der Verbindung, z. B. dem Wiki (`links` in `config.js`). |
+| **Weitere Links** | Schaltflächen im Schnellzugriff zu weiteren Angeboten der Verbindung, z. B. dem Wiki (`links` in der privaten Konfiguration). |
 | **Fotogalerie** | Fotos aus einem festen Drive-Ordner. Jeder Unterordner ist ein Album (z. B. „2026-06 Stiftungsfest“), Vollbild mit Wischen. |
 | **News** | Meldungen mit Bildern. Admins und die Redaktion schreiben sie direkt in der App (als eigene Beiträge, wie im Forum); Meldungen aus einer Google-Tabelle „News“ erscheinen zusätzlich. |
 | **Forum** | Kategorien, Themen und Antworten. Jeder Beitrag liegt im eigenen Drive des Verfassers, nur er kann ihn ändern oder löschen. |
@@ -62,7 +62,7 @@ python tools/serve.py
 1. In der Google Cloud Console eine **OAuth-Client-ID** (Webanwendung) anlegen.
 2. Projekt auf **GitHub** hochladen und GitHub Pages einschalten (veröffentlicht automatisch). Kostenlos geht das mit einem öffentlichen Repository; mit einem privaten nur mit kostenpflichtigem GitHub-Tarif.
 3. In der App unter **Einrichtung**: Client-ID eintragen, anmelden, Datenschutz-Angaben (Verein, Anschrift, Kontakt) ergänzen. Was es schon gibt (Kalender, Mitgliederliste, Ordner), unter **„1. Vorhandenes verbinden“** eintragen, **„Verbindung prüfen“** (warnt u. a. vor „Jeder mit dem Link“), dann **„2. Fehlendes neu anlegen“** – z. B. News-Tabelle und vertrauliche Einwilligungsliste. Ohne Vorhandenes entsteht alles neu.
-4. `config.js` herunterladen und im Repository ersetzen.
+4. **„Einstellungen in Google Drive speichern“** (private Konfiguration `config_private.json`, nur für Konten der Domain lesbar), dann das kleine öffentliche `config.js` herunterladen und im Repository ersetzen (E43).
 5. Für die Mitglieder: QR-Code und Anleitung mit `python tools/make_anleitung.py https://…` erzeugen (siehe unten).
 
 ![Einrichtungs-Assistent](docs/screenshots/einrichtung.jpg)

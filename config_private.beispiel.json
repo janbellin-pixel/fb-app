@@ -1,0 +1,38 @@
+{
+  "_hinweis": "Vorlage für config_private.json (E43). Die echte Datei liegt in Google Drive (Einrichtung → „Einstellungen in Google Drive speichern“), ist nur für Konten der Domain lesbar und gehört nie ins Repository. Schlüssel mit „_“ am Anfang sind Anmerkungen. Erklärungen: docs/EINRICHTUNG.md.",
+  "admins": ["vorstand@example.org"],
+  "redaktion": [],
+  "mitgliederGruppe": "",
+  "appUrl": "https://name.github.io/fb-app/",
+  "kalenderId": "c_0123456789abcdef@group.calendar.google.com",
+  "tabellen": {
+    "adressen": "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcd",
+    "news": "",
+    "einwilligungen": ""
+  },
+  "adressenBlatt": "",
+  "zeitungOrdnerId": "1AbCdEfGhIjKlMnOpQrStUvWxYz",
+  "liedermappeOrdnerId": "",
+  "dsZeitungOrdnerId": "",
+  "galerieOrdnerId": "",
+  "chat": { "aktiv": true, "newsRaum": "" },
+  "forum": { "aktiv": true },
+  "profilBearbeiten": true,
+  "links": [
+    { "titel": "Wiki", "url": "https://wiki.example.org/", "ohne": ["gaeste"] }
+  ],
+  "gruppen": {
+    "adressen": {
+      "bundesbrueder": "bundesbrueder@example.org",
+      "gaeste": "gaeste@example.org"
+    },
+    "ohne": {
+      "adressen": ["gaeste"],
+      "forum": ["gaeste"]
+    }
+  },
+  "adressaenderung": "adressaenderung@example.org",
+  "datenschutz": { "empfaenger": [] },
+  "testMitglieder": [],
+  "ausgeblendeteKonten": []
+}

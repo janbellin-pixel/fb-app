@@ -7,6 +7,7 @@ import { cachedLoad, local, kv } from './lib/store.js';
 import { firstName } from './lib/text.js';
 import { watchKeyboard } from './lib/tastatur.js';
 import { gesperrt, ladeGemerkteGruppen, setMeineGruppen, meineGruppen } from './lib/gruppen.js';
+import { loadPrivateConfig, clearPrivateConfigCache } from './lib/konfiguration.js';
 
 export const APP_VERSION = '1.0.0';
 
@@ -86,6 +87,7 @@ const app = {
     this.loggingOut = true;
     auth.logout({ revoke });
     local.del('fb.mode');
+    clearPrivateConfigCache();
     // Zwischenspeicher leeren, aber höchstens kurz darauf warten
     Promise.race([kv.clear(), new Promise((r) => setTimeout(r, 1500))]).finally(reloadAtStart);
   },
@@ -161,12 +163,31 @@ async function enterGoogle(fresh) {
     auth.logout();
     return false;
   }
+  // Private Konfiguration (E43): erst laden und prüfen, dann den Rest der App starten
+  try {
+    app.privateConfig = await loadPrivateConfig();
+  } catch (e) {
+    app.loginError = privateConfigError(e);
+    return false;
+  }
   const { GoogleBackend } = await import('./backend/google-backend.js');
   app.backend = new GoogleBackend(user);
   app.user = user;
   app.mode = 'google';
   local.set('fb.mode', 'google');
   return true;
+}
+
+/** Private Konfiguration fehlt (kein zuletzt geprüfter Stand auf dem Gerät): auf der Anmeldeseite erklären */
+function privateConfigError(e) {
+  if (e?.code === 'config_invalid') return { title: 'App-Einstellungen fehlerhaft', text: `${e.message} Bitte gib den Admins Bescheid.` };
+  if (e?.status === 0 || e?.reason === 'network') {
+    return { title: 'Keine Verbindung', text: 'Beim ersten Start lädt die App ihre Einstellungen aus Google Drive – dafür braucht sie eine Internetverbindung. Bitte versuche es gleich noch einmal.' };
+  }
+  if (e?.status === 403 || e?.status === 404) {
+    return { title: 'App-Einstellungen nicht erreichbar', text: 'Die Einstellungen der App liegen in Google Drive und sind für dein Konto nicht lesbar (nicht gefunden oder nicht freigegeben). Bitte gib den Admins Bescheid.' };
+  }
+  return { title: 'App-Einstellungen nicht geladen', text: e?.message || String(e) };
 }
 
 async function enterDemo() {

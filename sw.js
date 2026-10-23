@@ -33,6 +33,7 @@ const CORE = [
   './js/lib/export.js',
   './js/lib/gruppen.js',
   './js/lib/hinweise.js',
+  './js/lib/konfiguration.js',
   './js/lib/schrift.js',
   './js/lib/setup.js',
   './js/lib/store.js',

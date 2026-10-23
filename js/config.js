@@ -1,9 +1,22 @@
-// Konfiguration = Standardwerte + config.js (Deployment) + lokale Werte aus der Einrichtung
+// Konfiguration = Standardwerte + config.js (öffentlich) + private Konfiguration aus Google Drive
+// (nach der Anmeldung, E43, js/lib/konfiguration.js) + lokale Werte aus der Einrichtung
+
+/**
+ * Was vor der Anmeldung gebraucht wird – nur das steht im öffentlichen config.js (E43). Alles andere gehört
+ * in die private Konfiguration (config_private.json in Google Drive, nur für angemeldete Mitglieder lesbar).
+ */
+export const PUBLIC_KEYS = ['appName', 'googleClientId', 'workspaceDomain', 'privateConfigId', 'demoErlaubt', 'debug'];
+/** Angaben der Datenschutzerklärung – sie ist auch ohne Anmeldung lesbar (Route „datenschutz“ ist öffentlich) */
+export const PUBLIC_DATENSCHUTZ = ['verein', 'anschrift', 'email', 'dachverband', 'dachverbandKurz', 'fassung', 'stand'];
 
 const DEFAULTS = {
   appName: 'Frankonia-Brunonia',
   googleClientId: '',
   workspaceDomain: '',
+  // Drive-ID der privaten Konfiguration (config_private.json); leer = alles steht noch in config.js (alte Form)
+  privateConfigId: '',
+  // Nur für die Entwicklung auf localhost: private Konfiguration aus einer lokalen Datei statt aus Drive
+  debug: { privateConfigFile: '' },
   mitgliederGruppe: '',
   admins: [],
   // Wer außer den Admins News in der App schreiben darf (E-Mail-Adressen)
@@ -102,6 +115,17 @@ function readOverride() {
 export const deployedConfig = merge(DEFAULTS, window.FB_CONFIG || {});
 export const config = merge(deployedConfig, readOverride());
 
+// zuletzt übernommene private Konfiguration (geprüft, ohne öffentliche Schlüssel)
+let privateValues = {};
+
+/** Geprüfte private Konfiguration übernehmen – vor dem Start der App (E43). Lokale Werte der Einrichtung bleiben vorn. */
+export function applyPrivateConfig(values) {
+  privateValues = values || {};
+  Object.assign(config, merge(merge(config, privateValues), readOverride()));
+}
+
+export const getPrivateValues = () => privateValues;
+
 export function saveOverride(partial) {
   const next = merge(readOverride(), partial);
   try { localStorage.setItem(OVERRIDE_KEY, JSON.stringify(next)); } catch { /* privater Modus */ }
@@ -110,6 +134,16 @@ export function saveOverride(partial) {
 
 export function clearOverride() {
   try { localStorage.removeItem(OVERRIDE_KEY); } catch { /* egal */ }
+}
+
+/** Nur diese Schlüssel aus den lokalen Werten der Einrichtung entfernen (z. B. nach dem Speichern in Drive) */
+export function clearOverrideKeys(keys) {
+  const o = readOverride();
+  for (const k of keys) delete o[k];
+  try {
+    if (Object.keys(o).length) localStorage.setItem(OVERRIDE_KEY, JSON.stringify(o));
+    else localStorage.removeItem(OVERRIDE_KEY);
+  } catch { /* privater Modus */ }
 }
 
 export function getOverride() {
@@ -139,7 +173,8 @@ export const isGoogleConfigured = () => !!(config.googleClientId || '').trim();
 
 export function isAdminEmail(email) {
   const list = (config.admins || []).map((e) => String(e).toLowerCase().trim()).filter(Boolean);
-  if (!list.length) return !isConfigured(); // vor der Einrichtung darf man einrichten, danach nur die Admins
+  // vor der Einrichtung darf man einrichten, danach nur die Admins – mit privater Konfiguration (E43) stehen sie dort
+  if (!list.length) return !isConfigured() && !String(config.privateConfigId || '').trim();
   return list.includes(String(email || '').toLowerCase());
 }
 
@@ -191,20 +226,40 @@ export function statusGroup(status) {
   return '';
 }
 
-/** Konfiguration als Text für eine neue config.js */
-export function configFileContent(values) {
-  const c = merge(deployedConfig, values);
-  const keep = ['appName', 'googleClientId', 'workspaceDomain', 'mitgliederGruppe', 'admins', 'redaktion', 'appUrl',
-    'kalenderId', 'tabellen', 'adressenBlatt', 'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links', 'gruppen',
-    'adressaenderung', 'datenschutz',
-    'demoErlaubt', 'testMitglieder'];
-  // eigene Zusatzeinstellungen aus der bisherigen config.js behalten
-  const obj = { ...(window.FB_CONFIG || {}) };
-  for (const k of keep) obj[k] = c[k];
+const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj?.[k] !== undefined).map((k) => [k, obj[k]]));
+
+/** Öffentliches config.js (E43): nur Client-ID, Domain, ID der privaten Konfiguration, Demo-Schalter, Datenschutz-Angaben */
+export function publicConfigContent(values = {}) {
+  const c = merge(config, values);
+  const obj = pick(c, ['appName', 'googleClientId', 'workspaceDomain', 'privateConfigId', 'demoErlaubt']);
+  obj.datenschutz = pick(c.datenschutz || {}, PUBLIC_DATENSCHUTZ);
+  const dbg = window.FB_CONFIG?.debug;
+  if (dbg && Object.values(dbg).some(Boolean)) obj.debug = dbg;
   return `/*
- * Konfiguration der Mitglieder-App – erzeugt am ${new Date().toLocaleString('de-DE')}
- * über „Einrichtung“ in der App. Weitere Optionen: siehe docs/EINRICHTUNG.md
+ * Öffentliche Konfiguration der Mitglieder-App – erzeugt am ${new Date().toLocaleString('de-DE')} über „Einrichtung“.
+ * Hier steht nur, was vor der Anmeldung gebraucht wird. Alle weiteren Einstellungen liegen in der privaten
+ * Konfiguration (config_private.json) in Google Drive – lesbar nur für angemeldete Konten der Domain (E43).
+ * Weitere Optionen: siehe docs/EINRICHTUNG.md
  */
 window.FB_CONFIG = ${JSON.stringify(obj, null, 2)};
 `;
 }
+
+/** Schlüssel, die die Einrichtung in die private Konfiguration schreibt (dazu bleiben eigene Zusatzeinstellungen erhalten) */
+export const PRIVATE_WRITE_KEYS = ['mitgliederGruppe', 'admins', 'redaktion', 'appUrl', 'kalenderId', 'tabellen', 'adressenBlatt',
+  'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
+  'gruppen', 'adressaenderung', 'testMitglieder', 'ausgeblendeteKonten'];
+
+/** Private Konfiguration als Objekt: aktuelle Werte, ohne öffentliche Schlüssel (E43) */
+export function privateConfigObject(values = {}) {
+  const c = merge(config, values);
+  const obj = { ...privateValues };
+  for (const k of PRIVATE_WRITE_KEYS) obj[k] = c[k];
+  const ds = Object.fromEntries(Object.entries(c.datenschutz || {}).filter(([k]) => !PUBLIC_DATENSCHUTZ.includes(k)));
+  if (Object.keys(ds).length) obj.datenschutz = ds;
+  else delete obj.datenschutz;
+  for (const k of PUBLIC_KEYS) delete obj[k];
+  return obj;
+}
+
+export const privateConfigContent = (values = {}) => `${JSON.stringify(privateConfigObject(values), null, 2)}\n`;

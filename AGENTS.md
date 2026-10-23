@@ -13,6 +13,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 7. **Sicheres HTML:** nur über `html``…`` aus `js/html.js` (maskiert automatisch); kein `innerHTML` mit fremden Daten, kein `eval`.
 8. **Oberfläche auf Deutsch, du-Form.** Barrierearm: Größen in `rem`, Raster mit `minmax(0, 1fr)`. Bei 375 px und Schriftstufe „Sehr groß“ sowie auf Tablets darf nichts seitlich überstehen.
 9. **Datenschutz:** Werden Einwilligungstexte geändert, `datenschutz.fassung` erhöhen. Neue Datenarten in der Datenschutzerklärung (`js/lib/datenschutz.js`) nennen.
+10. **Öffentlich nur das Nötigste:** `config.js` enthält nur, was vor der Anmeldung gebraucht wird (`PUBLIC_KEYS`). Alle weiteren Einstellungen gehören in die private Konfiguration (`config_private.json` in Drive, E43) – sie wird nur als JSON gelesen und geprüft (`RULES`), nie als Code ausgeführt. `config_private.json` nie ins Repository.
 
 ## Arbeitsablauf
 
@@ -31,6 +32,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 ## Wo finde ich was?
 
 - Start, Datenschutz-Abfrage, Navigation: `js/app.js`, `js/router.js`
+- Konfiguration: `config.js` (öffentlich), `js/config.js` (Standardwerte, Zusammenführen), private Konfiguration laden/prüfen/speichern: `js/lib/konfiguration.js`, Vorlage `config_private.beispiel.json` (E43)
 - Seiten: `js/views/<bereich>.js`; Leseansicht für PDFs und Bilder (Bundesbote, Liedermappe): `js/views/reader.js`
 - Google-Zugriffe: `js/google/*.js`; Schreibschutz: `js/google/guard.js`
 - Benachrichtigungen (nur nach Einschalten, E34): `js/lib/hinweise.js`

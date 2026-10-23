@@ -42,7 +42,7 @@
     window.__fake = fake;
 
     Object.assign(window.FB_CONFIG, {
-      googleClientId: 'test.apps.googleusercontent.com', workspaceDomain: 'beispiel.de',
+      googleClientId: 'test.apps.googleusercontent.com', workspaceDomain: 'beispiel.de', privateConfigId: '',
       mitgliederGruppe: 'mitglieder@beispiel.de', admins: [me.email], appUrl: `${location.origin}/`,
     });
     const { config } = await import('./js/config.js');
@@ -52,6 +52,10 @@
     const res = await setup.createEverything({ withSamples: true, withIssues: true, withPhotos: true, group: config.mitgliederGruppe, domain: 'beispiel.de', testUsers: [], me, log: () => {} });
     fake.state.setupPhase = false;
     Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, liedermappeOrdnerId: res.liedermappeOrdnerId, dsZeitungOrdnerId: res.dsZeitungOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
+    // Private Konfiguration (E43) wie im Echtbetrieb: als JSON-Datei in „Drive“, die App lädt und prüft sie beim Start
+    const { privateConfigContent } = await import('./js/config.js');
+    const priv = fake.addFile({ name: 'config_private.json', mimeType: 'application/json', content: new TextEncoder().encode(privateConfigContent()).buffer });
+    config.privateConfigId = priv.id;
 
     // Inhalte eines anderen Mitglieds (liegen in SEINEM Drive)
     const anna = { ownerEmail: 'anna@beispiel.de', ownerName: 'Anna Andere' };

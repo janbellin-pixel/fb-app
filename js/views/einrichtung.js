@@ -1,6 +1,12 @@
-// Einrichtungs-Assistent für Admins: Google-Zugang, Anmeldung, Daten anlegen, config.js erzeugen
+// Einrichtungs-Assistent für Admins: Google-Zugang, Anmeldung, Daten anlegen, private Konfiguration in Drive
+// speichern und das öffentliche config.js erzeugen (E43)
 import { html, setHtml, icon, hero, notice, toast, showError, copyText, setBusy, formData, confirmDialog } from '../ui.js';
-import { config, saveOverride, currentBaseUrl, appBaseUrl, configFileContent, isGoogleConfigured, isConfigured } from '../config.js';
+import {
+  config, saveOverride, clearOverrideKeys, currentBaseUrl, appBaseUrl, publicConfigContent, privateConfigObject, privateConfigContent,
+  PRIVATE_WRITE_KEYS, isGoogleConfigured, isConfigured,
+} from '../config.js';
+import { fDateTime } from '../lib/dates.js';
+import { privateConfigStatus } from '../lib/konfiguration.js';
 import * as auth from '../auth.js';
 import { downloadFile } from '../lib/export.js';
 import { RESOURCES, missingResources, idFromUrl } from '../lib/setup.js';
@@ -55,6 +61,20 @@ function createBox(google) {
     <p style="margin:.75rem 0 0"><button class="btn btn-primary" data-action="create" ${google ? '' : 'disabled'}>${icon('sparkle', 'icon-sm')}Fehlendes neu anlegen</button></p>
     ${google && missing.includes('kalender') && !auth.hasScope(auth.SCOPES.setup[0]) ? html`<p class="tiny muted">Für den neuen Kalender fragt Google einmal nach der zusätzlichen Berechtigung „Kalender verwalten“.</p>` : ''}
     ${gruppenBox}`;
+}
+
+/** Stand der privaten Konfiguration (E43) – ohne Google-Abfrage */
+function privateInfo() {
+  const id = String(config.privateConfigId || '').trim();
+  if (!id) return html`<p class="small muted">Noch nicht in Google Drive: Bisher stehen alle Einstellungen im öffentlichen <code>config.js</code>.</p>`;
+  const st = privateConfigStatus();
+  const when = st.geladen ? fDateTime(st.geladen) : '';
+  const text = st.status === 'ok' ? `aus Google Drive geladen${when ? ` (${when})` : ''}`
+    : st.status === 'cache' ? `zuletzt nicht aus Drive geladen – die App nutzt den geprüften Stand vom ${when} (${st.error?.message || 'Fehler'})`
+      : st.status === 'fehler' ? `nicht geladen: ${st.error?.message || 'Fehler'}`
+        : 'in diesem Browser noch nicht geladen (erst beim nächsten Start der App)';
+  return html`<p class="small">Datei-ID: <code style="overflow-wrap:anywhere">${id}</code> · ${text}</p>
+    ${st.warnings?.length ? html`<ul class="check-warn small">${st.warnings.map((w) => html`<li>${w}</li>`)}</ul>` : ''}`;
 }
 
 function checkCard(c) {
@@ -201,9 +221,20 @@ export default async function einrichtung(ctx) {
         <p class="small muted" style="margin-top:.75rem">${icon('info', 'icon-sm')} Den Link zur App in Termine eintragen, die direkt im Google Kalender angelegt werden: dafür gibt es das Skript <code>apps-script/Automatik.gs</code> (läuft im Konto des Kalender-Inhabers, Anleitung in <code>docs/EINRICHTUNG.md</code>). Die App selbst ändert keine Termine.</p>
         <div id="check" style="margin-top:.75rem"></div>
         <hr>
-        <p class="small">Damit <strong>alle Mitglieder</strong> die Einstellungen bekommen, muss die Datei <code>config.js</code> der veröffentlichten App ersetzt werden (z. B. im GitHub-Repository). Bis dahin gelten die Einstellungen nur in diesem Browser.</p>
+        <h4 style="margin:0 0 .375rem">Einstellungen für alle Mitglieder (privat, in Google Drive)</h4>
+        <p class="small">Admins, Kalender, Tabellen, Ordner, Gruppen und Links speichert die App als Datei <code>config_private.json</code> in deinem Google Drive – lesbar für alle Konten der Domain, aber nicht öffentlich im Internet. Nach dem Speichern gelten Änderungen für alle beim nächsten Öffnen der App. Bis dahin gelten sie nur in diesem Browser.</p>
+        <div id="private-info">${privateInfo()}</div>
         <div class="row wrap">
-          <button class="btn btn-primary" data-action="download-config">${icon('download', 'icon-sm')}config.js herunterladen</button>
+          <button class="btn btn-primary" data-action="save-private" ${google && app.isAdmin() ? '' : 'disabled'}>${icon('upload', 'icon-sm')}Einstellungen in Google Drive speichern</button>
+          <button class="btn" data-action="download-private">${icon('download', 'icon-sm')}config_private.json herunterladen</button>
+        </div>
+        <div id="private-result" style="margin-top:.625rem"></div>
+        <details style="margin-top:.5rem"><summary class="small" style="cursor:pointer">Vorschau der config_private.json</summary><pre class="code" id="cfg-private"></pre></details>
+        <hr>
+        <h4 style="margin:0 0 .375rem">Öffentliches config.js (GitHub)</h4>
+        <p class="small">Im öffentlichen <code>config.js</code> der veröffentlichten App steht nur noch, was vor der Anmeldung gebraucht wird: Client-ID, Domain, die ID der privaten Datei, der Demo-Schalter und die Angaben der Datenschutzerklärung. Ersetzen (z. B. im GitHub-Repository) nur, wenn sich davon etwas ändert.</p>
+        <div class="row wrap">
+          <button class="btn" data-action="download-config">${icon('download', 'icon-sm')}config.js herunterladen</button>
           <button class="btn" data-action="copy-config">${icon('copy', 'icon-sm')}Inhalt kopieren</button>
         </div>
         <details style="margin-top:.75rem"><summary class="small" style="cursor:pointer">Vorschau der config.js</summary><pre class="code" id="cfg"></pre></details>
@@ -216,25 +247,11 @@ export default async function einrichtung(ctx) {
     logEl.insertAdjacentHTML('beforeend', logLine(text, kind).toString());
     logEl.scrollTop = logEl.scrollHeight;
   };
-  const cfgText = () => configFileContent({
-    googleClientId: config.googleClientId,
-    workspaceDomain: config.workspaceDomain,
-    mitgliederGruppe: config.mitgliederGruppe,
-    admins: config.admins,
-    redaktion: config.redaktion,
-    appUrl: config.appUrl,
-    kalenderId: config.kalenderId,
-    tabellen: config.tabellen,
-    adressenBlatt: config.adressenBlatt,
-    zeitungOrdnerId: config.zeitungOrdnerId,
-    liedermappeOrdnerId: config.liedermappeOrdnerId,
-    dsZeitungOrdnerId: config.dsZeitungOrdnerId,
-    galerieOrdnerId: config.galerieOrdnerId,
-    testMitglieder: config.testMitglieder,
-    adressaenderung: config.adressaenderung,
-    datenschutz: config.datenschutz,
-  });
-  const showCfg = () => { el.querySelector('#cfg').textContent = cfgText(); };
+  const cfgText = () => publicConfigContent();
+  const showCfg = () => {
+    el.querySelector('#cfg').textContent = cfgText();
+    el.querySelector('#cfg-private').textContent = privateConfigContent();
+  };
   showCfg();
   const renderResources = () => {
     setHtml(el.querySelector('#res-status'), resourceStatus());
@@ -351,7 +368,7 @@ export default async function einrichtung(ctx) {
       renderResources();
       if (res.rootFolderId) log(`Neue Tabellen und Ordner liegen in Google Drive im Ordner „${config.appName} – Mitglieder-App“.`, 'ok');
       if (res.created.includes('einwilligungen')) log('Die Einwilligungsliste liegt bewusst außerhalb davon in „Meine Ablage“ (keine vererbten Freigaben).', 'ok');
-      log('Nächster Schritt: „Verbindung prüfen“ und danach die config.js veröffentlichen.');
+      log('Nächster Schritt: „Verbindung prüfen“, dann „Einstellungen in Google Drive speichern“.');
       toast('Angelegt 🎉');
     } catch (err) {
       setBusy(btn, false);
@@ -360,6 +377,36 @@ export default async function einrichtung(ctx) {
         log('Vermutlich fehlt eine Berechtigung oder eine Google-API ist im Cloud-Projekt nicht aktiviert (siehe Schritt 1).', 'err');
       }
       showError(err);
+    }
+  }
+
+  /** Private Konfiguration in Google Drive speichern (E43): eigene Datei, für die Domain nur lesbar */
+  async function savePrivate(btn) {
+    const box = el.querySelector('#private-result');
+    const before = String(config.privateConfigId || '').trim();
+    setBusy(btn, true, 'Wird gespeichert …');
+    try {
+      const drive = await import('../google/drive.js');
+      const { savePrivateConfig } = await import('../lib/konfiguration.js');
+      // Die Datei eines anderen Admins ändert die App nicht (Schreibschutz) – dann nur auf Wunsch eine neue anlegen
+      const cur = before ? await drive.getFile(before, 'id,ownedByMe,owners(emailAddress)').catch(() => null) : null;
+      if (cur && !cur.ownedByMe && !(await confirmDialog(`Die bisherige Datei gehört ${cur.owners?.[0]?.emailAddress || 'einem anderen Konto'} – nur dieses Konto kann sie über die App ändern. Stattdessen eine neue Datei in deinem Drive anlegen? Deren ID muss dann in das öffentliche config.js.`,
+        { title: 'Neue Datei anlegen?', ok: 'Neue Datei anlegen' }))) return;
+      const res = await savePrivateConfig(privateConfigObject(), { owner: me.email });
+      // ab jetzt gilt die Datei in Drive – die lokalen Werte der Einrichtung für diese Einstellungen braucht es nicht mehr
+      clearOverrideKeys(PRIVATE_WRITE_KEYS);
+      if (res.id !== before) saveOverride({ privateConfigId: res.id });
+      showCfg();
+      setHtml(el.querySelector('#private-info'), privateInfo());
+      setHtml(box, notice('green', res.neu ? 'In Google Drive angelegt' : 'In Google Drive gespeichert', html`<a href="${res.url}" target="_blank" rel="noopener">config_private.json in Drive öffnen</a>.
+        ${res.id !== before ? html` <strong>Neue Datei:</strong> Ihre ID muss einmal als <code>privateConfigId</code> in das öffentliche config.js (der Download unten enthält sie schon). Bis dahin gilt sie nur in diesem Browser.`
+          : ' Alle Mitglieder bekommen die Änderungen beim nächsten Öffnen der App.'}
+        ${res.warnings.length ? html`<br><span class="small">Hinweise: ${res.warnings.join(' ')}</span>` : ''}`));
+      toast('Gespeichert');
+    } catch (err) {
+      setHtml(box, notice('red', 'Nicht gespeichert', err.message || String(err)));
+    } finally {
+      setBusy(btn, false);
     }
   }
 
@@ -415,6 +462,12 @@ export default async function einrichtung(ctx) {
         break;
       case 'copy-config':
         copyText(cfgText());
+        break;
+      case 'download-private':
+        downloadFile('config_private.json', privateConfigContent(), 'application/json');
+        break;
+      case 'save-private':
+        savePrivate(a);
         break;
       default:
     }

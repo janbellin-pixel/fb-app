@@ -19,6 +19,7 @@ import { addDays, startOfDay, isoDate } from './dates.js';
 import { consentRecipients } from './datenschutz.js';
 import { prepareConsentSheet, TABLE_TYPE, TABS as CONSENT_TABS } from './einwilligungsliste.js';
 import { gruppenAdressen } from './gruppen.js';
+import { privateConfigStatus } from './konfiguration.js';
 
 const SPREADSHEET = 'application/vnd.google-apps.spreadsheet';
 
@@ -687,6 +688,34 @@ export async function checkSetup() {
     c.detail = `${rooms.length} ${rooms.length === 1 ? 'Raum, in dem' : 'Räume, in denen'} du Mitglied bist`;
     c.lines.push('Jeder sieht in der App nur die Räume, in denen er Mitglied ist – neue Konten in Google Chat zu den Räumen hinzufügen.');
     if (!rooms.length) c.warn.push('Noch keine Räume: in Google Chat Räume anlegen (z. B. „Allgemein“) und die Mitglieder hinzufügen.');
+  });
+
+  // Private Konfiguration (E43): wem gehört sie, wer darf sie lesen – und darf sie niemand außer dem Inhaber bearbeiten?
+  await add('Private Konfiguration (config_private.json)', async (c) => {
+    const id = String(config.privateConfigId || '').trim();
+    if (!id) {
+      c.detail = 'Noch nicht eingerichtet – bisher stehen alle Einstellungen im öffentlichen config.js.';
+      c.warn.push('Unten „Einstellungen in Google Drive speichern“ und danach das neue config.js (mit privateConfigId) veröffentlichen.');
+      return;
+    }
+    const meta = await drive.getFile(id, 'id,name,modifiedTime,owners(emailAddress),driveId');
+    const owner = String(meta.owners?.[0]?.emailAddress || '').toLowerCase();
+    c.detail = `${meta.name} · ${owner ? `gehört ${owner}` : 'liegt in einer geteilten Ablage'} · geändert ${new Date(meta.modifiedTime).toLocaleString('de-DE')}`;
+    const admins = (config.admins || []).map((e) => String(e).toLowerCase());
+    if (owner && !admins.includes(owner)) c.warn.push(`${owner} steht nicht unter „admins“ – die App verwendet die Datei dann nicht.`);
+    const st = privateConfigStatus();
+    if (st.status === 'cache') c.warn.push(`Beim letzten Start nicht aus Drive geladen (${st.error?.message || 'Fehler'}) – die App nutzt den zuletzt geprüften Stand.`);
+    for (const w of st.warnings || []) c.warn.push(w);
+    // Freigaben sehen nur Inhaber und Bearbeiter
+    const perms = await drive.listPermissions(id).catch(() => null);
+    if (!perms) { c.lines.push('Freigaben sieht nur der Inhaber der Datei.'); return; }
+    const readers = perms.filter((p) => ['reader', 'commenter'].includes(p.role));
+    const editors = perms.filter((p) => ['writer', 'fileOrganizer', 'organizer'].includes(p.role));
+    c.lines.push(`Lesen dürfen: ${readers.map(who).join(', ') || 'nur der Inhaber'}`);
+    if (perms.some((p) => p.type === 'anyone')) c.warn.push('Für „Jeder mit dem Link“ freigegeben – dann ist sie doch öffentlich. Bitte auf die Domain beschränken.');
+    if (editors.length) c.warn.push(`Bearbeiten dürfen außer dem Inhaber auch ${editors.map(who).join(', ')} – bitte nur „Betrachter“: Wer sie ändert, steuert die App für alle.`);
+    const reachable = readers.some((p) => (p.type === 'domain' && String(p.domain).toLowerCase() === d) || (p.type === 'group' && String(p.emailAddress).toLowerCase() === g));
+    if (!reachable) c.warn.push('Mitglieder können die Datei noch nicht lesen – „Einstellungen in Google Drive speichern“ gibt sie für die Domain frei.');
   });
 
   checks.push({ label: 'Schreibschutz', ok: true, detail: 'aktiv – die App ändert nur eigene Daten (Zusage, Profil, eigene Beiträge, Einwilligung, Chat-Nachrichten)', lines: [], warn: [] });

@@ -67,6 +67,7 @@ export const canEdit = async (id) => {
 
 export const download = (id) => api(`${BASE}/files/${enc(id)}`, { query: { alt: 'media', ...ALL }, as: 'arrayBuffer' });
 export const downloadBlob = (id) => api(`${BASE}/files/${enc(id)}`, { query: { alt: 'media', ...ALL }, as: 'blob' });
+export const downloadText = (id) => api(`${BASE}/files/${enc(id)}`, { query: { alt: 'media', ...ALL }, as: 'text' });
 
 export function createFile(metadata, fields = 'id,name,webViewLink') {
   assertParentsAllowed(metadata.parents || []);
