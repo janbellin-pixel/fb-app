@@ -18,7 +18,7 @@ import { calendarEventId, newId } from './text.js';
 import { addDays, startOfDay, isoDate } from './dates.js';
 import { consentRecipients } from './datenschutz.js';
 import { prepareConsentSheet, TABLE_TYPE, TABS as CONSENT_TABS } from './einwilligungsliste.js';
-import { gruppenAdressen } from './gruppen.js';
+import { gruppenAdressen, BEREICHE } from './gruppen.js';
 import { privateConfigStatus } from './konfiguration.js';
 
 const SPREADSHEET = 'application/vnd.google-apps.spreadsheet';
@@ -79,6 +79,33 @@ export async function missingGroupMarkers() {
   const own = await drive.listFiles(GRUPPE_Q, { fields: 'id,appProperties' });
   const have = new Set(own.map((f) => f.appProperties?.fbGruppe));
   return keys.filter((k) => !have.has(k));
+}
+
+/** Eigene Kennungsdateien, denen die Freigabe für ihre Gruppe fehlt (z. B. gab es die Gruppe beim Anlegen noch nicht) */
+export async function unsharedGroupMarkers() {
+  const adressen = gruppenAdressen();
+  if (!Object.keys(adressen).length) return [];
+  const own = await drive.listFiles(GRUPPE_Q, { fields: 'id,appProperties' });
+  const out = [];
+  for (const f of own) {
+    const key = f.appProperties?.fbGruppe;
+    const email = adressen[key];
+    if (!email) continue;
+    const perms = await drive.listPermissions(f.id).catch(() => []);
+    if (!perms.some((p) => p.type === 'group' && String(p.emailAddress || '').toLowerCase() === email)) out.push({ id: f.id, key, email });
+  }
+  return out;
+}
+
+/** Kennungsdatei für ihre Gruppe lesbar machen. Scheitert das (z. B. Gruppe gibt es noch nicht), geht es mit den anderen weiter. */
+async function shareMarker(id, email, log) {
+  try {
+    await drive.addPermission(id, { type: 'group', role: 'reader', emailAddress: email });
+    return true;
+  } catch (e) {
+    log(`Freigabe für ${email} ging nicht (${e.message}). Gibt es die Gruppe schon? In der Admin-Konsole anlegen, dann „Fehlende Gruppen-Kennungen anlegen“ erneut – das holt die Freigabe nach.`, 'err');
+    return false;
+  }
 }
 
 async function newFolder(name, parentId) {
@@ -218,7 +245,8 @@ export async function createMissing({
   const targets = shareTargets({ group, domain, testUsers });
   const out = { created: [], tabellen: {}, gruppen: [] };
   const fehlendeGruppen = await missingGroupMarkers().catch(() => []);
-  if (!want.size && !fehlendeGruppen.length) {
+  const ohneFreigabe = await unsharedGroupMarkers().catch(() => []);
+  if (!want.size && !fehlendeGruppen.length && !ohneFreigabe.length) {
     log('Es fehlt nichts – alle Datenquellen sind eingetragen.', 'ok');
     return out;
   }
@@ -234,9 +262,18 @@ export async function createMissing({
         description: JSON.stringify({ gruppe: key, adresse: email, zweck: 'Wer diese Datei lesen kann, gehört zur Gruppe (E41).' }),
       });
       registerSetupResource(f.id);
-      await drive.addPermission(f.id, { type: 'group', role: 'reader', emailAddress: email });
-      out.gruppen.push(key);
-      log(`Kennung für die Gruppe ${email} angelegt – nur diese Gruppe kann sie lesen`, 'ok');
+      if (await shareMarker(f.id, email, log)) {
+        out.gruppen.push(key);
+        log(`Kennung für die Gruppe ${email} angelegt – nur diese Gruppe kann sie lesen`, 'ok');
+      }
+    }
+    // früher angelegte Kennungen ohne Freigabe (Gruppe gab es da noch nicht): Freigabe nachholen
+    for (const m of ohneFreigabe) {
+      registerSetupResource(m.id);
+      if (await shareMarker(m.id, m.email, log)) {
+        out.gruppen.push(m.key);
+        log(`Kennung für die Gruppe ${m.email}: Freigabe nachgeholt`, 'ok');
+      }
     }
     // Neue Tabellen und Ordner kommen in einen gemeinsamen Ordner (die Einwilligungsliste bewusst nicht)
     let root = null;
@@ -420,9 +457,11 @@ const short = (list, n = 6) => (list.length > n ? `${list.slice(0, n).join(', ')
  * Freigaben einer Drive-Datei bewerten (nur lesend). Liefert { warn, info }:
  *  – „Jeder mit dem Link“ ist eine Warnung: die IDs stehen in der öffentlichen config.js.
  *  – Gruppe oder Domain mit Bearbeitungsrechten ist eine Warnung: Mitglieder sollen nur lesen.
- *  – Fehlt eine Lesefreigabe für Mitglieder-Gruppe bzw. Domain, gibt es einen Hinweis.
+ *  – Fehlt eine Lesefreigabe für Mitglieder-Gruppe, Domain bzw. die Gruppen, die den Bereich sehen, gibt es einen Hinweis.
+ *  – Mit Gruppen (E41, `bereich`): Freigaben für diese Gruppen zählen; Hinweis, wenn eine Gruppe den Bereich in der App
+ *    sieht, aber keine Freigabe hat – und wenn eine Gruppe, die ihn nicht sieht, die Daten trotzdem lesen kann.
  */
-export function judgeSharing(perms, { group = config.mitgliederGruppe, domain = config.workspaceDomain } = {}) {
+export function judgeSharing(perms, { group = config.mitgliederGruppe, domain = config.workspaceDomain, bereich = '' } = {}) {
   const warn = [];
   const info = [];
   const g = String(group || '').toLowerCase();
@@ -439,9 +478,32 @@ export function judgeSharing(perms, { group = config.mitgliederGruppe, domain = 
   const readers = perms.filter((p) => !EDIT_ROLES.includes(p.role) && p.type !== 'anyone');
   if (readers.length) info.push(`Lesen: ${short(readers.map(who))}`);
   // erreicht die Freigabe die Mitglieder? (egal mit welcher Rolle – zu viel Recht meldet die Warnung oben)
-  const reach = perms.filter((p) => (p.type === 'group' && g && String(p.emailAddress || '').toLowerCase() === g) || (p.type === 'domain' && d && String(p.domain || '').toLowerCase() === d));
-  if ((g || d) && !reach.length && !anyone.length) {
-    warn.push(`Keine Lesefreigabe für ${g || `alle in ${d}`} gefunden – sehen die Mitglieder die Daten? Falls nicht: in Google Drive „Teilen“ → ${g || d} als „Betrachter“ hinzufügen.`);
+  const gruppen = gruppenAdressen();
+  const ohne = bereich ? (config.gruppen?.ohne?.[bereich] || []) : [];
+  const sollen = bereich ? Object.keys(gruppen).filter((k) => !ohne.includes(k)) : [];
+  const mail = (p) => String(p.emailAddress || '').toLowerCase();
+  const hatGruppe = (k) => perms.some((p) => p.type === 'group' && mail(p) === gruppen[k]);
+  const anDomain = !!d && perms.some((p) => p.type === 'domain' && String(p.domain || '').toLowerCase() === d);
+  const reach = anDomain || perms.some((p) => p.type === 'group' && g && mail(p) === g) || sollen.some(hatGruppe);
+  if ((g || d) && !reach && !anyone.length) {
+    const ziel = sollen.length ? sollen.map((k) => gruppen[k]).join(', ') : (g || d);
+    warn.push(`Keine Lesefreigabe für ${sollen.length ? ziel : g || `alle in ${d}`} gefunden – sehen die Mitglieder die Daten? Falls nicht: in Google Drive „Teilen“ → ${ziel} als „Betrachter“ hinzufügen.`);
+  }
+  // Gruppen (E41): wer den Bereich in der App sieht, braucht eine Freigabe – wer ihn nicht sieht, sollte keine haben
+  if (bereich && Object.keys(gruppen).length) {
+    const label = BEREICHE[bereich] || bereich;
+    const fehlen = reach && !anDomain ? sollen.filter((k) => !hatGruppe(k)) : [];
+    if (fehlen.length) {
+      warn.push(`${fehlen.map((k) => gruppen[k]).join(', ')} ${fehlen.length === 1 ? 'sieht' : 'sehen'} „${label}“ in der App, ${fehlen.length === 1 ? 'hat' : 'haben'} hier aber keine Freigabe – als „Betrachter“ hinzufügen (oder die Mitglieder einzeln).`);
+    }
+    const zuViel = ohne.filter((k) => gruppen[k] && hatGruppe(k));
+    if (zuViel.length) {
+      warn.push(`${zuViel.map((k) => gruppen[k]).join(', ')} ${zuViel.length === 1 ? 'kann' : 'können'} die Daten lesen, ${zuViel.length === 1 ? 'sieht' : 'sehen'} „${label}“ in der App aber nicht – für echten Schutz diese Freigabe entfernen.`);
+    }
+    const ausgeblendet = ohne.map((k) => gruppen[k]).filter(Boolean);
+    if (anDomain && ausgeblendet.length) {
+      warn.push(`Für alle in ${d} freigegeben – damit können auch ${ausgeblendet.join(', ')} die Daten lesen, obwohl sie „${label}“ in der App nicht sehen. Für echten Schutz nur für die übrigen Gruppen freigeben.`);
+    }
   }
   return { warn, info };
 }
@@ -473,8 +535,8 @@ export function judgeCalendarAcl(rules, { group = config.mitgliederGruppe, domai
 
 const FILE_META = 'id,name,mimeType,driveId,owners(emailAddress)';
 
-/** Inhaber und Freigaben einer vorhandenen Datei in die Prüfung übernehmen */
-async function addSharing(c, id) {
+/** Inhaber und Freigaben einer vorhandenen Datei in die Prüfung übernehmen (bereich: für die Gruppen, E41) */
+async function addSharing(c, id, bereich = '') {
   const d = String(config.workspaceDomain || '').toLowerCase();
   const f = await drive.getFile(id, FILE_META).catch(() => null);
   if (f?.driveId) c.lines.push('liegt in einer geteilten Ablage');
@@ -492,7 +554,7 @@ async function addSharing(c, id) {
     c.lines.push('Freigaben nicht einsehbar (nur Inhaber und Bearbeiter sehen sie)');
     return;
   }
-  const r = judgeSharing(perms);
+  const r = judgeSharing(perms, { bereich });
   c.lines.push(...r.info);
   c.warn.push(...r.warn);
 }
@@ -564,7 +626,7 @@ export async function checkSetup() {
       const own = a.items.filter((x) => x.email.endsWith(`@${d}`)).length;
       c.lines.push(`${own} von ${a.items.length} Einträgen mit E-Mail-Adresse @${d} (sonst ordnet die App über den Namen zu)`);
     }
-    await addSharing(c, t.adressen);
+    await addSharing(c, t.adressen, 'adressen');
   });
 
   await add('News-Tabelle', async (c) => {
@@ -572,10 +634,10 @@ export async function checkSetup() {
     const meta = await sheets.getMeta(t.news);
     if (!meta.sheets.some((s) => s.properties.title === SHEETS.news)) throw new Error(`Tabellenblatt „${SHEETS.news}“ fehlt`);
     c.detail = `„${meta.properties.title}“`;
-    await addSharing(c, t.news);
+    await addSharing(c, t.news, 'news');
   });
 
-  const folderCheck = async (c, id, kind) => {
+  const folderCheck = async (c, id, kind, bereich) => {
     if (!id) throw new Error('Keine Ordner-ID eingetragen');
     const f = await drive.getFile(id, 'id,name,mimeType,driveId');
     if (f.mimeType !== drive.FOLDER) throw new Error('Die ID gehört nicht zu einem Ordner');
@@ -604,16 +666,16 @@ export async function checkSetup() {
       c.detail = `„${f.name}“ · ${albums} Alben · ${files.length} Fotos`;
       if (!files.length) c.warn.push(`Keine Fotos gefunden (gesucht wird bis zwei Ordnerebenen tief${folders.length ? `, ${folders.length} Unterordner` : ''}).`);
     }
-    await addSharing(c, id);
+    await addSharing(c, id, bereich);
   };
-  await add('Ordner Bundesbote', (c) => folderCheck(c, config.zeitungOrdnerId, 'zeitung'));
+  await add('Ordner Bundesbote', (c) => folderCheck(c, config.zeitungOrdnerId, 'zeitung', 'zeitung'));
   await add('Ordner Liedermappe', async (c) => {
     // freiwillig: ohne Ordner ist die Liedermappe in der App einfach ausgeblendet
     if (!String(config.liedermappeOrdnerId || '').trim()) {
       c.detail = 'Nicht eingetragen – die Liedermappe ist in der App ausgeblendet (freiwillig).';
       return;
     }
-    await folderCheck(c, config.liedermappeOrdnerId, 'lieder');
+    await folderCheck(c, config.liedermappeOrdnerId, 'lieder', 'lieder');
   });
   await add('Ordner DS-Zeitung', async (c) => {
     // freiwillig wie die Liedermappe; Ausgaben werden wie beim Bundesboten gezählt
@@ -621,9 +683,9 @@ export async function checkSetup() {
       c.detail = 'Nicht eingetragen – die DS-Zeitung ist in der App ausgeblendet (freiwillig).';
       return;
     }
-    await folderCheck(c, config.dsZeitungOrdnerId, 'zeitung');
+    await folderCheck(c, config.dsZeitungOrdnerId, 'zeitung', 'dsZeitung');
   });
-  await add('Ordner Galerie', (c) => folderCheck(c, config.galerieOrdnerId, 'galerie'));
+  await add('Ordner Galerie', (c) => folderCheck(c, config.galerieOrdnerId, 'galerie', 'galerie'));
 
   await add('Einwilligungsliste (vertraulich)', async (c) => {
     if (!t.einwilligungen) throw new Error('Noch nicht eingetragen – „Fehlendes neu anlegen“ legt sie an (oder Mehr → Datenschutz → „Einwilligungen aller Mitglieder“).');
@@ -652,7 +714,7 @@ export async function checkSetup() {
       const mine = (p) => p.type === 'group' && String(p.emailAddress || '').toLowerCase() === adressen[k];
       const wide = perms.filter((p) => WIDE.includes(p.type) && !mine(p));
       if (wide.length) c.warn.push(`Kennung „${k}“ ist zusätzlich für ${wide.map(who).join(', ')} freigegeben – dann zählen auch diese zur Gruppe.`);
-      if (!perms.some(mine)) c.warn.push(`Kennung „${k}“ ist nicht für ${adressen[k]} freigegeben.`);
+      if (!perms.some(mine)) c.warn.push(`Kennung „${k}“ ist nicht für ${adressen[k]} freigegeben. Gibt es die Gruppe? Dann „Fehlende Gruppen-Kennungen anlegen“ – das holt die Freigabe nach.`);
     }
     c.lines.push('Die App blendet damit nur Bereiche aus. Die Daten schützen die Drive-Freigaben – z. B. das Adressverzeichnis nur für die Bundesbrüder freigeben.');
   });

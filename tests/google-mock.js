@@ -760,15 +760,35 @@ async function run() {
   check(!gr.gesperrt('adressen', S('gaeste', 'bundesbrueder')) && !gr.gesperrt('adressen', S()) && !gr.gesperrt('adressen', null) && !gr.gesperrt('termine', S('gaeste')),
     'wer zusätzlich Bundesbruder ist, sieht alles; ohne bekannte Gruppe ist nichts gesperrt');
   check(gr.linkGesperrt({ titel: 'Wiki', ohne: ['gaeste'] }, S('gaeste')) && !gr.linkGesperrt({ titel: 'Wiki', ohne: ['gaeste'] }, S('bundesbrueder')), 'Links wie das Wiki je Gruppe ausblendbar');
-  const resG = await step('createMissing (Gruppen-Kennungen)', () => setup.createMissing({ only: [], me, log: () => {} }));
+  // Die Gruppe gaeste@ gibt es noch nicht: Freigabe scheitert, die übrigen Kennungen entstehen trotzdem
+  fake.state.failShareFor = 'gaeste@beispiel.de';
+  const logG0 = [];
+  const resG0 = await step('createMissing (Gruppe gibt es noch nicht)', () => setup.createMissing({ only: [], me, log: (t, k) => logG0.push([t, k]) }));
+  fake.state.failShareFor = '';
   const markersOf = (email) => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'gruppe' && f.ownerEmail === email);
-  check(resG?.gruppen?.length === 3 && markersOf(me.email).length === 3, 'Einrichtung legt je Gruppe eine Kennungsdatei an', JSON.stringify(resG?.gruppen));
+  check(resG0?.gruppen?.join() === 'bundesbrueder,chordamen' && markersOf(me.email).length === 3 && logG0.some(([t, k]) => k === 'err' && /gaeste@beispiel\.de/.test(t)),
+    'fehlende Gruppe: verständlicher Hinweis, die anderen Kennungen entstehen trotzdem', JSON.stringify([resG0?.gruppen, logG0]));
+  const resG = await step('createMissing (Gruppen-Kennungen)', () => setup.createMissing({ only: [], me, log: () => {} }));
+  check(resG?.gruppen?.join() === 'gaeste' && markersOf(me.email).length === 3, 'erneut: Freigabe für die inzwischen angelegte Gruppe nachgeholt, keine Kennung doppelt', JSON.stringify(resG?.gruppen));
   check(markersOf(me.email).every((f) => {
     const ps = fake.state.permissions.filter((p) => p.file === f.id);
     return !f.parents.length && ps.length === 1 && ps[0].type === 'group' && ps[0].role === 'reader' && ps[0].emailAddress === config.gruppen.adressen[f.appProperties.fbGruppe];
   }), 'jede Kennung nur für ihre Gruppe lesbar – nicht für die Domain, nicht im freigegebenen Ordner');
   const resG2 = await step('createMissing (Gruppen, erneut)', () => setup.createMissing({ only: [], me, log: () => {} }));
   check(resG2?.gruppen?.length === 0 && markersOf(me.email).length === 3, 'erneut ausgeführt: nichts doppelt');
+  // Prüfung der Freigaben mit Gruppen: Gruppen-Freigaben zählen, zu viel und zu wenig wird genannt
+  const js = (perms, bereich) => setup.judgeSharing(perms, { group: '', domain: 'beispiel.de', bereich }).warn;
+  const G = (e) => ({ type: 'group', role: 'reader', emailAddress: e });
+  const js1 = js([G('Bundesbrueder@beispiel.de')], 'adressen');
+  check(!js1.length, 'Prüfung: Adressverzeichnis nur für die Bundesbrüder freigegeben – kein Hinweis', JSON.stringify(js1));
+  const js2 = js([G('bundesbrueder@beispiel.de'), G('gaeste@beispiel.de')], 'adressen');
+  check(js2.length === 1 && /gaeste@beispiel\.de/.test(js2[0]), 'Prüfung: Gäste können das Adressverzeichnis lesen – Warnung', JSON.stringify(js2));
+  const js3 = js([{ type: 'domain', role: 'reader', domain: 'beispiel.de' }], 'galerie');
+  check(js3.length === 1 && /alle in beispiel\.de/.test(js3[0]), 'Prüfung: Galerie für die ganze Domain, obwohl Gäste sie nicht sehen – Warnung', JSON.stringify(js3));
+  const js4 = js([G('chordamen@beispiel.de')], 'zeitung');
+  check(js4.length === 1 && /bundesbrueder@beispiel\.de, gaeste@beispiel\.de/.test(js4[0]), 'Prüfung: Bundesbote – Gruppen ohne Freigabe werden genannt', JSON.stringify(js4));
+  const js5 = js([{ type: 'user', role: 'reader', emailAddress: 'x@beispiel.de' }], 'zeitung');
+  check(js5.length === 1 && /Keine Lesefreigabe/.test(js5[0]), 'Prüfung: weder Gruppe noch Domain – Hinweis wie bisher', JSON.stringify(js5));
   b.invalidate('gruppen');
   check((await b.myGroups()).length === 3, 'Admin besitzt alle Kennungen und sieht damit alles');
   // Sicht eines Mitglieds, das nur die Gäste-Kennung lesen kann (Kennungen gehören dem Vorstand)

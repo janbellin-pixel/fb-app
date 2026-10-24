@@ -152,7 +152,10 @@ Bis zum Speichern in Google Drive gelten die Einträge nur in deinem Browser –
 |---|---|---|
 | „Jeder mit dem Link“ hat Zugriff | Wer die ID kennt, könnte im Internet mitlesen (bis E43 stand sie im öffentlichen `config.js`, in dessen Versionsgeschichte steht sie weiter) | In Google Drive „Teilen → Allgemeiner Zugriff“ auf „Eingeschränkt“ oder die Domain stellen |
 | Bearbeiten dürfen Gruppe/Domain | Mitglieder könnten Daten ändern | Gruppe bzw. Domain auf „Betrachter“ stellen; Bearbeiten nur für einzelne Verantwortliche |
-| Keine Lesefreigabe für Gruppe/Domain | Die Mitglieder sehen die Daten in der App nicht | Gruppe bzw. Domain als „Betrachter“ hinzufügen |
+| Keine Lesefreigabe für Gruppe/Domain | Die Mitglieder sehen die Daten in der App nicht. Mit Gruppen (E41) zählen Freigaben für die Gruppen, die den Bereich sehen | Gruppe(n) bzw. Domain als „Betrachter“ hinzufügen |
+| „… sieht „Bereich“ in der App, hat hier aber keine Freigabe“ | Diese Gruppe sieht den Bereich, kann die Daten aber nicht lesen | Gruppe als „Betrachter“ hinzufügen (oder ihre Mitglieder einzeln) |
+| „… kann die Daten lesen, sieht „Bereich“ in der App aber nicht“ bzw. „Für alle in … freigegeben – damit können auch …“ | Die App blendet den Bereich für diese Gruppe nur aus – über Google Drive könnte sie die Daten trotzdem lesen | Freigabe für diese Gruppe entfernen bzw. statt der Domain nur die übrigen Gruppen freigeben |
+| „Kennung „…“ ist nicht für …@ freigegeben“ | Beim Anlegen gab es die Gruppe noch nicht (die Freigabe scheiterte) | Gruppe in der Admin-Konsole anlegen, dann „Fehlende Gruppen-Kennungen anlegen“ – das holt die Freigabe nach |
 | Gehört einem Konto außerhalb der Domain | Die Datei liegt z. B. in einem privaten Google-Konto | Eigentum an ein Konto der Verbindung übertragen (oder in eine geteilte Ablage verschieben) |
 | Spalten sehen vertraulich aus | z. B. IBAN, Beitrag, Bemerkung – wer die Tabelle lesen darf, sieht sie | Eigene Tabelle nur mit den freigebbaren Spalten anlegen (siehe unten) und diese verbinden |
 | Termine ohne Einladung an die Mitglieder-Gruppe (Hinweis) | Zu- und Absagen laufen dort über die App, im Google Kalender sind sie nicht sichtbar | Nur falls gewünscht: Gruppe als Gast hinzufügen, automatisch mit B4 |

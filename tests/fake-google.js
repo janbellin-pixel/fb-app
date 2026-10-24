@@ -350,6 +350,8 @@ export function createFakeGoogle({ me, workspace = true }) {
       }
       write('Datei freigeben', f.name, f.ownerEmail === me.email);
       if (f.ownerEmail !== me.email) return error(403, 'The user does not have sufficient permissions for this file.', 'insufficientFilePermissions');
+      // wie bei Google, wenn es die Gruppe (noch) nicht gibt
+      if (state.failShareFor && String(body?.emailAddress || '').toLowerCase() === state.failShareFor) return error(400, 'Invalid sharing request', 'invalidSharingRequest');
       const perm = { id: uid('p'), ...body };
       state.permissions.push({ file: m[1], ...perm });
       return json(perm);
