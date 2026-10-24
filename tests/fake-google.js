@@ -329,6 +329,10 @@ export function createFakeGoogle({ me, workspace = true }) {
       state.queries.push({ q, driveId, corpora: url.searchParams.get('corpora') || '' });
       // Suche in der Domain kurz gestört (z. B. 408) – für den Test „keine fast leere Mitgliederliste“
       if (state.domainError && url.searchParams.get('corpora') === 'domain') return error(state.domainError, 'Request timed out.', 'timeout');
+      // gezielte Suche in einer geteilten Ablage nur für Mitglieder (wie bei Google) – nur der Ordner freigegeben reicht nicht
+      if (state.notMemberOf?.has(driveId) && url.searchParams.get('corpora') === 'drive') {
+        return error(403, 'The attempted action requires shared drive membership.', 'teamDriveMembershipRequired');
+      }
       // Dateien aus geteilten Ablagen nur mit includeItemsFromAllDrives (wie bei Google)
       const files = [...state.files.values()].filter((f) => (!f.driveId || allDrives) && (!driveId || f.driveId === driveId) && matches(f, q));
       return json({ files: files.map(view) });

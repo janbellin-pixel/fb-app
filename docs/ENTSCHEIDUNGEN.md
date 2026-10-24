@@ -195,7 +195,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
   - **Adressverzeichnis:** Kopfzeile in den ersten zehn Zeilen suchen (Titelzeilen darüber erlaubt), „Nachname, Vorname“ in einer Spalte, Hausnummer und „PLZ/Ort“ als eigene Spalten. Das Tabellenblatt ist einstellbar (`adressenBlatt`); fehlt das eingetragene Blatt, gibt es einen Fehler statt eines anderen Blattes. Mitglieder werden über die E-Mail-Adresse zugeordnet, sonst über den Namen, aber nur, wenn der Name auf beiden Seiten eindeutig ist.
   - **Zeitung:** PDFs bis zwei Ordnerebenen tief. Das Jahr kommt aus dem Namen oder aus dem Ordner, die Nummer aus „Nr.“, „Heft“ oder „Ausgabe“ (weitere Namensformen und Reihenfolge: E39).
   - **Galerie:** Alben sind Ordner mit Fotos bis zwei Ebenen tief; übergeordnete Ordner erscheinen als Zusatz („Stiftungsfest · 2023“).
-  - **Abruf:** gebündelt je Ebene, geteilte Ablagen gezielt mit `corpora=drive&driveId`.
+  - **Abruf:** gebündelt je Ebene, geteilte Ablagen gezielt mit `corpora=drive&driveId`. *Ergänzt 2026-10-24:* Das verlangt die Mitgliedschaft in der geteilten Ablage. Ist nur der Ordner freigegeben (z. B. für `chordamen@`), lehnt Google die gezielte Suche ab („Kein Zugriff“ bei einer Chordame); dann sucht die App über alles, was das Konto lesen darf (`corpora=allDrives`, `listFolderTree()`), und merkt sich das für den Ordner.
 - **Folgen:** Vorhandenes muss nicht umgebaut werden. Grenze: Sehr große Fotoarchive laden alle Angaben auf einmal (ENTWICKLUNG.md, Offene Punkte).
 
 ## E26 · Die Zeitung heißt „Bundesbote“

@@ -1001,14 +1001,31 @@ export class GoogleBackend {
     });
   }
 
+  /**
+   * Ordner samt Unterordnern lesen. Die gezielte Suche in einer geteilten Ablage verlangt die Mitgliedschaft in der
+   * Ablage; ist nur der Ordner freigegeben (z. B. für chordamen@), lehnt Google sie ab („Kein Zugriff“). Dann in
+   * allem suchen, was das Konto lesen darf – und das für diesen Ordner merken.
+   */
+  async listFolderTree(folderId, opts) {
+    const scope = await this.folderScope(folderId);
+    try {
+      return await drive.listTree(folderId, { ...opts, ...scope });
+    } catch (e) {
+      if (!scope.driveId || ![403, 404].includes(e.status)) throw e;
+      const res = await drive.listTree(folderId, { ...opts, corpora: 'allDrives' });
+      this.memo.set(`scope:${folderId}`, { t: Date.now(), p: Promise.resolve({ corpora: 'allDrives' }) });
+      return res;
+    }
+  }
+
   /** Ausgaben einer Zeitung: quelle 'bundesbote' (Standard) oder 'ds' (DS-Zeitung), siehe ZEITUNGEN */
   async listIssues(quelle = 'bundesbote') {
     const z = ZEITUNGEN[quelle];
     const folder = (config[z.ordner] || '').trim();
     if (!folder) throw notConfigured(z.name);
     // auch Jahresordner („2019“, „Archiv/2003“): bis zwei Ebenen tief
-    const { files } = await drive.listTree(folder, {
-      depth: 2, filter: "mimeType = 'application/pdf'", fields: drive.FILE_FIELDS, orderBy: 'name desc', ...(await this.folderScope(folder)),
+    const { files } = await this.listFolderTree(folder, {
+      depth: 2, filter: "mimeType = 'application/pdf'", fields: drive.FILE_FIELDS, orderBy: 'name desc',
     });
     return sortIssues(files.map((f) => ({ ...issueFromFile(f), quelle })));
   }
@@ -1054,8 +1071,8 @@ export class GoogleBackend {
     const folder = (config.liedermappeOrdnerId || '').trim();
     if (!folder) throw notConfigured('Der Ordner der Liedermappe');
     // Rubriken als Unterordner („Kommerslieder“, „Volkslieder/Wanderlieder“): bis drei Ebenen tief
-    const { files } = await drive.listTree(folder, {
-      depth: 3, filter: `mimeType != '${drive.FOLDER}'`, fields: drive.FILE_FIELDS, orderBy: 'name', ...(await this.folderScope(folder)),
+    const { files } = await this.listFolderTree(folder, {
+      depth: 3, filter: `mimeType != '${drive.FOLDER}'`, fields: drive.FILE_FIELDS, orderBy: 'name',
     });
     const songs = files.filter(isSongFile);
     return { songs: sortSongs(songs.map(songFromFile)), other: files.length - songs.length, folderUrl: `https://drive.google.com/drive/folders/${folder}` };
@@ -1086,8 +1103,8 @@ export class GoogleBackend {
     const folder = (config.galerieOrdnerId || '').trim();
     if (!folder) throw notConfigured('Der Galerie-Ordner');
     // Alben = Ordner mit Fotos, auch verschachtelt („2023/Stiftungsfest“): bis zwei Ebenen tief
-    const { files, folders } = await drive.listTree(folder, {
-      depth: 2, filter: "mimeType contains 'image/'", fields: GALLERY_FIELDS, orderBy: 'name', ...(await this.folderScope(folder)),
+    const { files, folders } = await this.listFolderTree(folder, {
+      depth: 2, filter: "mimeType contains 'image/'", fields: GALLERY_FIELDS, orderBy: 'name',
     });
     const toPhoto = (f) => ({
       id: f.id,

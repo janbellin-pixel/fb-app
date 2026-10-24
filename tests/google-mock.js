@@ -959,6 +959,16 @@ async function run() {
   const iss = await step('listIssues (Jahresordner)', () => b2.listIssues());
   check(iss?.map((i) => i.year).join() === '2026,2025,2003', 'Ausgaben aus Jahresordnern, neueste zuerst', JSON.stringify(iss?.map((i) => [i.name, i.year, i.nr])));
   check(iss?.[1]?.ausgabe === 'Ausgabe 2/2025' && iss?.[2]?.ausgabe === 'Ausgabe 1/2003', 'Nummer aus „Nr. 2“ bzw. „Heft 1“, Jahr aus dem Ordner', JSON.stringify(iss?.map((i) => i.ausgabe)));
+  // Konto ist nicht Mitglied der geteilten Ablage, nur der Ordner ist freigegeben (z. B. für chordamen@)
+  fake.state.notMemberOf = new Set([SD.driveId]);
+  const qNM = fake.state.queries.length;
+  const bNM = new GoogleBackend(me);
+  const issNM = await step('listIssues (nur der Ordner freigegeben)', () => bNM.listIssues());
+  const issNM2 = await step('listIssues (erneut)', () => bNM.listIssues());
+  fake.state.notMemberOf = null;
+  const corporaNM = fake.state.queries.slice(qNM).map((q) => q.corpora);
+  check(issNM?.length === 3 && issNM2?.length === 3 && corporaNM.includes('allDrives') && corporaNM.filter((c) => c === 'drive').length === 1,
+    'nicht Mitglied der geteilten Ablage: Suche über alles Lesbare – Ausgaben trotzdem da, danach gleich so', JSON.stringify(corporaNM));
   const dsIss = await step('listIssues (vorhandene DS-Zeitung)', () => b2.listIssues('ds'));
   check(dsIss?.map((i) => i.ausgabe).join() === 'Ausgabe 3/2026,Ausgabe 4/2025', 'DS-Zeitung: Nummer aus „Heft 3“, Jahr aus dem Ordner', JSON.stringify(dsIss?.map((i) => [i.name, i.ausgabe])));
   const gal2 = await step('listGallery (verschachtelt)', () => b2.listGallery());
