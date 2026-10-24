@@ -206,7 +206,7 @@ export function erklaerung() {
         <li><strong>App-Nutzung und Sichtbarkeit:</strong> Sobald du deine Auswahl speicherst, legt die App in deinem Google Drive eine kleine Datei an, die die Mitglieder lesen können. Sie enthält nur, ob du in der Mitgliederliste sichtbar sein möchtest, und den Zeitpunkt. Daran erkennt die App der anderen, dass du die App nutzt und ob sie dich anzeigen darf.</li>
         <li><strong>Adressänderungen:</strong> Unter „Mein Profil“ vergleicht die App deine Anschrift mit dem Adressverzeichnis. Weicht etwas ab, öffnet sie auf Wunsch dein E-Mail-Programm mit einer vorbereiteten Nachricht an das Postfach für Adressänderungen. Die App selbst speichert oder versendet diese Angaben nicht – erst du schickst die E-Mail ab.</li>
         <li><strong>Daten der Verbindung:</strong> Termine, Adressverzeichnis (z. B. Anschrift, Telefon, Geburtsdatum, Status), Neuigkeiten, Bundesbote, DS-Zeitung und Fotos von Veranstaltungen.</li>
-        <li><strong>Technisch notwendig:</strong> Beim Laden der App-Dateien verarbeitet der Webhoster deine IP-Adresse und Browserangaben kurzzeitig in Server-Protokollen. Auf deinem Gerät speichert die App einen Zugangsschlüssel (eine Stunde gültig), deine Einstellungen (z. B. Schriftgröße, Benachrichtigungen), die Einstellungen der App (damit sie auch offline startet), bei eingeschalteten Benachrichtigungen, welche Nachrichten und News du schon gesehen hast, und einen Zwischenspeicher, damit sie schnell startet und auch offline funktioniert (z. B. gespeicherte Lieder). Mitteilungen zeigt dein Gerät an; die App schickt dafür nichts an weitere Dienste.</li>
+        <li><strong>Technisch notwendig:</strong> Beim Laden der App-Dateien verarbeitet der Webhoster deine IP-Adresse und Browserangaben kurzzeitig in Server-Protokollen. Auf deinem Gerät speichert die App einen Zugangsschlüssel (eine Stunde gültig), deine Einstellungen (z. B. Schriftgröße, Benachrichtigungen), die Einstellungen der App (damit sie auch offline startet), Entwürfe (Chat-Nachrichten, noch nicht eingetragene Adressänderungen), bei eingeschalteten Benachrichtigungen, welche Nachrichten und News du schon gesehen hast, und einen Zwischenspeicher, damit sie schnell startet und auch offline funktioniert (z. B. gespeicherte Lieder). Mitteilungen zeigt dein Gerät an; die App schickt dafür nichts an weitere Dienste.</li>
       </ul>`,
     },
     {
@@ -233,7 +233,7 @@ export function erklaerung() {
     },
     {
       titel: 'Wie lange werden Daten gespeichert?',
-      inhalt: html`<p>Solange du Mitglied bist, und darüber hinaus nur, soweit gesetzliche Aufbewahrungspflichten bestehen (z. B. für Beitrags- und Spendenunterlagen) oder du in die Aufbewahrung im Archiv eingewilligt hast. Eigene Forumsbeiträge kannst du jederzeit selbst löschen. Nachweise über Einwilligungen und Widerrufe bewahrt die Verbindung auf, solange sie diese zum Nachweis benötigt. „Abmelden“ löscht Zugangsschlüssel und Zwischenspeicher auf dem Gerät.</p>`,
+      inhalt: html`<p>Solange du Mitglied bist, und darüber hinaus nur, soweit gesetzliche Aufbewahrungspflichten bestehen (z. B. für Beitrags- und Spendenunterlagen) oder du in die Aufbewahrung im Archiv eingewilligt hast. Eigene Forumsbeiträge kannst du jederzeit selbst löschen. Nachweise über Einwilligungen und Widerrufe bewahrt die Verbindung auf, solange sie diese zum Nachweis benötigt. „Abmelden“ löscht Zugangsschlüssel, Entwürfe und Zwischenspeicher auf dem Gerät.</p>`,
     },
     {
       titel: 'Deine Rechte',

@@ -16,6 +16,8 @@ import {
   ADRESS_FELDER, PROFIL_FELDER, findOwnAddress, anzeigeWert, vergleiche, mailEntwurf, adressaenderungEmail, adressaenderungMail,
 } from '../lib/adressabgleich.js';
 import { gesperrt } from '../lib/gruppen.js';
+import { local } from '../lib/store.js';
+import { fDateShort } from '../lib/dates.js';
 
 export default async function profil(ctx) {
   const { el, app } = ctx;
@@ -43,6 +45,11 @@ export default async function profil(ctx) {
   const demo = app.mode === 'demo';
   const editable = config.profilBearbeiten !== false;
   let own = addr ? findOwnAddress(addr.items, { email: me.email, name: m.name || me.name }) : { entry: null };
+  // Anschrift und Kontakt speichert die App nicht (E7) – dieses Gerät merkt sich die Eingaben als Entwurf, bis sie
+  // im Adressverzeichnis stehen; „Abmelden“ löscht ihn
+  const draftKey = `fb.adrEntwurf.${me.email}`;
+  let draft = local.get(draftKey, null);
+  const adrWert = (key) => draft?.werte?.[key] ?? anzeigeWert(own.entry, key);
   const statuses = config.statusOptionen || [];
   const field = (name, label, value, attrs = {}) => html`
     <div class="field"><label for="p-${name}">${label}</label>
@@ -132,12 +139,12 @@ export default async function profil(ctx) {
 
     <section class="card card-pad" id="abgleich" style="margin-top:1rem">
       <h2 class="card-title">Anschrift und Kontakt</h2>
-      <p class="small muted" style="margin:.25rem 0 .5rem">Diese Angaben stehen im <strong>Adressverzeichnis</strong>, das der Schriftwart pflegt. Prüfe sie hier: Stimmt etwas nicht oder fehlt etwas, bereitet die App eine E-Mail${adressaenderungEmail() ? html` an <strong>${adressaenderungEmail()}</strong>` : ''} mit deinen neuen Angaben vor.</p>
+      <p class="small muted" style="margin:.25rem 0 .5rem">Diese Angaben stehen im <strong>Adressverzeichnis</strong>, das der Schriftwart pflegt – die App selbst ändert es nicht. Prüfe sie hier: Stimmt etwas nicht oder fehlt etwas, bereitet die App eine E-Mail${adressaenderungEmail() ? html` an <strong>${adressaenderungEmail()}</strong>` : ''} mit deinen neuen Angaben vor. Bis der Schriftwart sie eingetragen hat, merkt sich dieses Gerät deine Eingaben.</p>
       <p class="small abgleich-status" id="own-line">${ownLine()}</p>
       ${addr?.items?.length ? html`<p style="margin:0 0 1rem"><button class="btn btn-sm" type="button" data-action="from-directory">${icon('book', 'icon-sm')}Aus Adressverzeichnis übernehmen</button></p>` : ''}
       <form id="adr" novalidate>
         ${!editable ? html`<div class="form-grid cols-2">${PROFIL_FELDER.map((f) => f.key === 'status' ? statusSelect(anzeigeWert(own.entry, 'status')) : field(f.key, f.label, anzeigeWert(own.entry, f.key)))}</div>` : ''}
-        <div class="form-grid cols-2">${ADRESS_FELDER.map((f) => field(f.key, f.label, anzeigeWert(own.entry, f.key), { type: f.type, auto: f.auto, mode: f.mode, ph: f.ph || '', max: 160 }))}</div>
+        <div class="form-grid cols-2">${ADRESS_FELDER.map((f) => field(f.key, f.label, adrWert(f.key), { type: f.type, auto: f.auto, mode: f.mode, ph: f.ph || '', max: 160 }))}</div>
       </form>
       <div id="diffs" aria-live="polite"></div>
     </section>`);
@@ -167,6 +174,14 @@ export default async function profil(ctx) {
     const diffs = vergleiche(e, own.entry);
     const mail = diffs.length ? mailEntwurf({ user: { name: m.name || me.name, email: me.email }, eingabe: e, diffs, gefunden: !!own.entry }) : null;
     current = { diffs, mail };
+    // Entwurf: solange die Anschrift vom Adressverzeichnis abweicht; steht sie dort, ist er erledigt
+    if (diffs.some((d) => ADRESS_FELDER.some((f) => f.key === d.key))) {
+      draft = { ...(draft || {}), werte: Object.fromEntries(ADRESS_FELDER.map((f) => [f.key, e[f.key]])) };
+      local.set(draftKey, draft);
+    } else if (draft) {
+      draft = null;
+      local.del(draftKey);
+    }
     // der Knopf oben nimmt die eingetragenen Abweichungen mit, sonst die leere Vorlage
     const top = c.querySelector('#adr-mail');
     if (top && vorlage) top.href = mail?.href || vorlage.href;
@@ -183,6 +198,9 @@ export default async function profil(ctx) {
           <button class="btn" type="button" data-action="copy-mail">${icon('copy', 'icon-sm')}Text kopieren</button>
         </div>
         <p class="tiny muted" style="margin:.5rem 0 0">${mail.an ? `Die E-Mail geht an ${mail.an}` : 'Es ist noch keine Adresse für Adressänderungen eingerichtet'} und wird erst verschickt, wenn du sie in deinem E-Mail-Programm absendest. Umlaute stehen darin als ae, oe, ue und ss; „Text kopieren“ übernimmt den Text mit Umlauten.</p>
+        ${draft ? html`<p class="small" style="margin:.5rem 0 0">${icon('info', 'icon-sm')} ${draft.gemeldet
+          ? `Am ${fDateShort(draft.gemeldet)} per E-Mail gemeldet. Bis der Schriftwart es eingetragen hat, merkt sich dieses Gerät deine Angaben.`
+          : 'Die App speichert die Anschrift nicht selbst – bitte per E-Mail melden. Bis dahin merkt sich dieses Gerät deine Eingaben.'}</p>` : ''}
       </div></div>`);
   }
 
@@ -285,6 +303,12 @@ export default async function profil(ctx) {
   });
 
   c.addEventListener('click', async (e) => {
+    // E-Mail an den Schriftwart geöffnet: im Entwurf vermerken (der Link selbst öffnet das E-Mail-Programm)
+    if (e.target.closest('[data-action=mail], #adr-mail') && draft) {
+      draft = { ...draft, gemeldet: new Date().toISOString() };
+      local.set(draftKey, draft);
+      setTimeout(renderDiffs, 300);
+    }
     if (e.target.closest('[data-action=from-directory]')) {
       const entry = own.entry || await chooseEntry();
       if (!entry || !ctx.alive()) return;

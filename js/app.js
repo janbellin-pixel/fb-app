@@ -88,6 +88,10 @@ const app = {
     auth.logout({ revoke });
     local.del('fb.mode');
     clearPrivateConfigCache();
+    // Entwürfe (Adressänderung, Chat-Nachrichten) nicht auf dem Gerät lassen
+    try {
+      for (const k of Object.keys(localStorage)) if (/^fb\.(adrEntwurf|chatDraft)\./.test(k)) localStorage.removeItem(k);
+    } catch { /* privater Modus */ }
     // Zwischenspeicher leeren, aber höchstens kurz darauf warten
     Promise.race([kv.clear(), new Promise((r) => setTimeout(r, 1500))]).finally(reloadAtStart);
   },
