@@ -77,6 +77,19 @@ function privateInfo() {
     ${st.warnings?.length ? html`<ul class="check-warn small">${st.warnings.map((w) => html`<li>${w}</li>`)}</ul>` : ''}`;
 }
 
+/**
+ * Knöpfe für das öffentliche config.js – erst mit der ID der privaten Datei: Ohne sie fehlten der veröffentlichten
+ * App alle weiteren Einstellungen (Kalender, Tabellen, Admins …).
+ */
+function pubActions() {
+  const ok = !!String(config.privateConfigId || '').trim();
+  return html`${ok ? '' : html`<p class="small" style="margin:0 0 .5rem">${icon('alert', 'icon-sm')} Zuerst oben <strong>„Einstellungen in Google Drive speichern“</strong> – erst dann enthält config.js die ID der privaten Datei. Ohne sie fehlten der App alle weiteren Einstellungen.</p>`}
+    <div class="row wrap">
+      <button class="btn" data-action="download-config" ${ok ? '' : 'disabled'}>${icon('download', 'icon-sm')}config.js herunterladen</button>
+      <button class="btn" data-action="copy-config" ${ok ? '' : 'disabled'}>${icon('copy', 'icon-sm')}Inhalt kopieren</button>
+    </div>`;
+}
+
 function checkCard(c) {
   const kind = !c.ok ? 'red' : c.warn?.length ? 'gold' : 'green';
   return html`<div class="notice notice-${kind}">${icon(kind === 'green' ? 'check' : 'alert')}<div class="grow" style="min-width:0">
@@ -233,10 +246,7 @@ export default async function einrichtung(ctx) {
         <hr>
         <h4 style="margin:0 0 .375rem">Öffentliches config.js (GitHub)</h4>
         <p class="small">Im öffentlichen <code>config.js</code> der veröffentlichten App steht nur noch, was vor der Anmeldung gebraucht wird: Client-ID, Domain, die ID der privaten Datei, der Demo-Schalter und die Angaben der Datenschutzerklärung. Ersetzen (z. B. im GitHub-Repository) nur, wenn sich davon etwas ändert.</p>
-        <div class="row wrap">
-          <button class="btn" data-action="download-config">${icon('download', 'icon-sm')}config.js herunterladen</button>
-          <button class="btn" data-action="copy-config">${icon('copy', 'icon-sm')}Inhalt kopieren</button>
-        </div>
+        <div id="pub-actions">${pubActions()}</div>
         <details style="margin-top:.75rem"><summary class="small" style="cursor:pointer">Vorschau der config.js</summary><pre class="code" id="cfg"></pre></details>
       </section>
     </div>`);
@@ -398,6 +408,7 @@ export default async function einrichtung(ctx) {
       if (res.id !== before) saveOverride({ privateConfigId: res.id });
       showCfg();
       setHtml(el.querySelector('#private-info'), privateInfo());
+      setHtml(el.querySelector('#pub-actions'), pubActions());
       setHtml(box, notice('green', res.neu ? 'In Google Drive angelegt' : 'In Google Drive gespeichert', html`<a href="${res.url}" target="_blank" rel="noopener">config_private.json in Drive öffnen</a>.
         ${res.id !== before ? html` <strong>Neue Datei:</strong> Ihre ID muss einmal als <code>privateConfigId</code> in das öffentliche config.js (der Download unten enthält sie schon). Bis dahin gilt sie nur in diesem Browser.`
           : ' Alle Mitglieder bekommen die Änderungen beim nächsten Öffnen der App.'}
@@ -458,10 +469,13 @@ export default async function einrichtung(ctx) {
         break;
       }
       case 'download-config':
-        downloadFile('config.js', cfgText(), 'text/javascript');
-        break;
       case 'copy-config':
-        copyText(cfgText());
+        if (!String(config.privateConfigId || '').trim()) {
+          toast('Zuerst „Einstellungen in Google Drive speichern“ – sonst fehlt die ID der privaten Datei.', { type: 'err', timeout: 6000 });
+          break;
+        }
+        if (a.dataset.action === 'copy-config') copyText(cfgText());
+        else downloadFile('config.js', cfgText(), 'text/javascript');
         break;
       case 'download-private':
         downloadFile('config_private.json', privateConfigContent(), 'application/json');
