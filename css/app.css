@@ -662,6 +662,38 @@ img.avatar { background: #e5e5e5; }
 /* ---------- Adressen ---------- */
 .addr-row { display: flex; align-items: center; gap: .75rem; padding: .75rem .875rem; cursor: pointer; }
 .addr-row .name { font-weight: 650; }
+/* Chat: Vorstände kontaktieren, Hinweis auf die WhatsApp-Gruppen */
+.vorstand-box { margin-bottom: 1rem; display: grid; gap: .625rem; }
+.vorstand-box .row { gap: .5rem; }
+.vorstand-box p { margin: 0; }
+/* Bierjunge (Mitglied): Krüge steigen auf, der Knopf sagt kurz „Prost!“ */
+.bj-fly { position: fixed; z-index: 90; pointer-events: none; font-size: 2rem; line-height: 1; margin-left: -1rem; opacity: 0; animation: bjFly 1.4s var(--ease) forwards; }
+@keyframes bjFly {
+  0% { opacity: 0; transform: translate(0, 0) scale(.5); }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0), -9rem) scale(1.25) rotate(14deg); }
+}
+.btn.bj-done, .btn.bj-done:disabled { opacity: 1; background: var(--gold-soft); border-color: var(--gold); color: var(--gold-ink); animation: bjPop .45s var(--ease); }
+@keyframes bjPop { 40% { transform: scale(1.08); } }
+.vorstand-box .hint-line { display: flex; gap: .5rem; align-items: flex-start; }
+.vorstand-box .hint-line .icon { flex: none; margin-top: .125rem; }
+/* Galerie: Ansicht Alben/Ordner, Ordner als aufklappbare Gruppen */
+.gallery-view { margin-bottom: 1rem; }
+.gallery-view .chip { display: inline-flex; align-items: center; gap: .375rem; }
+.folder-group { margin-bottom: 1rem; min-width: 0; }
+.folder-group > summary { display: flex; align-items: center; gap: .5rem; padding: .625rem .875rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-weight: 650; cursor: pointer; list-style: none; min-width: 0; }
+.folder-group > summary::-webkit-details-marker { display: none; }
+.folder-group > summary .grow { min-width: 0; overflow-wrap: anywhere; }
+.folder-group[open] > summary { margin-bottom: .75rem; }
+.folder-group > summary .chev { flex: none; transition: transform .2s var(--ease); }
+.folder-group[open] > summary .chev { transform: rotate(180deg); }
+.folder-body { padding-left: .75rem; border-left: 2px solid var(--line); min-width: 0; }
+/* Papierpost: Abbestellungen für die Admins */
+.pp-list { list-style: none; margin: .5rem 0 .75rem; padding: 0; display: grid; gap: .375rem; }
+.pp-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .125rem .5rem; min-width: 0; overflow-wrap: anywhere; }
+/* Vorname hinter dem Nachnamen, etwas kleiner (Adressverzeichnis, Geburtstage) */
+.vorname { font-size: .875em; font-weight: 450; color: var(--ink-2); }
 .addr-row .sub { font-size: .875rem; color: var(--ink-3); }
 .addr-detail { padding: .25rem .875rem 1rem 4.125rem; border-top: 1px dashed var(--line); }
 @media (max-width: 520px) { .addr-detail { padding-left: .875rem; } }

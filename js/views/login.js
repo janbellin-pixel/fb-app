@@ -19,7 +19,7 @@ export default async function login(ctx) {
         ${configured ? html`
           <button class="google-btn" data-action="login">${GOOGLE_G}<span>Mit Google anmelden</span></button>
           <p class="small muted" style="margin:0">Bitte mit deinem Verbindungskonto${config.workspaceDomain ? html` (<strong>@${config.workspaceDomain}</strong>)` : ''} anmelden.<br>Das ist nur einmal nötig.</p>
-        ` : notice('gold', 'Noch nicht eingerichtet', 'Die Google-Anmeldung ist für diese App noch nicht konfiguriert. Ein Admin kann das in wenigen Minuten erledigen.',
+        ` : notice('gold', 'Noch nicht eingerichtet', 'Die Google-Anmeldung ist noch nicht eingerichtet – das erledigt ein Admin.',
           html`<p style="margin-top:.625rem"><a class="btn btn-sm btn-primary" href="#/einrichtung">${icon('tool', 'icon-sm')}Einrichtung starten</a></p>`)}
         <div class="secondary">
           ${config.demoErlaubt ? html`<button class="btn btn-ghost btn-sm" data-action="demo">${icon('eye', 'icon-sm')}Demo mit Beispieldaten ansehen</button>` : ''}

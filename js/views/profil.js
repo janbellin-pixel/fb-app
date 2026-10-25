@@ -73,7 +73,7 @@ export default async function profil(ctx) {
     ? html`${icon('check', 'icon-sm')} Dein Eintrag im Adressverzeichnis${own.via === 'name' ? ' (über deinen Namen gefunden)' : own.via === 'auswahl' ? ` (ausgewählt: ${own.entry.name})` : ''}.`
     : addrError ? html`${icon('alert', 'icon-sm')} Das Adressverzeichnis ist gerade nicht erreichbar.`
       : !addr ? html`${icon('info', 'icon-sm')} ${adrGesperrt ? 'Das Adressverzeichnis ist für deine Gruppe nicht freigegeben. Änderungen meldest du per E-Mail.' : 'Kein Adressverzeichnis eingerichtet.'}`
-        : own.mehrdeutig ? html`${icon('alert', 'icon-sm')} Es gibt mehrere mögliche Einträge mit deinem Namen. Trag deine Angaben ein – der Schriftwart ordnet sie zu.`
+        : own.mehrdeutig ? html`${icon('alert', 'icon-sm')} Mehrere Einträge passen zu deinem Namen. Trag deine Angaben ein – der Schriftwart ordnet sie zu.`
           : html`${icon('alert', 'icon-sm')} Für dich gibt es noch keinen Eintrag. Trag deine Angaben ein und melde sie.`);
 
   // Adressänderungen: immer sichtbar oben – ein Tipp öffnet die E-Mail an das Postfach für Adressänderungen
@@ -86,9 +86,9 @@ export default async function profil(ctx) {
       ${icon('mail')}
       <div class="grow" style="min-width:0">
         <h2 class="card-title" style="margin:0">Adressänderungen</h2>
-        <p style="margin:.25rem 0 .75rem">Bitte teile uns Adressänderungen per E-Mail mit – zum Beispiel nach einem Umzug oder mit neuer Telefonnummer. Der Schriftwart trägt sie ins Adressverzeichnis ein.</p>
+        <p style="margin:.25rem 0 .75rem">Umgezogen oder neue Telefonnummer? Schick es per E-Mail, der Schriftwart trägt es ein.</p>
         <a class="btn btn-primary" id="adr-mail" href="${vorlage.href}">${icon('mail', 'icon-sm')}Adressänderung per E-Mail mitteilen</a>
-        <p class="tiny muted" style="margin:.5rem 0 0">Öffnet eine E-Mail an <strong>${mailTo}</strong> in deinem E-Mail-Programm. Hast du unten unter „Anschrift und Kontakt“ etwas geändert, steht es schon drin. Umlaute stehen darin als ae, oe, ue und ss – so kommen sie in jedem E-Mail-Programm richtig an.</p>
+        <p class="tiny muted" style="margin:.5rem 0 0">Öffnet eine E-Mail an <strong>${mailTo}</strong>. Änderungen unter „Anschrift und Kontakt“ stehen schon drin.</p>
       </div>
     </section>` : ''}
     ${editable ? html`
@@ -108,13 +108,13 @@ export default async function profil(ctx) {
           <textarea class="textarea" id="p-ueber" name="ueberMich" maxlength="${PROFILE_MAX.ueberMich}" placeholder="Hobbys, Interessen, wofür man dich ansprechen kann …">${m.ueberMich || ''}</textarea></div>
         <div class="field"><label for="p-angebot">Das kann ich jüngeren Bundesbrüdern anbieten</label>
           <textarea class="textarea" id="p-angebot" name="angebot" rows="3" maxlength="${PROFILE_MAX.angebot}" placeholder="z. B. Praktikum in meiner Firma, Mentoring, Bewerbungstipps, Kontakte in der Branche …">${m.angebot || ''}</textarea>
-          <span class="hint">Erscheint hervorgehoben in deinem Profil und ist in der Mitgliederliste unter „Angebote“ zu finden.</span></div>
+          <span class="hint">Steht hervorgehoben in deinem Profil und unter „Angebote“.</span></div>
         <div class="form-grid cols-2">
           ${field('telefon', 'Telefon (für alle Mitglieder sichtbar)', m.telefon, { type: 'tel', ph: 'optional' })}
           ${field('instagram', 'Instagram', m.instagram, { ph: '@benutzername (optional)' })}
           ${field('linkedin', 'LinkedIn', m.linkedin, { ph: 'Profil-Link (optional)' })}
         </div>
-        <p class="small muted">${icon('lock', 'icon-sm')} Deine Angaben werden als kleine Datei in <strong>deinem eigenen Google Drive</strong> gespeichert und für die Mitglieder nur lesbar freigegeben. Ändern kannst nur du.</p>
+        <p class="small muted">${icon('lock', 'icon-sm')} Gespeichert in <strong>deinem Google Drive</strong>, für Mitglieder nur lesbar.</p>
         <div class="form-actions">
           <a class="btn btn-ghost" href="#/mitglied/${encodeURIComponent(me.email)}">${icon('eye', 'icon-sm')}Profil ansehen</a>
           <button class="btn btn-primary" type="submit">${icon('check', 'icon-sm')}Speichern</button>
@@ -129,7 +129,7 @@ export default async function profil(ctx) {
             <input type="file" accept="image/*" id="photo" class="sr-only"></label>
           <p class="tiny muted" style="margin:0">Im Echtbetrieb kommt das Foto aus dem Google-Konto.</p>`
         : html`
-          <p class="small muted" style="margin:0">Foto und Name stammen aus deinem Google-Konto${me.hd ? ' der Verbindung' : ''} und sind dort für alle Mitglieder sichtbar.</p>
+          <p class="small muted" style="margin:0">Foto und Name kommen aus deinem Google-Konto.</p>
           <a class="btn btn-block" href="https://myaccount.google.com/personal-info" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Foto/Name bei Google ändern</a>
           <button class="btn btn-block btn-ghost" data-action="reload-google">${icon('refresh', 'icon-sm')}Änderungen übernehmen</button>`}
       </aside>
@@ -139,7 +139,7 @@ export default async function profil(ctx) {
 
     <section class="card card-pad" id="abgleich" style="margin-top:1rem">
       <h2 class="card-title">Anschrift und Kontakt</h2>
-      <p class="small muted" style="margin:.25rem 0 .5rem">Diese Angaben stehen im <strong>Adressverzeichnis</strong>, das der Schriftwart pflegt – die App selbst ändert es nicht. Prüfe sie hier: Stimmt etwas nicht oder fehlt etwas, bereitet die App eine E-Mail${adressaenderungEmail() ? html` an <strong>${adressaenderungEmail()}</strong>` : ''} mit deinen neuen Angaben vor. Bis der Schriftwart sie eingetragen hat, merkt sich dieses Gerät deine Eingaben.</p>
+      <p class="small muted" style="margin:.25rem 0 .5rem">So steht es im <strong>Adressverzeichnis</strong> (pflegt der Schriftwart). Stimmt etwas nicht, bereitet die App eine E-Mail${adressaenderungEmail() ? html` an <strong>${adressaenderungEmail()}</strong>` : ''} vor.</p>
       <p class="small abgleich-status" id="own-line">${ownLine()}</p>
       ${addr?.items?.length ? html`<p style="margin:0 0 1rem"><button class="btn btn-sm" type="button" data-action="from-directory">${icon('book', 'icon-sm')}Aus Adressverzeichnis übernehmen</button></p>` : ''}
       <form id="adr" novalidate>
@@ -197,10 +197,10 @@ export default async function profil(ctx) {
           ${mail.href ? html`<a class="btn btn-primary" href="${mail.href}" data-action="mail">${icon('mail', 'icon-sm')}Änderung per E-Mail melden</a>` : ''}
           <button class="btn" type="button" data-action="copy-mail">${icon('copy', 'icon-sm')}Text kopieren</button>
         </div>
-        <p class="tiny muted" style="margin:.5rem 0 0">${mail.an ? `Die E-Mail geht an ${mail.an}` : 'Es ist noch keine Adresse für Adressänderungen eingerichtet'} und wird erst verschickt, wenn du sie in deinem E-Mail-Programm absendest. Umlaute stehen darin als ae, oe, ue und ss; „Text kopieren“ übernimmt den Text mit Umlauten.</p>
+        <p class="tiny muted" style="margin:.5rem 0 0">${mail.an ? `Geht an ${mail.an}, sobald du sie in deinem E-Mail-Programm absendest.` : 'Noch keine Adresse für Adressänderungen eingerichtet.'}</p>
         ${draft ? html`<p class="small" style="margin:.5rem 0 0">${icon('info', 'icon-sm')} ${draft.gemeldet
-          ? `Am ${fDateShort(draft.gemeldet)} per E-Mail gemeldet. Bis der Schriftwart es eingetragen hat, merkt sich dieses Gerät deine Angaben.`
-          : 'Die App speichert die Anschrift nicht selbst – bitte per E-Mail melden. Bis dahin merkt sich dieses Gerät deine Eingaben.'}</p>` : ''}
+          ? `Am ${fDateShort(draft.gemeldet)} gemeldet. Dieses Gerät merkt sich deine Angaben, bis sie eingetragen sind.`
+          : 'Noch nicht gemeldet – bitte per E-Mail schicken. Bis dahin merkt sich dieses Gerät deine Eingaben.'}</p>` : ''}
       </div></div>`);
   }
 
@@ -217,7 +217,7 @@ export default async function profil(ctx) {
     };
     return openModal({
       title: 'Dein Eintrag im Adressverzeichnis',
-      body: html`<p class="small muted" style="margin-top:0">Die App hat dich nicht eindeutig gefunden. Tippe auf deinen Eintrag – seine Angaben werden übernommen.</p>
+      body: html`<p class="small muted" style="margin-top:0">Tippe auf deinen Eintrag – seine Angaben werden übernommen.</p>
         <div class="search" style="margin-bottom:.625rem">${icon('search')}<input class="input" type="search" id="pick-q" value="${nachname}" placeholder="Name, Ort …" aria-label="Im Adressverzeichnis suchen" autocomplete="off"></div>
         <div class="pick-list" id="pick-list">${list(nachname)}</div>`,
       actions: [{ label: 'Abbrechen', kind: 'ghost', value: null }],

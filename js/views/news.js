@@ -27,7 +27,7 @@ export default async function news(ctx) {
     ${hero('Neuigkeiten', 'Aus dem Bundesleben', canWrite ? html`<a class="btn btn-primary" href="#/news-neu">${icon('plus', 'icon-sm')}News schreiben</a>` : '')}
     <div class="chips" id="cats"></div>
     <div id="c">${skeletonList(3)}</div>
-    ${canWrite ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Für die Redaktion: News schreibst du hier mit „News schreiben“. Sie liegen wie Forumsbeiträge in deinem eigenen Google Drive; ändern und löschen kannst nur du.${b.newsSheetUrl() ? html` Meldungen aus der <a href="${b.newsSheetUrl()}" target="_blank" rel="noopener">Google-Tabelle „News“</a> erscheinen weiterhin.` : ''}</p>` : ''}`);
+    ${canWrite ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Für die Redaktion: Deine News liegen in deinem Google Drive; ändern und löschen kannst nur du.${b.newsSheetUrl() ? html` Meldungen aus der <a href="${b.newsSheetUrl()}" target="_blank" rel="noopener">Google-Tabelle „News“</a> erscheinen weiterhin.` : ''}</p>` : ''}`);
   const c = el.querySelector('#c');
 
   async function render() {
@@ -137,7 +137,7 @@ export async function editor(ctx) {
   let item = null;
   try {
     if (!(await b.canEditNews())) {
-      setHtml(c, html`<div style="margin-top:1rem">${notice('gold', 'Nur für die Redaktion', 'News schreiben können die Admins und die Redaktion. Alle anderen lesen sie unter „Neuigkeiten“.')}</div>`);
+      setHtml(c, html`<div style="margin-top:1rem">${notice('gold', 'Nur für die Redaktion', 'News schreiben die Admins und die Redaktion.')}</div>`);
       return;
     }
     if (editId) {
@@ -177,14 +177,14 @@ export async function editor(ctx) {
           <input type="file" id="n-file" accept="image/*" class="sr-only">
           <button type="button" class="btn btn-sm btn-ghost hidden" data-action="remove-image">${icon('x', 'icon-sm')}Bild entfernen</button>
         </div>
-        <span class="hint">Wird verkleinert und in deinem eigenen Google Drive gespeichert, für die Mitglieder nur lesbar.</span>
+        <span class="hint">Wird verkleinert in deinem Google Drive gespeichert.</span>
       </div>
       ${!editId && b.chatStatus().available ? html`<div class="field" id="n-announce-box">
         <label class="checkbox"><input type="checkbox" id="n-announce"> Im Chat ankündigen</label>
         <select class="select" id="n-room" aria-label="Chat-Raum für die Ankündigung" style="margin-top:.5rem" disabled><option value="">Räume werden geladen …</option></select>
-        <span class="hint">Alle in diesem Raum bekommen eine Nachricht mit Link zur News – mit der App „Google Chat“ auch als Benachrichtigung aufs Handy, wenn diese App zu ist.</span>
+        <span class="hint">Alle im Raum bekommen eine Nachricht mit Link zur News.</span>
       </div>` : ''}
-      <p class="small muted">${icon('shield', 'icon-sm')} Die News wird in deinem eigenen Google Drive gespeichert und für die Mitglieder lesbar freigegeben. Ändern oder löschen kannst nur du.</p>
+      <p class="small muted">${icon('shield', 'icon-sm')} Gespeichert in deinem Google Drive, für Mitglieder nur lesbar.</p>
       <div class="form-actions">
         <a class="btn btn-ghost" href="${editId ? `#/news/${encodeURIComponent(editId)}` : '#/news'}">Abbrechen</a>
         <button class="btn btn-primary" type="submit">${icon('send', 'icon-sm')}${editId ? 'Änderungen speichern' : 'Veröffentlichen'}</button>

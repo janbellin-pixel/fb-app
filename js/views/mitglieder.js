@@ -1,10 +1,37 @@
 // Mitgliederverzeichnis und Profilansicht
-import { html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, loading, toast, showError, notice } from '../ui.js';
-import { matchesQuery, linkify } from '../lib/text.js';
+import { html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, loading, toast, showError, notice, confirmDialog } from '../ui.js';
+import { matchesQuery, linkify, firstName } from '../lib/text.js';
 import { config, statusGroup } from '../config.js';
 import { local } from '../lib/store.js';
 import * as auth from '../auth.js';
 import { gesperrt } from '../lib/gruppen.js';
+
+const BIERJUNGE = 'Bierjunge!';
+
+/** Kleine Krüge steigen vom Knopf auf, der Knopf sagt kurz „Prost!“ (bei „Bewegung reduzieren“ nur das) */
+function prost(btn) {
+  const r = btn.getBoundingClientRect();
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement('span');
+    s.className = 'bj-fly';
+    s.textContent = '🍺';
+    s.setAttribute('aria-hidden', 'true');
+    s.style.left = `${r.left + r.width / 2}px`;
+    s.style.top = `${r.top}px`;
+    s.style.setProperty('--dx', `${(i - 2) * 1.75}rem`);
+    s.style.animationDelay = `${i * 80}ms`;
+    document.body.append(s);
+    s.addEventListener('animationend', () => s.remove());
+    setTimeout(() => s.remove(), 3000);
+  }
+  const label = btn.querySelector('.bj-label');
+  btn.classList.add('bj-done');
+  if (label) label.textContent = 'Prost!';
+  setTimeout(() => {
+    btn.classList.remove('bj-done');
+    if (label) label.textContent = 'Bierjunge';
+  }, 2500);
+}
 
 export function instagramUrl(v) {
   const s = String(v || '').trim();
@@ -55,7 +82,7 @@ export default async function mitglieder(ctx) {
     // Berechtigung fehlt (bei Google abgewählt oder nie erteilt): für alle, mit Knopf zum Nachholen
     if (app.mode === 'google' && info?.reason === 'scope') {
       setHtml(box, html`<div style="margin-bottom:1rem">${notice('gold', 'Mitgliederliste unvollständig',
-        'Der App fehlt deine Erlaubnis, das Google-Verzeichnis der Verbindung zu lesen – deshalb siehst du nicht alle Mitglieder. Ein Klick genügt; bei Google bitte alle Häkchen setzen.',
+        'Der App fehlt deine Erlaubnis für das Google-Verzeichnis. Ein Klick genügt – bei Google bitte alle Häkchen setzen.',
         html`<p style="margin-top:.5rem"><button class="btn btn-sm btn-primary" data-action="grant-directory">${icon('key', 'icon-sm')}Berechtigung erteilen</button></p>`)}</div>`);
       return;
     }
@@ -138,7 +165,7 @@ export async function detail(ctx) {
   }
   if (!ctx.alive()) return;
   if (!m) {
-    setHtml(c, html`<div class="card">${emptyState('user', 'Profil nicht verfügbar', `Für ${email} gibt es (noch) kein Profil, oder das Mitglied möchte in der App nicht angezeigt werden.`)}</div>`);
+    setHtml(c, html`<div class="card">${emptyState('user', 'Profil nicht verfügbar', `Für ${email} gibt es kein Profil, oder das Mitglied möchte nicht angezeigt werden.`)}</div>`);
     return;
   }
   const isMe = email === app.user.email.toLowerCase();
@@ -162,6 +189,7 @@ export async function detail(ctx) {
         <div class="row wrap" style="margin-top:1rem;gap:.5rem">
           ${!isMe && chatOk ? html`<button class="btn btn-primary" data-action="chat">${icon('chat', 'icon-sm')}Nachricht</button>` : ''}
           ${m.email ? html`<a class="btn" href="mailto:${m.email}">${icon('mail', 'icon-sm')}E-Mail</a>` : ''}
+          ${!isMe && chatOk ? html`<button class="btn" data-action="bierjunge" title="Schickt „${BIERJUNGE}“ als Nachricht">${icon('beer', 'icon-sm')}<span class="bj-label">Bierjunge</span></button>` : ''}
           ${m.telefon ? html`<a class="btn" href="tel:${m.telefon.replace(/[^\d+]/g, '')}">${icon('phone', 'icon-sm')}Anrufen</a>` : ''}
           ${isMe ? html`<a class="btn btn-primary" href="#/profil">${icon('edit', 'icon-sm')}Profil bearbeiten</a>` : ''}
         </div>
@@ -192,7 +220,32 @@ export async function detail(ctx) {
       </div>
     </div>`);
 
+  const grant = () => auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash });
+
+  // „Bierjunge!“ als Direktnachricht – ohne in den Chat zu wechseln
+  async function bierjunge(btn) {
+    if (!b.chatCanCreate()) {
+      if (await confirmDialog('Für neue Unterhaltungen braucht die App einmalig deine Zustimmung bei Google.', { title: 'Zustimmung nötig', ok: 'Zustimmen' })) grant();
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const space = await b.openDirectChat(m.email, m.name);
+      await b.sendMessage(space.id, BIERJUNGE);
+      app.forget('chat-spaces').catch(() => {});
+      prost(btn);
+      toast(`Bierjunge an ${firstName(m.name) || m.name} geschickt`);
+      setTimeout(() => { btn.disabled = false; }, 5000); // nicht aus Versehen gleich mehrmals
+    } catch (err) {
+      btn.disabled = false;
+      if (err.code === 'chat_scope') grant();
+      else showError(err, 'Bierjunge nicht verschickt');
+    }
+  }
+
   c.addEventListener('click', async (e) => {
+    const bj = e.target.closest('[data-action=bierjunge]');
+    if (bj) { bierjunge(bj); return; }
     const btn = e.target.closest('[data-action=chat]');
     if (!btn) return;
     btn.disabled = true;
@@ -204,7 +257,7 @@ export async function detail(ctx) {
     } catch (err) {
       btn.disabled = false;
       if (err.code === 'chat_scope') {
-        auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash });
+        grant();
         return;
       }
       showError(err);

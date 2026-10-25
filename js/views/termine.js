@@ -35,7 +35,7 @@ export default async function termine(ctx) {
       </div>
     </div>
     <div id="content">${skeletonList(4)}</div>
-    ${app.isAdmin() && app.mode === 'google' ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Für Chargen und Admins: Termine werden direkt im Google Kalender der Verbindung angelegt und geändert – die App zeigt sie nur an. Optional je eine eigene Zeile in die Beschreibung schreiben: <code>Kategorie: Kneipe</code>, <code>Kleidung: Vollcouleur</code>, <code>Pflichttermin</code>.</p>` : ''}`);
+    ${app.isAdmin() && app.mode === 'google' ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Für Admins: Termine pflegt ihr im Google Kalender der Verbindung, die App zeigt sie nur an. Optional je eine Zeile in der Beschreibung: <code>Kategorie: Kneipe</code>, <code>Kleidung: Vollcouleur</code>, <code>Pflichttermin</code>.</p>` : ''}`);
 
   const content = el.querySelector('#content');
 
@@ -157,17 +157,17 @@ export default async function termine(ctx) {
         <div class="stack">
           <div class="notice notice-green">${icon('check')}<div>
             <h3>Am einfachsten: zusagen</h3>
-            <p>Bist du zu einem Termin eingeladen oder sagst zu, steht er automatisch in deinem Google Kalender – mit Link zurück in die App.</p></div></div>
+            <p>Termine, zu denen du eingeladen bist oder zusagst, stehen automatisch in deinem Google Kalender.</p></div></div>
           <div>
             <h3 style="margin:0 0 .25rem;font-size:1rem">Ganzen Verbindungskalender abonnieren</h3>
-            <p class="small muted">Alle Termine erscheinen dann dauerhaft in deinem Google Kalender – auf Handy und PC, auch neue und geänderte Termine.</p>
+            <p class="small muted">Dann stehen alle Termine in deinem Google Kalender – auch neue und geänderte.</p>
             ${info.calendarId
               ? html`<a class="btn btn-primary" href="${googleSubscribeUrl(info.calendarId)}" target="_blank" rel="noopener">${icon('calendarPlus', 'icon-sm')}In Google Kalender abonnieren</a>`
               : html`<button class="btn" disabled>${icon('calendarPlus', 'icon-sm')}In Google Kalender abonnieren</button><p class="tiny muted">${info.demo ? 'Im Demo-Modus nicht verfügbar.' : 'Kalender ist noch nicht eingerichtet.'}</p>`}
           </div>
           <div>
             <h3 style="margin:0 0 .25rem;font-size:1rem">Für Apple- oder Outlook-Kalender</h3>
-            <p class="small muted">Lädt alle ${upcoming.length} kommenden Termine als Kalenderdatei (.ics) herunter. Am iPhone öffnet sich danach „Zum Kalender hinzufügen“.</p>
+            <p class="small muted">Alle ${upcoming.length} kommenden Termine als Kalenderdatei (.ics).</p>
             <button class="btn" data-action="ics">${icon('download', 'icon-sm')}Termine als Datei (.ics)</button>
           </div>
         </div>`,

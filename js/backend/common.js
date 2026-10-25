@@ -361,6 +361,11 @@ export function addressTab(meta) {
 const SENSITIVE = /iban|\bbic\b|bank|konto|beitrag|zahlung|lastschrift|sepa|mandat|schulden|mahnung|passwort|kennwort|steuer|versicherung|gesundheit|krank|religion|konfession|austritt|ausschluss|bemerkung|notiz|\bintern(e|es|er)?\b|vertraulich/;
 
 /** Freie Tabellenstruktur auf bekannte Felder abbilden; Unbekanntes landet in extras */
+/** Nur akademische Titel („Dr.“, „Prof. Dr.“); eine Anrede wie „Herr“ oder „Frau“ fällt weg */
+export function akadTitel(v) {
+  return String(v || '').replace(/(^|\s)(herrn?|frau|hr\.|fr\.)(?=\s|$)/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export function addressesFromRows(rows) {
   const headerRow = findHeaderRow(rows);
   const header = (rows[headerRow] || []).map((h) => String(h ?? '').trim());
@@ -385,7 +390,13 @@ export function addressesFromRows(rows) {
         vorname = parts.join(' ');
       }
     }
-    if (!name) name = [get('titel'), vorname, nachname].filter(Boolean).join(' ');
+    // „Name“ neben „Vorname“ ohne „Nachname“ meint den Nachnamen (Spalten „Name | Vorname“)
+    if (vorname && name && !nachname) {
+      if (norm(name).startsWith(`${norm(vorname)} `)) nachname = name.slice(vorname.length).trim();
+      else { nachname = name; name = ''; }
+    }
+    const titel = akadTitel(get('titel'));
+    if (!name) name = [titel, vorname, nachname].filter(Boolean).join(' ');
     let plz = get('plz');
     let ort = get('ort');
     const plzOrt = get('plzOrt').match(/^(?:D-)?(\d{4,5})\s+(.+)$/i);
@@ -408,6 +419,7 @@ export function addressesFromRows(rows) {
       name,
       vorname,
       nachname,
+      titel,
       kneipname: get('kneipname'),
       status: get('status'),
       strasse,

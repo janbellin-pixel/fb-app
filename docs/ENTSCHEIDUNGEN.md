@@ -355,3 +355,45 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
   - **Debug:** `debug.privateConfigFile` lädt auf localhost eine lokale Datei statt Drive; `config_private.json` steht in `.gitignore`, `config_private.beispiel.json` ist die Vorlage.
   - **Übergang:** Ohne `privateConfigId` gilt die alte Form (alles in `config.js`) weiter.
 - **Folgen:** Kein neuer Scope, CSP unverändert, Demo-Modus und öffentliche Seiten unverändert. Der erste Start auf einem neuen Gerät braucht Netz (wie die Anmeldung), danach startet die App auch offline. Mitglieder können die private Datei lesen – das müssen sie, damit die App funktioniert; wer sie bearbeiten darf, steuert die App für alle, daher nur „Betrachter“. Die bisherigen Werte bleiben in der Versionsgeschichte des öffentlichen Repositorys sichtbar; wer das ausschließen will, muss die Historie bereinigen oder Ordner und Tabellen neu anlegen.
+
+## E44 · Papierpost abbestellen: eigene Datei, nur für die Admins lesbar
+*2026-10-25 – Wunsch: Menüpunkt „Papierpost abbestellen“; Semesterprogramm und Bundesbote einzeln abwählbar, mit Hinweis, dass trotzdem Post kommen kann*
+
+- **Kontext:** Wer die Infos in der App liest, braucht Semesterprogramm und Bundesbote nicht auf Papier. Die App darf das Adressverzeichnis nicht ändern (AGENTS.md, Regel 1; E7).
+- **Entscheidung:**
+  - Neue Seite `#/papierpost` (Mehr, direkt unter „Datenschutz“) mit zwei Schaltern und dem Hinweis, dass einen die Schriftstücke trotzdem erreichen können.
+  - Die Wahl liegt wie die Einwilligung als kleine **eigene Datei im eigenen Drive** (`fbTyp = papierpost`), lesbar **nur für die Admins** (einzelne Nutzerfreigaben; Gruppe, Domain und Link werden entfernt). Wechseln die Admins, passt die App die Freigabe an, sobald das Mitglied die Seite wieder öffnet (Prüfsumme `fbEmpf`, gemeinsamer Helfer `ensureReaders()` mit der Einwilligung).
+  - Admins sehen auf derselben Seite die Abbestellungen aller (je Mitglied die neueste Datei, Inhaber laut Google) und können die Liste kopieren.
+  - Empfänger bewusst die Admins – kein neuer Konfigurationsschlüssel, keine Freigabe für alle Mitglieder.
+- **Folgen:** Kein neuer Scope, keine neue Wächter-Regel (eigene Dateien und ihre Freigaben waren schon erlaubt; Tests positiv und negativ). Neue Datenart in der Datenschutzerklärung genannt; die Einwilligungstexte bleiben gleich, daher keine neue Fassung. Wer den Versand vorbereitet, braucht Admin-Rechte oder die Liste von einem Admin. **Rückbau:** Route, Menüpunkt, `views/papierpost.js` und die Methoden `getMyPapierpost`/`saveMyPapierpost`/`listPapierpost` entfernen; vorhandene Dateien bleiben in den Drives der Mitglieder.
+
+## E45 · Vorstände kontaktieren, Hinweis auf die WhatsApp-Gruppen, Bierjunge
+*2026-10-25 – Wunsch: im Chat „Aktivenvorstand kontaktieren“ und „Altherrenvorstand kontaktieren“, Hinweis auf die WhatsApp-Gruppen für Bundesbrüder, im Profil ein Knopf „Bierjunge“*
+
+- **Kontext:** Die App legt nur Unterhaltungen mit Personen an (E30). Google-Gruppen als Mitglied gehen nur in benannten Räumen, und die Mitglieder einer Google-Gruppe zu lesen bräuchte einen Admin-Scope.
+- **Entscheidung:**
+  - Neuer privater Schlüssel `vorstand: { aktive: [...], altherren: [...] }` (E-Mail-Adressen; Einrichtung → Optionen). Je eingetragenem Vorstand ein Knopf; leer = kein Knopf.
+  - Der Knopf öffnet die **Gruppenunterhaltung mit genau diesen Personen** (`GROUP_CHAT`, ohne Namen): Gibt es sie schon, nimmt die App sie wieder (`openGroupChat()` vergleicht die Mitglieder), sonst legt sie eine an; ist nur eine Person eingetragen, die Direktnachricht. „Aktivenvorstand“ bzw. „Altherrenvorstand“ heißt die Gruppe auf dem Gerät, in Google Chat nach den Vornamen.
+  - **WhatsApp:** kurzer Hinweis im Chat für Bundesbrüder (Gruppe `bundesbrueder`; ist sie nicht eingerichtet, für alle): Einladen kann jedes Vorstandsmitglied. Keine Einladungslinks in der App, damit sie sich nicht weiterverbreiten.
+  - **Bierjunge:** Knopf im Profil eines anderen Mitglieds. Er schickt „Bierjunge!“ als Direktnachricht, ohne in den Chat zu wechseln; Rückmeldung: aufsteigende Krüge, „Prost!“ am Knopf und ein Hinweis. Danach ist der Knopf 5 s gesperrt. Mit „Bewegung reduzieren“ nur Text.
+- **Folgen:** Keine neuen Scopes, keine neue Wächter-Regel. Wechselt ein Vorstand, entsteht beim nächsten Klick eine neue Gruppe; die alte bleibt bestehen. Findet die App eine vorhandene Gruppe nicht (z. B. Mitglieder nicht lesbar), legt sie eine weitere an – mit echtem Google prüfen. **Rückbau:** Knöpfe in `views/chat.js` bzw. `views/mitglieder.js`, `openGroupChat`/`vorstand` in beiden Backends und den Schlüssel `vorstand` entfernen.
+
+## E46 · Galerie: „Fotos hochladen“ als Link, Ansicht „Ordner“
+*2026-10-25 – Wunsch: in der Galerie Fotos in einen für alle beschreibbaren Ordner hochladen (sonst ein Link darauf), mit kurzer Erklärung; wählbar, ob die ganze Ordner-Hierarchie oder nur die Alben zu sehen sind*
+
+- **Kontext:** Mit `drive.file` darf die App nur in eigene Dateien und Ordner schreiben. In einen fremden Ordner hochladen ginge nur mit dem Google Picker (fremde Skripte und Frames, CSP lockern) oder dem vollen Drive-Scope – beides ausgeschlossen (AGENTS.md, Regel 2).
+- **Entscheidung:**
+  - Neuer privater Schlüssel `galerieUploadOrdnerId` (Einrichtung → „1. Vorhandenes verbinden“ → „Ordner für Foto-Uploads“). Ist er gesetzt, zeigt die Galerie **„Fotos hochladen“**: ein kurzer Dialog (Ordner öffnen, „Neu“ bzw. „+“ → „Hochladen“; ein Vorstandsmitglied sortiert die Fotos regelmäßig in die Galerie ein) mit Link auf den Ordner in Google Drive. Die App selbst lädt nichts hoch.
+  - Umschalter **„Alben | Ordner“** (nur, wenn es Unterordner gibt), gemerkt auf dem Gerät (`fb.galerieAnsicht`). „Alben“ = bisherige Ansicht; „Ordner“ zeigt die Ordner als aufklappbare Gruppen mit den Alben darin. Fotos direkt in einem Ordner mit Unterordnern erscheinen darin als eigenes Album.
+  - Die Galerie liest jetzt **bis drei Ebenen** tief (z. B. Jahr/Semester/Veranstaltung).
+- **Folgen:** Kein neuer Scope, CSP unverändert. Die Freigabe des Upload-Ordners („Mitbearbeiter“ für die Mitglieder) richten die Admins in Drive ein. Er sollte nicht im Galerie-Ordner liegen, sonst erscheint Unsortiertes sofort in der App. Eine Ebene mehr kostet eine zusätzliche Drive-Abfrage.
+
+## E47 · Vornamen im Adressverzeichnis, kürzere Texte
+*2026-10-25 – Wunsch: im Adressverzeichnis und bei den Geburtstagen immer auch den Vornamen zeigen; die Texte der App sinnvoll kürzen*
+
+- **Kontext:** Die Mitgliederliste hat die Spalten „Name | Vorname“. Die App las „Name“ als vollständigen Namen: Angezeigt wurde nur der Nachname, und „Mein Profil“ fand den eigenen Eintrag nicht.
+- **Entscheidung:**
+  - Steht „Name“ neben „Vorname“ (ohne „Nachname“), ist „Name“ der **Nachname** (beginnt er mit dem Vornamen, wird dieser abgetrennt). Eine Anrede („Herr“, „Frau“) in der Titel-Spalte gilt nicht als Titel (`akadTitel()`).
+  - Anzeige „Nachname, Titel Vorname“, Titel und Vorname etwas kleiner (`adrName()` in `views/parts.js`).
+  - **Texte:** Hinweise, Formularhilfen und Fehlermeldungen gekürzt. Hinweise für die Pflege (Dateinamen bei Bundesbote, DS-Zeitung, Liedermappe) sehen nur noch Admins. Unverändert: Einwilligungstexte, Datenschutzerklärung und die Einrichtung (Admins).
+- **Folgen:** Nur Darstellung; Rückbau über die Git-Historie.

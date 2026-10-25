@@ -20,6 +20,13 @@ export function rsvpPill(status) {
   return '';
 }
 
+/** Name aus dem Adressverzeichnis: Nachname, dahinter klein Titel und Vorname („Bellin, Jan“) */
+export function adrName(a) {
+  if (!a?.nachname) return html`${a?.name || ''}`;
+  const rest = [a.titel, a.vorname].filter(Boolean).join(' ');
+  return html`${a.nachname}${rest ? html`<span class="vorname">, ${rest}</span>` : ''}`;
+}
+
 export function memberMap(members = []) {
   const m = new Map();
   for (const p of members) m.set(p.email, p);

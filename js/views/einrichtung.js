@@ -173,6 +173,14 @@ export default async function einrichtung(ctx) {
           <div class="field"><label for="o-adr">E-Mail für Adressänderungen</label>
             <input class="input" id="o-adr" name="adressaenderung" type="email" value="${config.adressaenderung}" placeholder="z. B. adressaenderung@frankonia-brunonia.de">
             <span class="hint">Weichen die Angaben in „Mein Profil“ vom Adressverzeichnis ab, bereitet die App eine E-Mail an diese Adresse vor. Ohne Umlaute.</span></div>
+          <div class="form-grid cols-2">
+            <div class="field"><label for="o-vs-a">Aktivenvorstand</label>
+              <input class="input" id="o-vs-a" name="vorstandAktive" placeholder="senior@…, consenior@…" value="${(config.vorstand?.aktive || []).join(', ')}">
+              <span class="hint">Für „Aktivenvorstand kontaktieren“ im Chat. Leer = kein Knopf.</span></div>
+            <div class="field"><label for="o-vs-ah">Altherrenvorstand</label>
+              <input class="input" id="o-vs-ah" name="vorstandAltherren" placeholder="E-Mail-Adressen, mit Komma getrennt" value="${(config.vorstand?.altherren || []).join(', ')}">
+              <span class="hint">Für „Altherrenvorstand kontaktieren“. Leer = kein Knopf.</span></div>
+          </div>
           <h4 style="margin:1rem 0 .25rem">Datenschutz</h4>
           <p class="small muted" style="margin-top:0">Erscheint in der Datenschutzerklärung, die jedes Mitglied beim ersten Öffnen sieht. Der Text ist ein Muster – bitte vom Vorstand prüfen lassen (<a href="#/datenschutz">ansehen</a>).</p>
           <div class="form-grid cols-2">
@@ -214,6 +222,8 @@ export default async function einrichtung(ctx) {
             <div class="field"><label for="m-ds">Ordner DS-Zeitung (PDFs, auch in Jahresordnern)</label><input class="input" id="m-ds" name="ds" value="${config.dsZeitungOrdnerId}" placeholder="https://drive.google.com/drive/folders/…">
               <span class="hint">Freiwillig – ohne Ordner ist die DS-Zeitung ausgeblendet.</span></div>
             <div class="field"><label for="m-g">Ordner Galerie (Unterordner = Alben)</label><input class="input" id="m-g" name="galerie" value="${config.galerieOrdnerId}" placeholder="https://drive.google.com/drive/folders/…"></div>
+            <div class="field"><label for="m-gu">Ordner für Foto-Uploads (optional)</label><input class="input" id="m-gu" name="galerieUpload" value="${config.galerieUploadOrdnerId}" placeholder="https://drive.google.com/drive/folders/…">
+              <span class="hint">In Drive für die Mitglieder bearbeitbar freigeben. Die Galerie verlinkt ihn unter „Fotos hochladen“.</span></div>
             <div class="field"><label for="m-ew">Tabelle Einwilligungen (vertraulich)</label><input class="input" id="m-ew" name="einwilligungen" value="${config.tabellen?.einwilligungen}" placeholder="leer lassen – wird unter 2. neu angelegt">
               <span class="hint">Nur eine Tabelle, die die App selbst angelegt hat.</span></div>
             <button class="btn" type="submit">Übernehmen</button>
@@ -294,6 +304,7 @@ export default async function einrichtung(ctx) {
       dachverband: d.dsDachverband.trim() || config.datenschutz?.dachverband,
       fassung: d.dsFassung.trim() || '1',
     };
+    const vorstand = { aktive: list(d.vorstandAktive), altherren: list(d.vorstandAltherren) };
     saveOverride({
       workspaceDomain: d.workspaceDomain.toLowerCase().replace(/^@/, ''),
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
@@ -302,6 +313,7 @@ export default async function einrichtung(ctx) {
       redaktion: list(d.redaktion),
       appUrl: d.appUrl,
       adressaenderung: d.adressaenderung.trim().toLowerCase(),
+      vorstand,
       datenschutz,
     });
     // leere Werte bewusst übernehmen
@@ -310,6 +322,7 @@ export default async function einrichtung(ctx) {
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
       testMitglieder: list(d.testMitglieder),
       redaktion: list(d.redaktion),
+      vorstand,
       datenschutz,
     });
     showCfg();
@@ -327,6 +340,7 @@ export default async function einrichtung(ctx) {
       liedermappeOrdnerId: idFromUrl(d.lieder),
       dsZeitungOrdnerId: idFromUrl(d.ds),
       galerieOrdnerId: idFromUrl(d.galerie),
+      galerieUploadOrdnerId: idFromUrl(d.galerieUpload),
     };
     saveOverride(values);
     // geleerte Felder bewusst übernehmen (saveOverride lässt leere Werte sonst aus)
@@ -339,6 +353,7 @@ export default async function einrichtung(ctx) {
     el.querySelector('#m-l').value = values.liedermappeOrdnerId;
     el.querySelector('#m-ds').value = values.dsZeitungOrdnerId;
     el.querySelector('#m-g').value = values.galerieOrdnerId;
+    el.querySelector('#m-gu').value = values.galerieUploadOrdnerId;
     el.querySelector('#m-ew').value = values.tabellen.einwilligungen;
     app.clearCache().catch(() => {});
     showCfg();

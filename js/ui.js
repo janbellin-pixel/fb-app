@@ -186,7 +186,7 @@ export function describeError(err) {
   const reason = String(err?.reason || '');
   const msg = String(err?.message || err || 'Unbekannter Fehler');
   if (err?.code === 'write_blocked') {
-    return { title: 'Nicht erlaubt', text: 'Die App ändert nur deine eigenen Daten (Zusage, Profil, eigene Beiträge). Gemeinsame Daten werden direkt in Google gepflegt.', kind: 'gold' };
+    return { title: 'Nicht erlaubt', text: 'Die App ändert nur deine eigenen Daten. Gemeinsame Daten werden in Google gepflegt.', kind: 'gold' };
   }
   if (err?.code === 'not_invited') {
     return { title: 'Nicht eingeladen', text: err.message, kind: 'gold' };
@@ -195,7 +195,7 @@ export function describeError(err) {
     return { title: 'Noch nicht eingerichtet', text: msg, kind: 'gold', setup: true };
   }
   if (err?.code === 'scope') {
-    return { title: 'Berechtigung fehlt', text: 'Bitte melde dich erneut an und erlaube der App alle angefragten Zugriffe.', kind: 'gold', relogin: true };
+    return { title: 'Berechtigung fehlt', text: 'Bitte neu anmelden und alle Zugriffe erlauben.', kind: 'gold', relogin: true };
   }
   if (status === 0 || reason === 'network') {
     return { title: 'Keine Verbindung', text: 'Bitte prüfe deine Internetverbindung und versuche es erneut.', kind: 'red' };
@@ -205,15 +205,15 @@ export function describeError(err) {
   }
   if (status === 403) {
     if (/insufficient|scope/i.test(msg + reason)) {
-      return { title: 'Berechtigung fehlt', text: 'Bitte melde dich erneut an und setze bei der Google-Abfrage alle Häkchen.', kind: 'gold', relogin: true };
+      return { title: 'Berechtigung fehlt', text: 'Bitte neu anmelden und bei Google alle Häkchen setzen.', kind: 'gold', relogin: true };
     }
     if (/not enabled|has not been used|disabled/i.test(msg)) {
       return { title: 'Google-Schnittstelle nicht aktiviert', text: `Die benötigte Google-API ist im Cloud-Projekt nicht aktiviert. Details: ${msg}`, kind: 'red' };
     }
-    return { title: 'Kein Zugriff', text: 'Du hast keinen Zugriff auf diese Daten. Bitte wende dich an die Admins der App, damit sie dir die Freigabe erteilen.', kind: 'red', key: 'forbidden' };
+    return { title: 'Kein Zugriff', text: 'Du hast keinen Zugriff auf diese Daten. Die Admins können ihn freigeben.', kind: 'red', key: 'forbidden' };
   }
   if (status === 404) {
-    return { title: 'Nicht gefunden', text: 'Die Daten wurden nicht gefunden. Vielleicht ist die Konfiguration unvollständig oder die Datei wurde gelöscht.', kind: 'red', setup: true };
+    return { title: 'Nicht gefunden', text: 'Nicht gefunden – vielleicht gelöscht oder nicht eingerichtet.', kind: 'red', setup: true };
   }
   if (status === 429) {
     return { title: 'Zu viele Anfragen', text: 'Google bremst gerade die Anfragen. Bitte versuche es in einer Minute erneut.', kind: 'gold' };

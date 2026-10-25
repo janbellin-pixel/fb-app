@@ -98,8 +98,8 @@ export default async function termin(ctx) {
 
   function rsvpInfo() {
     if (app.mode === 'demo') return 'Demo: Antworten werden nur in diesem Browser gespeichert.';
-    if (!ev.invited) return 'Du bist zu diesem Termin nicht eingeladen. Deine Antwort speichert die App deshalb als kleine Datei in deinem eigenen Google Drive – alle Mitglieder sehen sie hier unter „Wer kommt?“, im Google Kalender erscheint sie nicht.';
-    return 'Deine Antwort wird in deinem eigenen Google Kalender gespeichert – genau wie bei einer normalen Einladung. Die App ändert sonst nichts am Termin.';
+    if (!ev.invited) return 'Du bist nicht eingeladen: Deine Antwort liegt in deinem Google Drive. Alle sehen sie unter „Wer kommt?“, im Google Kalender erscheint sie nicht.';
+    return 'Deine Antwort landet in deinem Google Kalender – wie bei jeder Einladung.';
   }
 
   function render() {
@@ -135,14 +135,14 @@ export default async function termin(ctx) {
           <div class="card card-pad stack">
             <h3 style="margin:0;font-size:1.0625rem">In den eigenen Kalender</h3>
             ${ev.invited && calendarLink
-              ? html`<p class="small muted" style="margin:0">Du bist eingeladen – der Termin steht bereits in deinem Google Kalender.</p>
+              ? html`<p class="small muted" style="margin:0">Steht schon in deinem Google Kalender.</p>
                 <a class="btn btn-block" href="${calendarLink}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}In Google Kalender öffnen</a>`
               : html`<a class="btn btn-block" href="${googleTemplateUrl(ev, link)}" target="_blank" rel="noopener">${icon('calendarPlus', 'icon-sm')}Zu Google Kalender hinzufügen</a>`}
             <button class="btn btn-block" data-action="ics">${icon('download', 'icon-sm')}Für Apple/Outlook (.ics)</button>
           </div>
           <div class="card card-pad stack">
             <h3 style="margin:0;font-size:1.0625rem">Termin teilen</h3>
-            <p class="small muted" style="margin:0">Der Link führt direkt zu dieser Seite – zum Beispiel für den Chat.</p>
+            <p class="small muted" style="margin:0">Link zu dieser Seite, z. B. für den Chat.</p>
             <button class="btn btn-block" data-action="share">${icon('share', 'icon-sm')}Link teilen</button>
           </div>
         </aside>

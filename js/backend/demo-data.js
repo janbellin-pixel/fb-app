@@ -477,6 +477,7 @@ export function buildGallery() {
   return GALLERY.map(([album, names, date], a) => ({
     id: `album${a + 1}`,
     title: album,
+    path: [album.slice(0, 4)], // Jahresordner – für die Ordneransicht
     photos: names.map((n, i) => {
       const url = encodeURI(`assets/demo/galerie/${album}/${n}.webp`);
       return { id: `album${a + 1}-${i + 1}`, name: n.replace(/^\d+\s+/, ''), thumb: url, url, width: 1200, height: 800, taken: `${date}T18:00:00Z` };

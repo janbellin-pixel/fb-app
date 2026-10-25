@@ -119,6 +119,29 @@ export class DemoBackend {
     return true;
   }
 
+  /* ---------------------------------------------------------- Papierpost abbestellen (E44) */
+  async getMyPapierpost() {
+    await wait(40);
+    return this.state.papierpost || null;
+  }
+
+  async saveMyPapierpost({ semesterprogramm, bundesbote }) {
+    await wait(200);
+    this.state.papierpost = { semesterprogramm: !!semesterprogramm, bundesbote: !!bundesbote, geaendert: new Date().toISOString() };
+    this.save();
+    return this.state.papierpost;
+  }
+
+  /** Erfundene Abbestellungen der Demo-Mitglieder (plus die eigene) */
+  async listPapierpost() {
+    await wait();
+    const out = this.members().filter((m, i) => m.email !== DEMO_ME_EMAIL && i % 4 === 1)
+      .map((m, i) => ({ email: m.email, name: m.name, semesterprogramm: i % 2 === 0, bundesbote: true, geaendert: new Date(Date.now() - i * 5 * 86400_000).toISOString() }));
+    const mine = this.state.papierpost;
+    if (mine && (mine.semesterprogramm || mine.bundesbote)) out.push({ email: DEMO_ME_EMAIL, name: this.me.name, ...mine });
+    return out.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  }
+
   /** Erfundene Rückmeldungen der Demo-Mitglieder (plus die eigene) */
   async listConsents() {
     await wait();
@@ -414,6 +437,11 @@ export class DemoBackend {
     return { albums: buildGallery(), folderUrl: '' };
   }
 
+  /** Demo: kein echter Upload-Ordner – der Link führt nur zu Google Drive */
+  galleryUploadUrl() {
+    return 'https://drive.google.com/';
+  }
+
   photoUrl(photo) {
     return photo.thumb || photo.url;
   }
@@ -475,6 +503,27 @@ export class DemoBackend {
     c.groups.push(group);
     this.save();
     return { id: group.id, name: group.name, url: 'https://chat.google.com/' };
+  }
+
+  /** Vorstände für „… kontaktieren“ (E45) – in der Demo aus den erfundenen Ämtern */
+  vorstand() {
+    const pick = (re) => this.baseMembers.filter((m) => re.test(m.aemter || '') && m.email !== DEMO_ME_EMAIL).map((m) => m.email);
+    return { aktive: pick(/sprecher|fuxmajor|kassenwart/i), altherren: pick(/altherrenschaft/i) };
+  }
+
+  /** Gruppe mit genau diesen Personen öffnen oder anlegen; bei einer Person die Direktnachricht (E45) */
+  async openGroupChat(emails, name = '') {
+    const people = [...new Set(emails.map((x) => String(x).toLowerCase()).filter((x) => x && x !== DEMO_ME_EMAIL))].sort();
+    if (!people.length) throw new Error('Hier ist niemand eingetragen.');
+    if (people.length === 1) return this.openDirectChat(people[0], name);
+    const key = people.join(',');
+    let g = this.chatState().groups.find((x) => x.type === 'GROUP_CHAT' && [...x.members].sort().join(',') === key);
+    if (!g) {
+      const made = await this.createGroup({ emails: people });
+      g = this.chatState().groups.find((x) => x.id === made.id);
+    }
+    if (name) { g.name = name; this.save(); }
+    return { id: g.id, name: g.name, url: 'https://chat.google.com/' };
   }
 
   async addMembers(spaceId, emails = []) {

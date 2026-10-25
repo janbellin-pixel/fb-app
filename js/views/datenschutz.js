@@ -61,7 +61,7 @@ export default async function datenschutz(ctx) {
         <ul class="ds-points">
           <li>${icon('lock', 'icon-sm')}<span>Deine Daten bleiben im Google-Konto der Verbindung. Keine Werbung, keine Tracker.</span></li>
           <li>${icon('eye', 'icon-sm')}<span>Gemeinsame Daten (Termine, Adressen, Bundesbote, DS-Zeitung, Liedermappe, Fotos) zeigt die App nur an. Ändern kannst du nur deine eigenen Angaben.</span></li>
-          <li>${icon('check', 'icon-sm')}<span>Die Angaben unten – zwei Einwilligungen und ob andere dich in der Mitgliederliste sehen – sind freiwillig. Du kannst sie jederzeit unter Mehr → Datenschutz ändern.</span></li>
+          <li>${icon('check', 'icon-sm')}<span>Die Angaben unten sind freiwillig und jederzeit unter Mehr → Datenschutz änderbar.</span></li>
         </ul>
         <details class="ds-section" style="margin-top:.75rem"><summary>Die ganze Datenschutzerklärung lesen</summary><div class="ds-body prose">${erklaerungHtml({ open: false })}</div></details>
       </div>`

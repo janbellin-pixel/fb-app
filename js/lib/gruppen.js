@@ -40,6 +40,12 @@ export function ladeGemerkteGruppen(email) {
 
 export const meineGruppen = () => meine;
 
+/** Gehöre ich zu dieser Gruppe? Ist sie nicht eingerichtet oder noch unbekannt: fallback */
+export function inGruppe(key, fallback = true) {
+  if (!gruppenAdressen()[key] || !meine) return fallback;
+  return meine.has(key);
+}
+
 function gesperrtFuer(ohne, gruppen) {
   const list = (Array.isArray(ohne) ? ohne : []).map(String);
   if (!gruppen || !gruppen.size || !list.length) return false;

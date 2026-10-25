@@ -51,6 +51,7 @@ const CORE = [
   './js/views/mehr.js',
   './js/views/mitglieder.js',
   './js/views/news.js',
+  './js/views/papierpost.js',
   './js/views/parts.js',
   './js/views/profil.js',
   './js/views/reader.js',

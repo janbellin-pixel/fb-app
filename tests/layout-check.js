@@ -5,7 +5,8 @@
 // und wie viele Spalten die Startseite nutzt.
 
 const ROUTES = ['#/', '#/termine', '#/chat', '#/mitglieder', '#/mehr', '#/zeitung', '#/ds-zeitung', '#/lieder', '#/galerie', '#/news', '#/forum',
-  '#/adressen', '#/profil', '#/einstellungen', '#/datenschutz', '#/datenschutz/uebersicht', '#/installieren'];
+  '#/adressen', '#/profil', '#/einstellungen', '#/datenschutz', '#/datenschutz/uebersicht', '#/papierpost', '#/installieren',
+  '#/mitglied/jonas.beispiel%40frankonia-brunonia.example'];
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const visible = (el) => !!el && getComputedStyle(el).display !== 'none';

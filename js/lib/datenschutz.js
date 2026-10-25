@@ -202,7 +202,7 @@ export function erklaerung() {
       titel: 'Welche Daten verarbeitet die App?',
       inhalt: html`<ul>
         <li><strong>Dein Google-Konto:</strong> Name, E-Mail-Adresse und Profilfoto.</li>
-        <li><strong>Was du selbst einträgst:</strong> Profilangaben (z. B. Kneipname, Studium/Beruf, aktuelle Tätigkeit, Wohnort, Telefon, „Über mich“ und was du jüngeren Bundesbrüdern anbietest), Zu- und Absagen zu Terminen mit Gästen und Kommentar, Forumsbeiträge, als Admin oder Redaktion auch News mit Bildern, Chat-Nachrichten, deine Entscheidungen zu den Einwilligungen und ob du in der Mitgliederliste der App sichtbar bist.</li>
+        <li><strong>Was du selbst einträgst:</strong> Profilangaben (z. B. Kneipname, Studium/Beruf, aktuelle Tätigkeit, Wohnort, Telefon, „Über mich“ und was du jüngeren Bundesbrüdern anbietest), Zu- und Absagen zu Terminen mit Gästen und Kommentar, Forumsbeiträge, als Admin oder Redaktion auch News mit Bildern, Chat-Nachrichten, deine Entscheidungen zu den Einwilligungen, ob du in der Mitgliederliste der App sichtbar bist und ob du Semesterprogramm und Bundesbote noch per Post bekommen möchtest.</li>
         <li><strong>App-Nutzung und Sichtbarkeit:</strong> Sobald du deine Auswahl speicherst, legt die App in deinem Google Drive eine kleine Datei an, die die Mitglieder lesen können. Sie enthält nur, ob du in der Mitgliederliste sichtbar sein möchtest, und den Zeitpunkt. Daran erkennt die App der anderen, dass du die App nutzt und ob sie dich anzeigen darf.</li>
         <li><strong>Adressänderungen:</strong> Unter „Mein Profil“ vergleicht die App deine Anschrift mit dem Adressverzeichnis. Weicht etwas ab, öffnet sie auf Wunsch dein E-Mail-Programm mit einer vorbereiteten Nachricht an das Postfach für Adressänderungen. Die App selbst speichert oder versendet diese Angaben nicht – erst du schickst die E-Mail ab.</li>
         <li><strong>Daten der Verbindung:</strong> Termine, Adressverzeichnis (z. B. Anschrift, Telefon, Geburtsdatum, Status), Neuigkeiten, Bundesbote, DS-Zeitung und Fotos von Veranstaltungen.</li>
@@ -220,6 +220,7 @@ export function erklaerung() {
         <li>Das Adressverzeichnis ist nur für Mitglieder und nur zum Lesen da.</li>
         <li>Chat-Nachrichten sehen die Mitglieder des jeweiligen Chat-Raums.</li>
         <li>Deine Einwilligungen sehen nur du und die für den Datenschutz Verantwortlichen der Verbindung.</li>
+        <li>Ob du Papierpost abbestellt hast, sehen nur du und die Admins der App.</li>
       </ul>
       <p>Gemeinsame Daten kann in der App niemand verändern. Ändern kannst du nur deine eigenen Angaben.</p>`,
     },

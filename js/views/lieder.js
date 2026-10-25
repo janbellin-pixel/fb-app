@@ -132,7 +132,7 @@ export default async function lieder(ctx) {
         </div>
       </div>` : ''}
       ${data.other && folderUrl ? html`<p class="small muted" style="margin-top:1rem">${icon('info', 'icon-sm')} ${data.other === 1 ? 'Eine weitere Datei' : `${data.other} weitere Dateien`} im Ordner kann die App nicht anzeigen (nur PDFs und Bilder) – <a href="${folderUrl}" target="_blank" rel="noopener">in Google Drive öffnen</a>.</p>` : ''}
-      <p class="small muted" style="margin-top:1rem">${icon('info', 'icon-sm')} Neue Lieder erscheinen automatisch, sobald sie im Ordner der Liedermappe liegen. Dateiname am besten mit Liednummer, z. B. „012 Titel.pdf“; Unterordner werden zu Rubriken.</p>`);
+      ${app.isAdmin() ? html`<p class="small muted" style="margin-top:1rem">${icon('info', 'icon-sm')} Neue Lieder: Datei in den Ordner der Liedermappe legen, am besten mit Nummer („012 Titel.pdf“). Unterordner werden zu Rubriken.</p>` : ''}`);
   }
 
   async function saveAll() {

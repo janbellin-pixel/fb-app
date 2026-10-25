@@ -479,10 +479,11 @@ def page_overview(c, sample, kontakt, crest, skyline):
         ("home", "Start", "Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos."),
         ("calendar", "Termine", f"Alle Veranstaltungen als Liste oder Monat. Termin antippen › {b('Zusagen, Vielleicht oder Absagen')}, Gäste und Kommentar angeben, sehen wer kommt. "
                                 f"„Kalender abonnieren“ holt alle Termine in deinen eigenen Kalender."),
-        ("chat", "Chat", "Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“."),
-        ("users", "Mitglieder", f"Wer die App nutzt, mit Foto und Profil ({b('„Alle Mitglieder“')}: alle Konten). Antippen › anrufen, E-Mail oder Nachricht schreiben. Unter {b('„Angebote für Jüngere“')} steht, wer Praktika, Mentoring & Co. anbietet."),
+        ("chat", "Chat", f"Nachrichten und Gruppen. Direkt an den {b('Aktiven-')} oder {b('Altherrenvorstand')} schreiben – jedes Vorstandsmitglied lädt dich auch in die WhatsApp-Gruppen ein."),
+        ("users", "Mitglieder", f"Wer die App nutzt, mit Foto und Profil ({b('„Alle Mitglieder“')}: alle Konten). Antippen › anrufen, E-Mail, Nachricht oder {b('Bierjunge')}. "
+                                f"{b('„Angebote für Jüngere“')}: Praktika, Mentoring & Co."),
         ("grid", "Mehr", f"{b('Bundesbote')} · {b('DS-Zeitung')} · {b('Liedermappe')} · {b('Galerie')} · {b('News')} · {b('Forum')} · {b('Adressverzeichnis')} · {b('Wiki')} · "
-                         f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Schriftgröße')} · Einstellungen"),
+                         f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Papierpost abbestellen')} · {b('Schriftgröße')} · Einstellungen"),
     ]
     st = style(11.5, leading=16)
     for ic, title, text in rows:
@@ -504,7 +505,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
         ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße › „Groß“ oder „Sehr groß“."),
         ("users", f"{b('Profil ausfüllen, Anschrift prüfen:')} Mehr › Mein Profil. Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart."),
         ("music", f"{b('Liedermappe:')} Liednummer eintippen und Enter – schon ist das Lied offen."),
-        ("shield", f"{b('Keine Sorge:')} Termine, Adressen, Bundesbote, DS-Zeitung, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge."),
+        ("shield", f"{b('Keine Sorge:')} Gemeinsame Daten zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine eigenen Angaben und Beiträge."),
         ("share", f"{b('iPhone:')} Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt."),
         ("chat", f"{b('Fragen?')} {kontakt}"),
     ]
@@ -603,19 +604,23 @@ def page_background(c, sample, crest, skyline):
     boxes = [
         ("tablet", "Auch auf dem Tablet", "Die App läuft genauso gut auf iPad und Android-Tablets – zum Schmökern im Bundesboten oder in der DS-Zeitung noch bequemer. Installieren wie auf dem Handy (Seite 1)."),
         ("users", "Hilfe beim Einrichten", "Die Aktiven unterstützen gern bei allem rund um die Einrichtung: Anmelden, neues Passwort, Installieren auf Handy oder Tablet. Einfach ansprechen."),
+        ("mail", "Papierpost abbestellen", "Mehr › Papierpost abbestellen: Semesterprogramm und Bundesbote einzeln abwählen – du bekommst alles über die App."),
+        ("folder", "Eigene Fotos", "Galerie › „Fotos hochladen“ öffnet den Upload-Ordner. Ein Vorstandsmitglied sortiert die Fotos regelmäßig ein."),
     ]
     st = style(10.5, leading=14)
-    bh = max(Paragraph(t, st).wrap(col_w - 10 * mm, 1000)[1] for _, _, t in boxes) + 15 * mm
-    for i, (ic, title, text) in enumerate(boxes):
-        bx = M + i * (col_w + 5 * mm)
-        c.setFillColor(GREEN_SOFT)
-        c.roundRect(bx, y - bh, col_w, bh, 6, stroke=0, fill=1)
-        icon(c, ic, bx + 8 * mm, y - 7 * mm, 5.5 * mm, GREEN_INK)
-        c.setFillColor(BLACK)
-        c.setFont(F["bold"], 12.5)
-        c.drawString(bx + 14 * mm, y - 8.5 * mm, title)
-        para(c, text, st, bx + 5 * mm, y - 12.5 * mm, col_w - 10 * mm)
-    y -= bh
+    for row in (boxes[:2], boxes[2:]):
+        bh = max(Paragraph(t, st).wrap(col_w - 10 * mm, 1000)[1] for _, _, t in row) + 15 * mm
+        for i, (ic, title, text) in enumerate(row):
+            bx = M + i * (col_w + 5 * mm)
+            c.setFillColor(GREEN_SOFT)
+            c.roundRect(bx, y - bh, col_w, bh, 6, stroke=0, fill=1)
+            icon(c, ic, bx + 8 * mm, y - 7 * mm, 5.5 * mm, GREEN_INK)
+            c.setFillColor(BLACK)
+            c.setFont(F["bold"], 12.5)
+            c.drawString(bx + 14 * mm, y - 8.5 * mm, title)
+            para(c, text, st, bx + 5 * mm, y - 12.5 * mm, col_w - 10 * mm)
+        y -= bh + 4 * mm
+    y += 4 * mm
     check_fits(y, "Seite 3")
     draw_skyline(c, y, skyline)
     footer(c, 3, sample)

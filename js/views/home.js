@@ -1,7 +1,7 @@
 // Startseite: Begrüßung, nächste Termine, Neuigkeiten, Schnellzugriff (auch DS-Zeitung, Liedermappe und weitere Links), Bundesbote, Forum, Geburtstage
 import { html, setHtml, icon, avatar, sectionTitle, skeletonList, toast, showError, isStandalone, emptyState } from '../ui.js';
 import { fDateLong, fDateNoYear, semesterLabel, addDays, startOfDay, nextBirthday, toDate, relDay } from '../lib/dates.js';
-import { eventCard, memberMap, newsCard, threadRow, issueCover, bindCardLinks, isUnread, forumSeen } from './parts.js';
+import { eventCard, memberMap, newsCard, threadRow, issueCover, bindCardLinks, isUnread, forumSeen, adrName } from './parts.js';
 import { local } from '../lib/store.js';
 import { hasSongbook, hasDsZeitung, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
@@ -116,7 +116,7 @@ export default async function home(ctx) {
         return html`<a class="birthday ${nb.days === 0 ? 'today' : ''}" href="${m.email ? `#/mitglied/${encodeURIComponent(m.email)}` : '#/adressen'}">
           ${avatar(m, 44)}
           <div class="grow" style="min-width:0">
-            <div class="name ellipsis">${a.name}</div>
+            <div class="name ellipsis">${adrName(a)}</div>
             <div class="small muted ellipsis">${a.kneipname ? `v/o ${a.kneipname}` : a.status}</div>
           </div>
           <div class="when">

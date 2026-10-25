@@ -15,6 +15,7 @@
   "liedermappeOrdnerId": "",
   "dsZeitungOrdnerId": "",
   "galerieOrdnerId": "",
+  "galerieUploadOrdnerId": "",
   "chat": { "aktiv": true, "newsRaum": "" },
   "forum": { "aktiv": true },
   "profilBearbeiten": true,
@@ -32,6 +33,10 @@
     }
   },
   "adressaenderung": "adressaenderung@example.org",
+  "vorstand": {
+    "aktive": ["senior@example.org", "consenior@example.org"],
+    "altherren": ["ahv-vorsitz@example.org"]
+  },
   "datenschutz": { "empfaenger": [] },
   "testMitglieder": [],
   "ausgeblendeteKonten": []

@@ -50,9 +50,9 @@ Unten in der App gibt es fünf Bereiche:
 |---|---|
 | **Start** | Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos. |
 | **Termine** | Alle Veranstaltungen als Liste oder Monat. Termin antippen › **Zusagen, Vielleicht oder Absagen**, Gäste und Kommentar angeben, sehen wer kommt. „Kalender abonnieren“ holt alle Termine in den eigenen Kalender. |
-| **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“. |
-| **Mitglieder** | Alle, die die App nutzen und sichtbar sein möchten, mit Foto und Profil. Oben wählst du **„App-Nutzer“** oder **„Alle Mitglieder“** (auch die übrigen Konten der Verbindung). Antippen › anrufen, E-Mail oder private Nachricht schreiben. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
-| **Mehr** | **Bundesbote** und **DS-Zeitung** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Schriftgröße** · Einstellungen |
+| **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Mit **„Aktivenvorstand kontaktieren“** bzw. **„Altherrenvorstand kontaktieren“** schreibst du direkt dem Vorstand. Zu den WhatsApp-Gruppen lädt dich jedes Vorstandsmitglied ein. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“. |
+| **Mitglieder** | Alle, die die App nutzen und sichtbar sein möchten, mit Foto und Profil. Oben wählst du **„App-Nutzer“** oder **„Alle Mitglieder“** (auch die übrigen Konten der Verbindung). Antippen › anrufen, E-Mail oder private Nachricht schreiben – oder mit **„Bierjunge“** einen Bierjungen schicken. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
+| **Mehr** | **Bundesbote** und **DS-Zeitung** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos (Ansicht „Alben“ oder „Ordner“) · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Papierpost abbestellen** · **Schriftgröße** · Einstellungen |
 
 Je nach Gruppe (z. B. Chordamen, Verkehrsgäste, Gäste) blendet die App einzelne Bereiche aus, etwa das Adressverzeichnis.
 
@@ -61,8 +61,10 @@ Je nach Gruppe (z. B. Chordamen, Verkehrsgäste, Gäste) blendet die App einzeln
 - **Schrift zu klein?** Mehr › Schriftgröße › „Groß“ oder „Sehr groß“.
 - **Abmelden oder Konto wechseln:** Mehr › oben **„Abmelden“**. Beim nächsten „Mit Google anmelden“ fragt Google, welches Konto du nehmen willst.
 - **Bitte dein Profil ausfüllen und deine Anschrift prüfen:** Mehr › Mein Profil (Kneipname, Tätigkeit, was du Jüngeren anbieten kannst …). Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart. Dein Foto änderst du in deinem Google-Konto.
+- **Keine Papierpost mehr?** Mehr › Papierpost abbestellen: Semesterprogramm und Bundesbote einzeln abwählen – du bekommst alles über die App. Ganz verhindern lässt sich Post beim Versand nicht immer.
+- **Eigene Fotos:** Galerie › „Fotos hochladen“ öffnet den Upload-Ordner in Google Drive. Ein Vorstandsmitglied sortiert die Fotos regelmäßig in die Galerie ein.
 - **Liedermappe:** Liednummer ins Suchfeld tippen und Enter – schon ist das Lied offen. Der Bildschirm bleibt an, solange ein Lied offen ist. Mit „Alle Lieder speichern“ geht es auch ohne Netz, z. B. auf der Kneipe.
-- **Keine Sorge:** Termine, Adressen, Bundesbote, DS-Zeitung, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine Zusagen, dein Profil und deine eigenen Beiträge.
+- **Keine Sorge:** Termine, Adressen, Bundesbote, DS-Zeitung, Liedermappe und Fotos zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine eigenen Angaben, Zusagen und Beiträge.
 - **iPhone:** Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt.
 - **Fragen?** Einfach im Chat fragen, die Aktiven ansprechen oder den Admins der App schreiben.
 

@@ -19,7 +19,7 @@ export default async function forum(ctx) {
   let cat = 'Alle';
   let q = '';
   if (b.forumEnabled && !b.forumEnabled()) {
-    setHtml(el, html`${hero('Forum', 'Diskussionen unter Bundesbrüdern')}${notice('gold', 'Forum ausgeschaltet', 'Das Forum ist in dieser App nicht aktiviert. Für den Austausch steht der Chat zur Verfügung.')}`);
+    setHtml(el, html`${hero('Forum', 'Diskussionen unter Bundesbrüdern')}${notice('gold', 'Forum ausgeschaltet', 'Das Forum ist ausgeschaltet – nutz gern den Chat.')}`);
     return;
   }
   setHtml(el, html`
@@ -234,7 +234,7 @@ export async function newThread(ctx) {
       </div>
       <div class="field"><label for="t-title">Titel *</label><input class="input" id="t-title" name="title" maxlength="140" required value="${draft.title || ''}" placeholder="Worum geht es?"></div>
       <div class="field"><label for="t-text">Beitrag *</label><textarea class="textarea" id="t-text" name="text" rows="9" maxlength="4000" placeholder="Schreib deinen Beitrag … (**fett**, *kursiv*, - Listen, Links)">${draft.text || ''}</textarea>
-        <span class="hint">Dein Beitrag wird in deinem eigenen Google Drive gespeichert und für die Mitglieder lesbar freigegeben. Ändern oder löschen kannst nur du.</span></div>
+        <span class="hint">Gespeichert in deinem Google Drive; ändern oder löschen kannst nur du.</span></div>
       <div class="form-actions">
         <a class="btn btn-ghost" href="#/forum">Abbrechen</a>
         <button class="btn btn-primary" type="submit">${icon('send', 'icon-sm')}Thema erstellen</button>

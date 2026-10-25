@@ -4,7 +4,7 @@ import { matchesQuery, norm } from '../lib/text.js';
 import { toDate, nextBirthday, fDateShort } from '../lib/dates.js';
 import { toVcard, downloadFile, mapsUrl } from '../lib/export.js';
 import { config } from '../config.js';
-import { memberMap } from './parts.js';
+import { memberMap, adrName } from './parts.js';
 
 const tel = (s) => String(s || '').replace(/[^\d+]/g, '');
 
@@ -84,7 +84,7 @@ export default async function adressen(ctx) {
         <div class="addr-row" data-open="${a.id}" role="button" tabindex="0" aria-expanded="${isOpen}">
           ${avatar(person, 42)}
           <div class="grow" style="min-width:0">
-            <div class="name ellipsis">${a.name}${a.kneipname ? html` <span class="muted" style="font-weight:450;font-style:italic">v/o ${a.kneipname}</span>` : ''}</div>
+            <div class="name ellipsis">${adrName(a)}${a.kneipname ? html` <span class="muted" style="font-weight:450;font-style:italic">v/o ${a.kneipname}</span>` : ''}</div>
             <div class="sub ellipsis">${[a.status, a.ort].filter(Boolean).join(' · ')}</div>
           </div>
           ${icon(isOpen ? 'chevronDown' : 'chevronRight', 'icon-sm')}

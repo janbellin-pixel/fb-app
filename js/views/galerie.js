@@ -1,7 +1,12 @@
 // Fotogalerie: Fotos aus einem festen Google-Drive-Ordner (nur lesen).
 // Unterordner sind Alben; ein Name wie „2026-06 Stiftungsfest“ wird als „Stiftungsfest · Juni 2026“ angezeigt.
-import { html, setHtml, icon, hero, backLink, skeletonList, emptyState, errorBox, loading, toast } from '../ui.js';
+// Ansicht „Alben“: alle Alben nebeneinander; „Ordner“: die Ordner darüber als aufklappbare Gruppen (E46).
+// Fotos hochladen: Link auf einen eigenen Upload-Ordner in Drive (die App selbst schreibt dort nicht, E46).
+import { html, setHtml, icon, hero, backLink, skeletonList, emptyState, errorBox, loading, toast, openModal } from '../ui.js';
 import { fDateShort, toDate, isValid } from '../lib/dates.js';
+import { local } from '../lib/store.js';
+
+const VIEW_KEY = 'fb.galerieAnsicht';
 
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
@@ -37,39 +42,117 @@ function bindImageFallback(root, b, photosById) {
   }, true);
 }
 
+/** Ordnerbaum aus den Alben (path = übergeordnete Ordner): Knoten { name, album, children } */
+export function albumTree(albums) {
+  const root = { name: '', album: null, children: new Map() };
+  for (const a of albums) {
+    let node = root;
+    for (const seg of [...(a.path || []), a.title]) {
+      if (!node.children.has(seg)) node.children.set(seg, { name: seg, album: null, children: new Map() });
+      node = node.children.get(seg);
+    }
+    node.album = a;
+  }
+  return root;
+}
+
+/** Alle Alben eines Knotens und darunter */
+function albumsIn(node) {
+  return [...(node.album ? [node.album] : []), ...[...node.children.values()].flatMap(albumsIn)];
+}
+
+const fotos = (n) => `${n} ${n === 1 ? 'Foto' : 'Fotos'}`;
+
+function albumCard(b, a, { inFolder = false } = {}) {
+  const info = albumInfo(a);
+  const covers = a.photos.slice(0, 3);
+  // in der Ordneransicht steht der Ordner schon darüber – nur ein Datum aus dem Namen bleibt
+  const when = inFolder && !/^\d{4}[-_.]\d{1,2}\s/.test(a.title) ? '' : info.when;
+  return html`<a class="card album-card" href="#/galerie/${encodeURIComponent(a.id)}">
+    <div class="album-cover ${covers.length > 2 ? 'trio' : ''}">${covers.map((p) => thumbImg(b, p, 600))}</div>
+    <div class="album-meta"><div class="title">${info.name}</div><div class="small muted">${[when, info.count].filter(Boolean).join(' · ')}</div></div>
+  </a>`;
+}
+
+/** Ordneransicht: erst die Unterordner (aufklappbar), dann die Alben dieser Ebene */
+function folderLevel(b, node, depth = 0) {
+  const kids = [...node.children.values()];
+  const folders = kids.filter((k) => k.children.size);
+  const albums = [...(depth > 0 && node.album ? [node.album] : []), ...kids.filter((k) => !k.children.size).map((k) => k.album)];
+  return html`
+    ${folders.map((f) => {
+      const inside = albumsIn(f);
+      const n = inside.reduce((sum, a) => sum + a.photos.length, 0);
+      return html`<details class="folder-group" ${depth === 0 ? 'open' : ''}>
+        <summary>${icon('folder', 'icon-sm')}<span class="grow">${f.name}</span><span class="small muted nowrap">${inside.length === 1 ? '1 Album' : `${inside.length} Alben`} · ${fotos(n)}</span>${icon('chevronDown', 'icon-sm chev')}</summary>
+        <div class="folder-body">${folderLevel(b, f, depth + 1)}</div>
+      </details>`;
+    })}
+    ${albums.length ? html`<div class="album-grid">${albums.map((a) => albumCard(b, a, { inFolder: depth > 0 }))}</div>` : ''}`;
+}
+
+function uploadDialog(url) {
+  openModal({
+    title: 'Fotos hochladen',
+    body: html`<p style="margin-top:0">Lade deine Fotos in den Upload-Ordner in Google Drive: Ordner öffnen, dann „Neu“ bzw. „+“ und „Hochladen“.</p>
+      <p class="small muted">Ein Vorstandsmitglied sortiert die Fotos regelmäßig in die Galerie ein.</p>
+      <p style="margin-bottom:0"><a class="btn btn-primary" href="${url}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Upload-Ordner öffnen</a></p>`,
+    actions: [{ label: 'Schließen', kind: 'ghost' }],
+  });
+}
+
 export default async function galerie(ctx) {
   const { el, app } = ctx;
   const b = app.backend;
-  setHtml(el, html`${hero('Galerie', 'Fotos aus dem Bundesleben')}<div id="c">${skeletonList(2)}</div>`);
+  const uploadUrl = b.galleryUploadUrl?.() || '';
+  setHtml(el, html`${hero('Galerie', 'Fotos aus dem Bundesleben', uploadUrl ? html`<button class="btn btn-primary" data-action="upload">${icon('upload', 'icon-sm')}Fotos hochladen</button>` : '')}
+    <div id="c">${skeletonList(2)}</div>`);
   const c = el.querySelector('#c');
   const photosById = new Map();
   bindImageFallback(c, b, photosById);
   let shown = false;
+  let data = null;
+  let view = local.get(VIEW_KEY, 'alben') === 'ordner' ? 'ordner' : 'alben';
+
+  function render() {
+    if (!data.albums.length) {
+      setHtml(c, html`<div class="card">${emptyState('image', 'Noch keine Fotos', 'Sobald Fotos im Galerie-Ordner liegen, erscheinen sie hier.')}</div>`);
+      return;
+    }
+    const nested = data.albums.some((a) => a.path?.length);
+    const mode = nested ? view : 'alben';
+    setHtml(c, html`
+      ${nested ? html`<div class="chips gallery-view" role="group" aria-label="Ansicht">
+        <button class="chip" data-view="alben" aria-pressed="${mode === 'alben'}">${icon('grid', 'icon-sm')}Alben</button>
+        <button class="chip" data-view="ordner" aria-pressed="${mode === 'ordner'}">${icon('folder', 'icon-sm')}Ordner</button>
+      </div>` : ''}
+      ${mode === 'ordner' ? folderLevel(b, albumTree(data.albums)) : html`<div class="album-grid">${data.albums.map((a) => albumCard(b, a))}</div>`}
+      ${data.folderUrl ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Alle Fotos liegen auch im <a href="${data.folderUrl}" target="_blank" rel="noopener">Galerie-Ordner in Google Drive</a>.</p>` : ''}`);
+  }
+
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-action=upload]')) { uploadDialog(uploadUrl); return; }
+    if (e.target.closest('[data-action=retry]')) { app.refresh(); return; }
+    const v = e.target.closest('[data-view]');
+    if (v && data) {
+      view = v.dataset.view;
+      local.set(VIEW_KEY, view);
+      render();
+    }
+  });
+
   try {
-    await app.load('gallery', () => b.listGallery(), (data) => {
+    await app.load('gallery', () => b.listGallery(), (d) => {
       if (!ctx.alive()) return;
       shown = true;
+      data = d;
       photosById.clear();
-      for (const a of data.albums) for (const p of a.photos) photosById.set(p.id, p);
-      if (!data.albums.length) {
-        setHtml(c, html`<div class="card">${emptyState('image', 'Noch keine Fotos', 'Sobald Fotos im Galerie-Ordner liegen, erscheinen sie hier.')}</div>`);
-        return;
-      }
-      setHtml(c, html`
-        <div class="album-grid">${data.albums.map((a) => {
-          const info = albumInfo(a);
-          const covers = a.photos.slice(0, 3);
-          return html`<a class="card album-card" href="#/galerie/${encodeURIComponent(a.id)}">
-            <div class="album-cover ${covers.length > 2 ? 'trio' : ''}">${covers.map((p) => thumbImg(b, p, 600))}</div>
-            <div class="album-meta"><div class="title">${info.name}</div><div class="small muted">${[info.when, info.count].filter(Boolean).join(' · ')}</div></div>
-          </a>`;
-        })}</div>
-        ${data.folderUrl ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Die Fotos liegen im <a href="${data.folderUrl}" target="_blank" rel="noopener">Galerie-Ordner in Google Drive</a>. Neue Alben legen die Admins dort als Unterordner an – die App zeigt sie automatisch.</p>` : ''}`);
+      for (const a of d.albums) for (const p of a.photos) photosById.set(p.id, p);
+      render();
     }, { maxAge: 15 * 60_000 });
   } catch (err) {
     if (shown) return; // zwischengespeicherte Alben bleiben sichtbar (z. B. offline)
     setHtml(c, errorBox(err));
-    c.addEventListener('click', (e) => { if (e.target.closest('[data-action=retry]')) app.refresh(); });
   }
 }
 

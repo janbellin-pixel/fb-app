@@ -13,6 +13,7 @@
 //   Chat-Nachrichten   → eigene Nachrichten in Google Chat
 //   Einwilligungen     → eigene Datei im eigenen Drive, nur für die Datenschutz-Verantwortlichen lesbar
 //                        (die Sammeltabelle schreibt nur deren eigenes Konto)
+//   Papierpost-Wahl    → eigene Datei im eigenen Drive, nur für die Admins lesbar
 // Der Schreibschutz (google/guard.js) erzwingt das für jede einzelne Anfrage.
 import { config, isAdminEmail, isNewsAuthorEmail } from '../config.js';
 import * as cal from '../google/calendar.js';
@@ -48,6 +49,7 @@ const GALLERY_FIELDS = 'id,name,mimeType,thumbnailLink,webViewLink,createdTime,m
 const TABLE_FIELDS = 'id,name,ownedByMe,appProperties,owners(emailAddress,displayName,photoLink)';
 const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
 const VISIBILITY_FILE = 'Sichtbarkeit (Mitglieder-App).json';
+const PAPIERPOST_FILE = 'Papierpost (Mitglieder-App).json';
 /** Wahl aus einer Sichtbarkeits-Datei (E40): true = in der Mitgliederliste zeigen */
 const visibilityOf = (f) => {
   const d = parseJson(f.description);
@@ -479,12 +481,76 @@ export class GoogleBackend {
     return { ...rec, fileId: id };
   }
 
+  /* ================================================================ Papierpost abbestellen (E44) */
+
+  /** Wer die Abbestellungen sieht: die Admins (ohne mich) */
+  papierpostEmpfaenger() {
+    const list = (config.admins || []).map((e) => String(e).trim().toLowerCase()).filter(Boolean);
+    return [...new Set(list)].filter((e) => e !== this.myEmail);
+  }
+
+  async papierpostFile() {
+    const files = await drive.listFiles(
+      "appProperties has { key='fbTyp' and value='papierpost' } and 'me' in owners and trashed = false",
+      { fields: OWN_FIELDS, orderBy: 'modifiedTime desc' },
+    );
+    const own = files.filter((f) => f.ownedByMe).sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)))[0] || null;
+    if (own) registerOwnFile(own.id);
+    return own;
+  }
+
+  /** Eigene Wahl: true = „nicht mehr per Post“; null = noch nie gewählt. Neue Admins bekommen dabei Lesezugriff. */
+  async getMyPapierpost() {
+    const f = await this.papierpostFile();
+    if (!f) return null;
+    this.ensureReaders(f.id, this.papierpostEmpfaenger(), f.appProperties?.fbEmpf).catch((e) => console.warn('Freigabe der Papierpost-Wahl nicht angepasst', e));
+    const d = parseJson(f.description);
+    return { semesterprogramm: d.semesterprogramm === true, bundesbote: d.bundesbote === true, geaendert: d.geaendert || f.modifiedTime };
+  }
+
+  /** Eigene Wahl als kleine Datei im eigenen Drive – lesbar nur für die Admins (nicht für alle Mitglieder) */
+  async saveMyPapierpost({ semesterprogramm, bundesbote }) {
+    const data = { semesterprogramm: !!semesterprogramm, bundesbote: !!bundesbote, geaendert: nowIso() };
+    const props = { fbTyp: 'papierpost', fbSp: data.semesterprogramm ? 'ab' : 'papier', fbBb: data.bundesbote ? 'ab' : 'papier' };
+    const own = await this.papierpostFile();
+    let id = own?.id;
+    if (own) {
+      await drive.updateFile(own.id, { description: JSON.stringify(data), appProperties: props });
+    } else {
+      const folder = await this.appFolder();
+      const f = await drive.createFile({ name: PAPIERPOST_FILE, mimeType: 'application/json', parents: [folder], appProperties: props, description: JSON.stringify(data) }, 'id,modifiedTime');
+      registerOwnFile(f.id);
+      id = f.id;
+    }
+    await this.ensureReaders(id, this.papierpostEmpfaenger(), own?.appProperties?.fbEmpf).catch((e) => console.warn('Freigabe der Papierpost-Wahl nicht möglich', e));
+    this.invalidate('papierpost');
+    return data;
+  }
+
+  /** Für Admins: alle für mich lesbaren Abbestellungen – je Mitglied die neueste Datei, Inhaber laut Google */
+  async listPapierpost() {
+    const [files, dir] = await Promise.all([this.cached('papierpost', 60_000, () => this.listAppFiles('papierpost')), this.dirMap()]);
+    const newest = new Map();
+    for (const f of files) {
+      const owner = this.ownerOf(f);
+      if (!owner.email) continue;
+      const prev = newest.get(owner.email);
+      if (!prev || String(f.modifiedTime) > String(prev.f.modifiedTime)) newest.set(owner.email, { f, owner });
+    }
+    const people = [...dir.values()];
+    return [...newest.values()].map(({ f, owner }) => {
+      const d = parseJson(f.description);
+      const name = people.find((p) => p.email === owner.email)?.name || owner.name || owner.email;
+      return { email: owner.email, name, semesterprogramm: d.semesterprogramm === true, bundesbote: d.bundesbote === true, geaendert: d.geaendert || f.modifiedTime };
+    }).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  }
+
   /**
-   * Einwilligung NUR für die Datenschutz-Verantwortlichen lesbar machen.
+   * Eigene Datei NUR für diese Konten lesbar machen (Einwilligung, Papierpost-Wahl).
    * Frühere Empfänger und alle anderen Freigaben (Gruppe, Domain, Link) werden entfernt.
+   * currentKey: gespeicherte Prüfsumme der Empfänger – stimmt sie, ist nichts zu tun.
    */
-  async ensureConsentSharing(fileId, currentKey) {
-    const wanted = consentRecipients(this.myEmail);
+  async ensureReaders(fileId, wanted, currentKey) {
     const key = pruefsumme(wanted.slice().sort().join(','));
     if (currentKey === key) return;
     const perms = await drive.listPermissions(fileId);
@@ -500,6 +566,11 @@ export class GoogleBackend {
       }
     }
     await drive.updateFile(fileId, { appProperties: { fbEmpf: key } });
+  }
+
+  /** Einwilligung NUR für die Datenschutz-Verantwortlichen lesbar machen */
+  async ensureConsentSharing(fileId, currentKey) {
+    return this.ensureReaders(fileId, consentRecipients(this.myEmail), currentKey);
   }
 
   isConsentManager() {
@@ -1102,9 +1173,9 @@ export class GoogleBackend {
   async listGallery() {
     const folder = (config.galerieOrdnerId || '').trim();
     if (!folder) throw notConfigured('Der Galerie-Ordner');
-    // Alben = Ordner mit Fotos, auch verschachtelt („2023/Stiftungsfest“): bis zwei Ebenen tief
+    // Alben = Ordner mit Fotos, auch verschachtelt („2023/Wintersemester/Kneipe“): bis drei Ebenen tief
     const { files, folders } = await this.listFolderTree(folder, {
-      depth: 2, filter: "mimeType contains 'image/'", fields: GALLERY_FIELDS, orderBy: 'name',
+      depth: 3, filter: "mimeType contains 'image/'", fields: GALLERY_FIELDS, orderBy: 'name',
     });
     const toPhoto = (f) => ({
       id: f.id,
@@ -1132,6 +1203,12 @@ export class GoogleBackend {
     const sortKey = (a) => [...(a.path || []), a.title].join(' ');
     albums.sort((a, b) => sortKey(b).localeCompare(sortKey(a), 'de', { numeric: true }));
     return { albums, folderUrl: `https://drive.google.com/drive/folders/${folder}` };
+  }
+
+  /** Ordner, in den alle Mitglieder Fotos hochladen dürfen (E46) – nur als Link; '' = nicht eingerichtet */
+  galleryUploadUrl() {
+    const id = String(config.galerieUploadOrdnerId || '').trim();
+    return id ? `https://drive.google.com/drive/folders/${id}` : '';
   }
 
   photoUrl(photo, size = 600) {
@@ -1228,6 +1305,30 @@ export class GoogleBackend {
     return { id: s.name, name: title, url: s.spaceUri || chat.spaceUrl(s.name) };
   }
 
+  /** Vorstände für „… kontaktieren“ im Chat (E45): E-Mail-Adressen aus der privaten Konfiguration */
+  vorstand() {
+    const norm = (l) => [...new Set((Array.isArray(l) ? l : []).map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
+    return { aktive: norm(config.vorstand?.aktive), altherren: norm(config.vorstand?.altherren) };
+  }
+
+  /**
+   * Unterhaltung mit genau diesen Personen öffnen (E45): Gibt es die Gruppe schon, nimmt die App sie wieder,
+   * sonst legt sie eine an; bei nur einer Person die Direktnachricht. name: Anzeigename auf diesem Gerät.
+   */
+  async openGroupChat(emails, name = '') {
+    if (!this.chatCanCreate()) throw this.chatScopeError();
+    const people = [...new Set(emails.map((x) => String(x).toLowerCase().trim()).filter((x) => x && x !== this.myEmail))].sort();
+    if (!people.length) throw new Error('Hier ist niemand eingetragen.');
+    if (people.length === 1) return this.openDirectChat(people[0], name);
+    const key = people.join(',');
+    const names = local.get(CHAT_NAMES, {});
+    const spaces = await this.listSpaces();
+    const hit = spaces.find((s) => s.type === 'GROUP_CHAT' && (names[s.id]?.key === key || [...(s.members || [])].sort().join(',') === key));
+    const g = hit || await this.createGroup({ emails: people });
+    this.rememberChatName(g.id, { name: name || 'Gruppe', key, fest: !!name });
+    return { id: g.id, name, url: g.url };
+  }
+
   /** Personen zu einer Unterhaltung hinzufügen, in der man selbst ist (ob man das darf, entscheidet Google) */
   async addMembers(spaceId, emails = []) {
     if (!this.chatCanCreate()) throw this.chatScopeError();
@@ -1289,7 +1390,8 @@ export class GoogleBackend {
       }
       const first = others.map((p) => p.name.split(' ')[0]);
       const label = first.length > 3 ? `${first.slice(0, 3).join(', ')} und ${first.length - 3} weitere` : first.join(', ');
-      return { ...base, name: label || hint?.name || 'Gruppe', members: others.map((p) => p.email) };
+      // fest: selbst benannte Gruppe wie „Aktivenvorstand“ (E45) – sonst die Vornamen der anderen
+      return { ...base, name: (hint?.fest && hint.name) || label || hint?.name || 'Gruppe', members: others.map((p) => p.email) };
     }));
     return rows.filter(Boolean).sort((a, b) => String(b.lastActive).localeCompare(String(a.lastActive)));
   }

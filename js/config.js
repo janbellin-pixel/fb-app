@@ -32,6 +32,8 @@ const DEFAULTS = {
   // Ordner mit den PDF-Ausgaben der DS-Zeitung (Zeitung der Deutschen Sängerschaft); leer = ausgeblendet
   dsZeitungOrdnerId: '',
   galerieOrdnerId: '',
+  // Ordner, in den alle Mitglieder Fotos hochladen dürfen (in Drive für sie bearbeitbar freigegeben); die Galerie verlinkt ihn (E46)
+  galerieUploadOrdnerId: '',
   // newsRaum: vorgeschlagener Chat-Raum für Ankündigungen neuer News, z. B. 'spaces/AAAA…' (E33)
   chat: { aktiv: true, newsRaum: '' },
   forum: { aktiv: true },
@@ -45,6 +47,8 @@ const DEFAULTS = {
   // Postfach für Adressänderungen: „Mein Profil“ bereitet bei Abweichungen vom Adressverzeichnis eine E-Mail vor.
   // (Umlaute sind in E-Mail-Adressen bei Google Workspace nicht möglich – daher „ae“.)
   adressaenderung: 'adressaenderung@frankonia-brunonia.de',
+  // Vorstände für „… kontaktieren“ im Chat (E45): E-Mail-Adressen; leer = Knopf ausgeblendet
+  vorstand: { aktive: [], altherren: [] },
   demoErlaubt: true,
   // Datenschutzerklärung und Einwilligungen (Texte: js/lib/datenschutz.js)
   datenschutz: {
@@ -247,8 +251,8 @@ window.FB_CONFIG = ${JSON.stringify(obj, null, 2)};
 
 /** Schlüssel, die die Einrichtung in die private Konfiguration schreibt (dazu bleiben eigene Zusatzeinstellungen erhalten) */
 export const PRIVATE_WRITE_KEYS = ['mitgliederGruppe', 'admins', 'redaktion', 'appUrl', 'kalenderId', 'tabellen', 'adressenBlatt',
-  'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
-  'gruppen', 'adressaenderung', 'testMitglieder', 'ausgeblendeteKonten'];
+  'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'galerieUploadOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
+  'gruppen', 'adressaenderung', 'vorstand', 'testMitglieder', 'ausgeblendeteKonten'];
 
 /** Private Konfiguration als Objekt: aktuelle Werte, ohne öffentliche Schlüssel (E43) */
 export function privateConfigObject(values = {}) {

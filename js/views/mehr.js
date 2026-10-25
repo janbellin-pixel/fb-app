@@ -42,13 +42,14 @@ export default async function mehr(ctx) {
         ${(app.mode === 'demo' || hasDsZeitung()) && zeig('dsZeitung') ? menuItem('#/ds-zeitung', 'newspaper', 'DS-Zeitung', 'Zeitung der Deutschen Sängerschaft') : ''}
         ${(app.mode === 'demo' || hasSongbook()) && zeig('lieder') ? menuItem('#/lieder', 'music', 'Liedermappe', 'Noten und Texte zum Mitsingen') : ''}
         ${zeig('galerie') ? menuItem('#/galerie', 'image', 'Galerie', 'Fotos aus dem Bundesleben') : ''}
-        ${zeig('adressen') ? menuItem('#/adressen', 'book', 'Adressverzeichnis', 'Nachschlagen, anrufen, in Kontakte übernehmen') : ''}
+        ${zeig('adressen') ? menuItem('#/adressen', 'book', 'Adressverzeichnis', 'Nachschlagen und anrufen') : ''}
         ${zeig('termine') ? menuItem('#/termine?abo=1', 'calendarPlus', 'Kalender abonnieren', 'Termine im eigenen Kalender') : ''}
         ${extraLinks().filter((l) => !linkGesperrt(l)).map((l) => html`<a class="menu-item" href="${l.url}" target="_blank" rel="noopener">${icon(ICON_NAMES.includes(l.symbol) ? l.symbol : 'globe')}<span class="grow">${l.titel}<small>${l.host} – öffnet sich außerhalb der App</small></span>${icon('external', 'icon-sm chev')}</a>`)}
       </div>
       <div class="card menu-list">
-        ${menuItem('#/profil', 'user', 'Mein Profil', 'Kneipname, Status, Ämter, Über mich')}
-        ${menuItem('#/datenschutz', 'shield', 'Datenschutz', 'Erklärung, Einwilligungen erteilen oder widerrufen')}
+        ${menuItem('#/profil', 'user', 'Mein Profil', 'Angaben und Anschrift')}
+        ${menuItem('#/datenschutz', 'shield', 'Datenschutz', 'Erklärung und Einwilligungen')}
+        ${menuItem('#/papierpost', 'mail', 'Papierpost abbestellen', 'Semesterprogramm, Bundesbote')}
         ${!isStandalone() ? menuItem('#/installieren', 'smartphone', 'App installieren', 'Auf den Startbildschirm legen') : ''}
         ${menuItem('#/einstellungen', 'settings', 'Einstellungen', 'Konto, Daten auf diesem Gerät')}
         ${admin ? menuItem('#/einrichtung', 'tool', 'Einrichtung (Admins)', 'Google-Anbindung, Kalender, Tabellen') : ''}
@@ -76,15 +77,15 @@ export async function settings(ctx) {
       <div class="stack">
         <section class="card card-pad" id="schrift-box">
           <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Schriftgröße</h2>
-          <p class="small muted">Vergrößert Text, Knöpfe und Symbole in der ganzen App – gut für kleine Bildschirme oder wenn das Lesen schwerfällt.</p>
+          <p class="small muted">Vergrößert Text, Knöpfe und Symbole in der ganzen App.</p>
           ${schriftAuswahl()}
         </section>
         <section class="card card-pad" id="notify-box">
           <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Benachrichtigungen</h2>
           <p class="small"><strong>Aufs Handy, auch wenn diese App zu ist:</strong> die App „Google Chat“ installieren
             (<a href="${hinweise.GOOGLE_CHAT_APP.android}" target="_blank" rel="noopener">Android</a> · <a href="${hinweise.GOOGLE_CHAT_APP.ios}" target="_blank" rel="noopener">iPhone</a>)
-            und mit dem Verbindungskonto anmelden. Dort kommen private Nachrichten und die Ankündigungen neuer News an.</p>
-          <p class="small muted">In dieser App – nur wenn du es hier einschaltest: Zahlen am Chat und an „Mehr“, Markierungen für Neues, Hinweise auf neue Nachrichten und News und, solange die App im Hintergrund geöffnet ist, Mitteilungen des Systems (mit Absender und Anfang der Nachricht). Gilt nur für dieses Gerät.</p>
+            und mit dem Verbindungskonto anmelden.</p>
+          <p class="small muted">In dieser App, wenn du es einschaltest: Zahlen und Markierungen für Neues und – solange die App offen ist – Mitteilungen. Gilt nur für dieses Gerät.</p>
           <div id="notify-state"></div>
         </section>
         <div class="card card-pad">
@@ -106,7 +107,7 @@ export async function settings(ctx) {
         </div>
         <div class="card card-pad">
           <h2 style="margin:0 0 .75rem;font-weight:300;font-size:1.375rem">Daten auf diesem Gerät</h2>
-          <p class="small">Damit die App schnell startet und auch ohne Netz funktioniert, merkt sie sich den zuletzt geladenen Stand (Termine, Mitglieder, gelesene Ausgaben des Bundesboten und der DS-Zeitung, geöffnete Lieder).</p>
+          <p class="small">Damit die App schnell startet und offline geht, merkt sie sich den zuletzt geladenen Stand.</p>
           <div class="row wrap">
             <button class="btn" data-action="clear-cache">${icon('trash', 'icon-sm')}Zwischenspeicher leeren</button>
             <button class="btn" data-action="update">${icon('refresh', 'icon-sm')}Nach Updates suchen</button>
@@ -118,10 +119,10 @@ export async function settings(ctx) {
       <div class="card card-pad prose" style="font-size:.9688rem">
         <h2 style="margin-top:0;font-weight:300;font-size:1.375rem">Datenschutz – kurz erklärt</h2>
         <ul>
-          <li><strong>Keine eigenen Server:</strong> Die App ist eine Web-App. Sie lädt die Daten direkt aus dem Google-Konto der Verbindung – Kalender, Tabellen, Drive und Chat. Wer was sehen darf, regeln allein die Google-Freigaben.</li>
-          <li><strong>Anmeldung über Google:</strong> Die App bekommt einen Zugangsschlüssel, der eine Stunde gilt. Dein Passwort sieht sie nie.</li>
-          <li><strong>Auf dem Gerät</strong> liegen nur der Zugangsschlüssel und ein Zwischenspeicher für die Offline-Nutzung. „Abmelden“ löscht beides.</li>
-          <li><strong>Keine Tracker, keine Werbung,</strong> keine Schriften oder Skripte von Fremdanbietern – alles wird mit der App ausgeliefert.</li>
+          <li><strong>Keine eigenen Server:</strong> Die Daten kommen direkt aus dem Google-Konto der Verbindung. Wer was sieht, regeln die Google-Freigaben.</li>
+          <li><strong>Anmeldung über Google:</strong> Dein Passwort sieht die App nie.</li>
+          <li><strong>Auf dem Gerät</strong> liegen nur Zugangsschlüssel und Zwischenspeicher. „Abmelden“ löscht beides.</li>
+          <li><strong>Keine Tracker, keine Werbung,</strong> nichts von Fremdanbietern.</li>
           <li>Über <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener">myaccount.google.com</a> kannst du den Zugriff der App jederzeit widerrufen.</li>
         </ul>
         <p><a class="btn btn-sm" href="#/datenschutz">${icon('shield', 'icon-sm')}Datenschutzerklärung und Einwilligungen</a></p>
@@ -136,10 +137,10 @@ export async function settings(ctx) {
         <button class="btn btn-sm btn-primary" data-action="notify-on">${icon('chat', 'icon-sm')}Benachrichtigungen einschalten</button>`);
       return;
     }
-    const system = perm === 'granted' ? 'Mitteilungen des Systems sind erlaubt – sie erscheinen, wenn die App im Hintergrund geöffnet ist.'
-      : perm === 'denied' ? 'Mitteilungen des Systems sind im Browser blockiert; erlauben lassen sie sich in den Website-Einstellungen des Browsers.'
+    const system = perm === 'granted' ? 'Mitteilungen sind erlaubt – sie erscheinen, solange die App im Hintergrund offen ist.'
+      : perm === 'denied' ? 'Mitteilungen sind im Browser blockiert (erlauben in den Website-Einstellungen).'
         : perm === 'unsupported' ? `Mitteilungen des Systems kann dieser Browser nicht anzeigen.${isIos() && !isStandalone() ? ' Auf dem iPhone geht es nur, wenn die App auf dem Home-Bildschirm liegt (Mehr › App installieren).' : ''}`
-          : 'Mitteilungen des Systems (wenn die App im Hintergrund geöffnet ist) sind noch nicht erlaubt.';
+          : 'Mitteilungen sind noch nicht erlaubt.';
     setHtml(el.querySelector('#notify-state'), html`<p class="small">${icon('check', 'icon-sm')} <strong>Eingeschaltet:</strong> Zahlen am Chat und an „Mehr“ und Hinweise in der App.</p>
       <p class="small muted">${system}</p>
       <div class="row wrap">
@@ -196,7 +197,7 @@ export async function settings(ctx) {
       case 'update': {
         const reg = await navigator.serviceWorker?.getRegistration();
         await reg?.update().catch(() => {});
-        toast('Die App ist auf dem neuesten Stand – sonst erscheint gleich ein Hinweis.', { type: 'info' });
+        toast('Die App ist aktuell – sonst erscheint gleich ein Hinweis.', { type: 'info' });
         break;
       }
       case 'clear-config':
@@ -256,7 +257,7 @@ export async function install(ctx) {
           <div class="chips" role="tablist">${Object.keys(steps).map((k) => html`<button class="chip" role="tab" data-p="${k}" aria-pressed="${k === p}">${names[k]}</button>`)}</div>
           <ol class="install-steps" id="steps"></ol>
         </div>
-        <div class="notice">${icon('info')}<div><h3>Danach</h3><p>Beim ersten Öffnen einmal mit dem Google-Konto der Verbindung anmelden. Die App merkt sich die Anmeldung. Updates kommen automatisch – nichts muss aus einem App-Store geladen werden.</p></div></div>
+        <div class="notice">${icon('info')}<div><h3>Danach</h3><p>Beim ersten Öffnen einmal mit dem Verbindungskonto anmelden. Updates kommen automatisch.</p></div></div>
       </div>
       <aside class="card card-pad" style="text-align:center">
         <h3 style="margin:0 0 .625rem">Link zur App</h3>

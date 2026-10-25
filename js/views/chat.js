@@ -1,7 +1,7 @@
 // Chat über Google Chat: Direktnachrichten, Gruppen und Räume der Verbindung (E14, E30).
 // Neue Unterhaltungen legt die App nur mit Personen an; Räume löschen oder Mitglieder entfernen kann sie nicht.
 import {
-  html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, notice, toast, showError, describeError, loading, setBusy,
+  html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, notice, toast, showError, describeError, loading, setBusy, confirmDialog,
 } from '../ui.js';
 import { relTime, fTime, isSameDay, addDays, fDateNoYear, toDate } from '../lib/dates.js';
 import { linkify, matchesQuery } from '../lib/text.js';
@@ -9,18 +9,21 @@ import { config } from '../config.js';
 import * as auth from '../auth.js';
 import { local } from '../lib/store.js';
 import { isUnreadChat, markChatRead, onChange, GOOGLE_CHAT_APP, notificationsWanted, enableNotifications } from '../lib/hinweise.js';
+import { inGruppe } from '../lib/gruppen.js';
 
 const CHAT_HOME = 'https://chat.google.com/';
+/** Knöpfe „… kontaktieren“ (E45): Schlüssel in config.vorstand und Name der Gruppe */
+const VORSTAENDE = [['aktive', 'Aktivenvorstand'], ['altherren', 'Altherrenvorstand']];
 
 function unavailable(status) {
   if (status.reason === 'no-workspace') {
     return notice('gold', 'Chat braucht Google Workspace',
-      'Der Chat der App nutzt Google Chat im Workspace der Verbindung. Mit dem aktuellen Konto ist die Einbindung nicht möglich – Google Chat selbst kannst du aber jederzeit öffnen.',
+      'Der Chat nutzt Google Chat der Verbindung – mit diesem Konto geht das nicht. Google Chat selbst kannst du trotzdem öffnen.',
       html`<p style="margin-top:.625rem"><a class="btn btn-sm btn-primary" href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat öffnen</a></p>`);
   }
   if (status.reason === 'scope') {
     return notice('gold', 'Chat noch nicht freigeschaltet',
-      'Damit die App deine Unterhaltungen anzeigen und Nachrichten senden kann, braucht sie einmalig deine Zustimmung bei Google.',
+      'Für Unterhaltungen und Nachrichten braucht die App einmalig deine Zustimmung bei Google.',
       html`<p style="margin-top:.625rem"><button class="btn btn-sm btn-primary" data-action="grant">${icon('key', 'icon-sm')}Chat freischalten</button></p>`);
   }
   return notice('gold', 'Chat ist deaktiviert', 'Die Chat-Funktion wurde in der Konfiguration ausgeschaltet.');
@@ -33,7 +36,7 @@ function unavailable(status) {
 function chatBlocked(err) {
   if (describeError(err).key !== 'forbidden') return null;
   return notice('gold', 'Google Chat für dein Konto nicht verfügbar',
-    html`Google lässt die App deine Unterhaltungen nicht lesen. Öffne einmal Google Chat mit deinem FrBr-Konto: Klappt es dort auch nicht, ist Google Chat für dein Konto ausgeschaltet oder noch nicht eingerichtet (bei neuen Konten manchmal einige Stunden) – dann bitte den Admins Bescheid geben.${err.message ? html`<br><span class="muted">Google: „${err.message}“</span>` : ''}`,
+    html`Google lässt die App deine Unterhaltungen nicht lesen. Probier Google Chat direkt: Geht es dort auch nicht, ist Chat für dein Konto aus oder noch nicht bereit (bei neuen Konten einige Stunden) – dann den Admins Bescheid geben.${err.message ? html`<br><span class="muted">Google: „${err.message}“</span>` : ''}`,
     html`<p class="row wrap" style="margin-top:.625rem;gap:.5rem"><a class="btn btn-sm btn-primary" href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat öffnen</a><button class="btn btn-sm" data-action="retry">${icon('refresh', 'icon-sm')}Erneut versuchen</button></p>`);
 }
 
@@ -62,18 +65,46 @@ export default async function chat(ctx) {
   const { el, app } = ctx;
   const b = app.backend;
   const status = b.chatStatus();
+  const vs = b.vorstand?.() || {};
+  const vorstand = status.available ? VORSTAENDE.filter(([k]) => vs[k]?.length) : [];
+  const whatsapp = inGruppe('bundesbrueder'); // Hinweis auf die WhatsApp-Gruppen nur für Bundesbrüder
   setHtml(el, html`
-    ${hero('Chat', 'Direktnachrichten, Gruppen und Räume der Verbindung', status.available ? html`
+    ${hero('Chat', 'Direktnachrichten, Gruppen und Räume', status.available ? html`
       <a class="btn btn-primary" href="#/chat-neu">${icon('send', 'icon-sm')}Neue Nachricht</a>
       <a class="btn" href="#/chat-neu?gruppe=1">${icon('users', 'icon-sm')}Neue Gruppe</a>` : '')}
+    ${vorstand.length || whatsapp ? html`<section class="card card-pad vorstand-box">
+      ${vorstand.length ? html`<div class="row wrap">${vorstand.map(([k, label]) => html`<button class="btn" data-vorstand="${k}">${icon('users', 'icon-sm')}${label} kontaktieren</button>`)}</div>` : ''}
+      ${whatsapp ? html`<p class="small hint-line">${icon('smartphone', 'icon-sm')}<span>Zu unseren WhatsApp-Gruppen lädt dich jedes Vorstandsmitglied ein – frag einfach.</span></p>` : ''}
+    </section>` : ''}
     <div id="c">${status.available ? skeletonList(4, 'sk-card') : unavailable(status)}</div>
     <div class="notice" style="margin-top:1.125rem">${icon('smartphone')}<div><h3>Tipp: Benachrichtigungen aufs Handy</h3>
-      <p>Auch wenn diese App geschlossen ist: die App „Google Chat“ installieren und mit dem Verbindungskonto anmelden. Alle Unterhaltungen sind dort und hier gleich, und neue News kündigt die Redaktion dort an. Hier in der App zeigt eine Zahl am Chat, was neu ist.</p>
+      <p>Installier die App „Google Chat“ und melde dich mit dem Verbindungskonto an. Dort kommen alle Nachrichten an, auch wenn diese App zu ist.</p>
       <p class="row wrap" style="margin-top:.5rem;gap:.375rem 1rem"><a href="${GOOGLE_CHAT_APP.android}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Android</a><a href="${GOOGLE_CHAT_APP.ios}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}iPhone</a><a href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat im Browser</a></p>
       <div id="notify-here" style="margin-top:.625rem">${status.available && !notificationsWanted() ? html`<button class="btn btn-sm" data-action="notify-on">${icon('chat', 'icon-sm')}Benachrichtigungen in dieser App einschalten</button>` : ''}</div></div></div>`);
   const c = el.querySelector('#c');
 
+  async function contactVorstand(btn) {
+    const [key, label] = VORSTAENDE.find(([k]) => k === btn.dataset.vorstand) || [];
+    if (!key) return;
+    if (!b.chatCanCreate()) {
+      if (await confirmDialog('Für neue Unterhaltungen braucht die App einmalig deine Zustimmung bei Google.', { title: 'Zustimmung nötig', ok: 'Zustimmen' })) grantChat();
+      return;
+    }
+    setBusy(btn, true, 'Wird geöffnet …');
+    try {
+      const s = await b.openGroupChat(vs[key], label);
+      await app.forget('chat-spaces');
+      app.navigate(`#/chat/${spacePath(s.id)}?name=${encodeURIComponent(label)}`);
+    } catch (err) {
+      setBusy(btn, false);
+      if (err.code === 'chat_scope') grantChat();
+      else showError(err);
+    }
+  }
+
   el.addEventListener('click', async (e) => {
+    const vb = e.target.closest('[data-vorstand]');
+    if (vb) contactVorstand(vb);
     if (e.target.closest('[data-action=grant]')) grantChat();
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
@@ -137,7 +168,7 @@ export async function newChat(ctx) {
   }
   if (!b.chatCanCreate()) {
     setHtml(c, notice('gold', 'Einmal zustimmen',
-      'Damit die App Direktnachrichten und Gruppen anlegen und Personen hinzufügen kann, braucht sie einmalig deine Zustimmung bei Google. Räume löschen oder jemanden entfernen kann die App damit nicht.',
+      'Für neue Unterhaltungen braucht die App einmalig deine Zustimmung bei Google. Löschen oder jemanden entfernen kann sie damit nicht.',
       html`<p style="margin-top:.625rem"><button class="btn btn-sm btn-primary" data-action="grant">${icon('key', 'icon-sm')}Zustimmen</button></p>`));
     c.addEventListener('click', (e) => { if (e.target.closest('[data-action=grant]')) grantChat(); });
     return;
@@ -163,7 +194,7 @@ export async function newChat(ctx) {
     <form class="card card-pad" id="f" novalidate style="max-width:46rem">
       ${mode === 'group' ? html`<div class="field"><label for="g-name">Name der Gruppe (optional)</label>
         <input class="input" id="g-name" maxlength="128" placeholder="z. B. Stammtisch-Orga" autocomplete="off">
-        <span class="hint">Mit Namen entsteht ein Raum, ohne Namen eine Gruppenunterhaltung (dann mindestens zwei Personen).</span></div>` : ''}
+        <span class="hint">Mit Namen entsteht ein Raum, ohne Namen eine Gruppe (ab zwei Personen).</span></div>` : ''}
       ${mode !== 'dm' ? html`<div class="pick-chips" id="chosen"></div>` : ''}
       <div class="search" style="margin-bottom:.625rem">${icon('search')}<input class="input" type="search" id="q" placeholder="Name suchen …" aria-label="Mitglieder durchsuchen" autocomplete="off"></div>
       <div class="pick-list" id="people"></div>
@@ -199,8 +230,8 @@ export async function newChat(ctx) {
           ${avatar(m, 40)}<span class="grow" style="min-width:0"><span class="name ellipsis">${m.name}</span>${subOf(m) ? html`<span class="sub ellipsis">${subOf(m)}</span>` : ''}</span>
           <input type="checkbox" data-pick="${m.email}" data-name="${m.name}" ${selected.has(m.email) ? 'checked' : ''}></label>`))}`
       : html`<p class="small muted" style="margin:.25rem 0">${members.length ? 'Niemand gefunden.'
-        : mode === 'add' ? 'Alle sichtbaren Mitglieder sind schon dabei – oder das Google-Verzeichnis liefert gerade niemanden. Du kannst unten eine E-Mail-Adresse eingeben.'
-          : 'Keine anderen Mitglieder sichtbar – das Google-Verzeichnis liefert gerade nur dich. Du kannst unten eine E-Mail-Adresse eingeben.'}</p>`);
+        : mode === 'add' ? 'Alle sind schon dabei. Du kannst unten eine E-Mail-Adresse eingeben.'
+          : 'Keine anderen Mitglieder sichtbar. Du kannst unten eine E-Mail-Adresse eingeben.'}</p>`);
   }
 
   async function openDm(email, name) {

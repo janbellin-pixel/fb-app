@@ -365,6 +365,23 @@ async function run() {
   check(a2?.items.length === 2, 'Leerzeilen ignoriert', a2?.items.length);
   check(karl?.vorname === 'Karl' && karl?.ort === 'Hamburg' && karl?.mobil === '0170 1234' && karl?.email === 'karl@example.org', 'Spalten erkannt', JSON.stringify(karl));
   check(karl?.geburtstag === '1970-04-03', 'Geburtstag gelesen', karl?.geburtstag);
+  // Spalten „Name | Vorname“: „Name“ ist dann der Nachname (sonst fehlte der Vorname in Liste und Geburtstagen)
+  fake.newSpreadsheet('namevorname000000000000000', 'Mitgliederliste_App');
+  fake.state.sheets.namevorname000000000000000.tabs[0].rows = [
+    ['Name', 'Vorname', 'Titel', 'Ort'],
+    ['Bellin', 'Jan', 'Dr.', 'Braunschweig'],
+    ['Max Muster', 'Max', 'Herr', 'Hannover'],
+  ];
+  config.tabellen.adressen = 'namevorname000000000000000';
+  b.invalidate('addrMeta');
+  const a3 = await step('listAddresses (Name | Vorname)', () => b.listAddresses());
+  const jan = a3?.items.find((x) => x.vorname === 'Jan');
+  const maxM = a3?.items.find((x) => x.vorname === 'Max');
+  check(jan?.nachname === 'Bellin' && jan.name === 'Dr. Jan Bellin' && jan.titel === 'Dr.', '„Name“ neben „Vorname“ = Nachname; Titel vor dem Namen', JSON.stringify(jan));
+  check(maxM?.nachname === 'Muster' && maxM.name === 'Max Muster' && maxM.titel === '', 'voller Name in „Name“ erkannt; Anrede ist kein Titel', JSON.stringify(maxM));
+  const { adrName } = await import('../js/views/parts.js');
+  const adrText = (a) => { const d = document.createElement('div'); d.innerHTML = String(adrName(a)); return d.textContent; };
+  check(adrText(jan) === 'Bellin, Dr. Jan' && adrText(maxM) === 'Muster, Max', 'Anzeige: Nachname, dahinter klein Titel und Vorname', `${adrText(jan)} | ${adrText(maxM)}`);
   config.tabellen.adressen = saved;
   b.invalidate('addrMeta');
 
@@ -471,6 +488,29 @@ async function run() {
   check(gal?.albums[0].photos[0].taken === '2026-06-27T18:30:00', 'Aufnahmedatum (EXIF) gelesen', gal?.albums[0].photos[0].taken);
   const full = await step('photoFullUrl', () => b.photoFullUrl(gal.albums[0].photos[0]));
   check(String(full).startsWith('blob:'), 'Original über Anmeldung geladen');
+  // Fotos hochladen (E46): nur ein Link auf den Upload-Ordner – die App selbst lädt nichts hoch
+  check(b.galleryUploadUrl() === '', 'ohne Upload-Ordner kein Knopf „Fotos hochladen“');
+  config.galerieUploadOrdnerId = '1UpLoAdOrDnEr0123456789';
+  check(b.galleryUploadUrl() === 'https://drive.google.com/drive/folders/1UpLoAdOrDnEr0123456789', 'Upload-Ordner als Link in Google Drive');
+  config.galerieUploadOrdnerId = '';
+  // Alben bis drei Ebenen tief (Jahr/Semester/Veranstaltung) – mit Pfad für die Ordneransicht
+  const FW = { ownerEmail: 'fotowart@beispiel.de', ownerName: 'Fotowart' };
+  const gTY = fake.addFile({ ...FW, name: '2025', mimeType: DIR, parents: [res.galerieOrdnerId] });
+  const gTS = fake.addFile({ ...FW, name: 'Wintersemester', mimeType: DIR, parents: [gTY.id] });
+  const gTK = fake.addFile({ ...FW, name: 'Kneipe', mimeType: DIR, parents: [gTS.id] });
+  fake.addFile({ ...FW, name: 'Kneipe 1.jpg', mimeType: 'image/jpeg', parents: [gTK.id], thumbnailLink: 'https://lh3.googleusercontent.com/k1=s220' });
+  fake.addFile({ ...FW, name: 'Gruppenbild.jpg', mimeType: 'image/jpeg', parents: [gTY.id], thumbnailLink: 'https://lh3.googleusercontent.com/g1=s220' });
+  const wGal = fake.state.writes.length;
+  const galTief = await step('listGallery (verschachtelt)', () => b.listGallery());
+  const tiefAlbum = galTief?.albums.find((a) => a.id === gTK.id);
+  const jahrAlbum = galTief?.albums.find((a) => a.id === gTY.id);
+  check(tiefAlbum?.title === 'Kneipe' && tiefAlbum.path.join('/') === '2025/Wintersemester' && tiefAlbum.photos.length === 1, 'Album drei Ebenen tief, mit übergeordneten Ordnern', JSON.stringify(tiefAlbum && [tiefAlbum.title, tiefAlbum.path]));
+  check(jahrAlbum?.title === '2025' && jahrAlbum.path.length === 0 && jahrAlbum.photos.length === 1, 'Fotos direkt im Jahresordner: eigenes Album', JSON.stringify(jahrAlbum && [jahrAlbum.title, jahrAlbum.path]));
+  const { albumTree } = await import('../js/views/galerie.js');
+  const galBaum = albumTree(galTief?.albums || []);
+  const knoten2025 = galBaum.children.get('2025');
+  check(knoten2025?.album?.id === gTY.id && knoten2025.children.get('Wintersemester')?.children.get('Kneipe')?.album?.id === gTK.id, 'Ordnerbaum für die Ansicht „Ordner“');
+  check(fake.state.writes.length === wGal, 'Galerie lesen schreibt nichts');
 
   /* ---------------------------------------------------------------- Liedermappe */
   section('Liedermappe (nur lesen)');
@@ -577,6 +617,26 @@ async function run() {
   check(dm9b?.name === 'Anna Andere' && reads9 === 1 && reads9b === 1, 'Name danach gemerkt – Nachrichten nicht erneut gelesen', JSON.stringify([dm9b?.name, reads9, reads9b]));
   const allg = sp2?.find((s) => s.id === 'spaces/AAA');
   check(dm9?.url === 'https://chat.google.com/dm/DM9?cls=11' && allg?.url === 'https://chat.google.com/room/AAA', 'Link nach Google Chat: von Google (spaceUri), sonst gebaut', JSON.stringify([dm9?.url, allg?.url]));
+  // Vorstände kontaktieren (E45): Gruppe mit genau diesen Personen – vorhandene wiederverwenden
+  config.vorstand = { aktive: [ANNA, 'Karl@beispiel.de ', me.email], altherren: ['kasse@beispiel.de'] };
+  const vorst = b.vorstand();
+  check(vorst.aktive.join() === `${ANNA},karl@beispiel.de,${me.email}` && vorst.altherren.join() === 'kasse@beispiel.de', 'Vorstände aus der Konfiguration (klein geschrieben)', JSON.stringify(vorst));
+  const nSp = fake.state.spaces.length;
+  const av = await step('openGroupChat (Aktivenvorstand)', () => b.openGroupChat(vorst.aktive, 'Aktivenvorstand'));
+  check(av?.id === grp2?.id && fake.state.spaces.length === nSp, 'vorhandene Gruppe mit genau diesen Personen wiederverwendet (ich zähle nicht mit)', JSON.stringify([av?.id, grp2?.id]));
+  const avRow = (await step('listSpaces (Vorstand)', () => b.listSpaces()))?.find((s) => s.id === grp2?.id);
+  check(avRow?.name === 'Aktivenvorstand', 'Gruppe heißt auf diesem Gerät „Aktivenvorstand“', avRow?.name);
+  const ah = await step('openGroupChat (eine Person)', () => b.openGroupChat(vorst.altherren, 'Altherrenvorstand'));
+  check(fake.state.spaces.find((s) => s.name === ah?.id)?.spaceType === 'DIRECT_MESSAGE', 'nur eine Person: Direktnachricht');
+  const nv = await step('openGroupChat (neue Zusammensetzung)', () => b.openGroupChat([ANNA, 'kasse@beispiel.de'], 'Test'));
+  const nv2 = await step('openGroupChat (erneut)', () => b.openGroupChat(['kasse@beispiel.de', ANNA], 'Test'));
+  check(fake.state.spaces.find((s) => s.name === nv?.id)?.spaceType === 'GROUP_CHAT' && nv.id !== grp2?.id && nv2?.id === nv.id, 'fehlt die Gruppe, wird sie einmal angelegt und danach wiederverwendet', JSON.stringify([nv?.id, nv2?.id]));
+  const noOne = await b.openGroupChat([me.email], 'Leer').then(() => null).catch((e) => e);
+  check(noOne && /niemand/.test(noOne.message), 'niemand außer mir eingetragen: verständliche Meldung', noOne?.message);
+  config.vorstand = { aktive: [], altherren: [] };
+  // Bierjunge: Direktnachricht öffnen und „Bierjunge!“ als eigene Nachricht senden – ohne neue Rechte
+  const bj = await step('Bierjunge', async () => b.sendMessage((await b.openDirectChat(ANNA, 'Anna Andere')).id, 'Bierjunge!'));
+  check(bj?.mine && bj.text === 'Bierjunge!' && fake.state.messages[dm?.id]?.some((x) => x.text === 'Bierjunge!'), '„Bierjunge!“ als eigene Nachricht in der Direktnachricht', JSON.stringify(bj));
 
   /* ---------------------------------------------------------------- privates Konto */
   section('Privates Google-Konto (Prototyp)');
@@ -630,6 +690,38 @@ async function run() {
   check(theoC?.dachverband === false && theoC?.vereinszwecke === true, 'gefälschte Datei ändert nichts an Theos Entscheidung (Inhaber zählt)', JSON.stringify(theoC));
   await blocked('fremde Einwilligung ändern', fake, () => drive.updateFile(annaConsent.id, { description: '{}' }));
   await blocked('fremde Einwilligung neu freigeben', fake, () => drive.addPermission(annaConsent.id, { type: 'anyone', role: 'reader' }));
+
+  section('Papierpost abbestellen (E44)');
+  const adminsBefore = config.admins;
+  config.admins = [me.email, 'vorstand@beispiel.de'];
+  check((await b.getMyPapierpost()) === null, 'noch nichts gewählt');
+  await step('saveMyPapierpost (erstmals)', () => b.saveMyPapierpost({ semesterprogramm: true, bundesbote: false }));
+  const ppFiles = () => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'papierpost' && f.ownerEmail === me.email);
+  const ppf = ppFiles()[0];
+  check(ppFiles().length === 1 && ppf.parents.includes(folder.id), 'eigene Datei im eigenen App-Ordner');
+  const ppPerms = fake.state.permissions.filter((p) => p.file === ppf?.id);
+  check(ppPerms.length === 1 && ppPerms[0].type === 'user' && ppPerms[0].emailAddress === 'vorstand@beispiel.de' && ppPerms[0].role === 'reader',
+    'nur für die Admins lesbar – nicht für Gruppe oder Domain', JSON.stringify(ppPerms));
+  await step('saveMyPapierpost (geändert)', () => b.saveMyPapierpost({ semesterprogramm: true, bundesbote: true }));
+  const pp2 = await step('getMyPapierpost', () => b.getMyPapierpost());
+  check(ppFiles().length === 1 && pp2?.semesterprogramm === true && pp2.bundesbote === true, 'Änderung in derselben Datei', JSON.stringify(pp2));
+  const annaPp = fake.addFile({ name: 'Papierpost (Mitglieder-App).json', appProperties: { fbTyp: 'papierpost' }, description: JSON.stringify({ semesterprogramm: false, bundesbote: true }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-10-02T10:00:00.000Z' });
+  // Fälschungsversuch: Anna legt eine Datei an, die angeblich Theos Wahl ist
+  fake.addFile({ name: 'y.json', appProperties: { fbTyp: 'papierpost' }, description: JSON.stringify({ konto: me.email, semesterprogramm: false, bundesbote: false }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-01-01T00:00:00.000Z' });
+  b.invalidate('papierpost');
+  const ppList = await step('listPapierpost', () => b.listPapierpost());
+  const annaRow = ppList?.find((r) => r.email === ANNA);
+  const theoRow = ppList?.find((r) => r.email === me.email);
+  check(annaRow?.bundesbote === true && annaRow.semesterprogramm === false && annaRow.name === 'Anna Andere', 'Admins sehen die Abbestellungen der anderen', JSON.stringify(annaRow));
+  check(theoRow?.semesterprogramm === true && theoRow.bundesbote === true, 'je Mitglied die neueste eigene Datei (Inhaber laut Google)', JSON.stringify(theoRow));
+  await blocked('fremde Papierpost-Wahl ändern', fake, () => drive.updateFile(annaPp.id, { description: '{}' }));
+  await blocked('fremde Papierpost-Wahl freigeben', fake, () => drive.addPermission(annaPp.id, { type: 'domain', role: 'reader', domain: 'beispiel.de' }));
+  config.admins = [me.email, 'schriftwart@beispiel.de'];
+  await step('getMyPapierpost (neue Admins)', () => b.getMyPapierpost());
+  await new Promise((r) => setTimeout(r, 200)); // Freigabe passt sich im Hintergrund an
+  const ppPerms2 = fake.state.permissions.filter((p) => p.file === ppf?.id).map((p) => p.emailAddress);
+  check(ppPerms2.join() === 'schriftwart@beispiel.de', 'Freigabe folgt dem Wechsel der Admins (alter Zugriff entfernt)', ppPerms2.join());
+  config.admins = adminsBefore;
 
   section('Datenschutz: vertrauliche Sammeltabelle');
   const tId = res.tabellen.einwilligungen;
@@ -1010,6 +1102,11 @@ async function run() {
   const v4 = kf.validatePrivateConfig(privOk, { owner: 'fremd@beispiel.de' });
   check(v4.errors.length === 1 && /fremd@beispiel\.de/.test(v4.errors[0]), 'Datei gehört keinem Admin (Inhaber laut Google): Fehler', JSON.stringify(v4.errors));
   check(kf.validatePrivateConfig([1, 2]).errors.length === 1 && kf.validatePrivateConfig({ kalenderId: '' }).errors.some((e) => /admins/.test(e)), 'kein Objekt bzw. ohne „admins“: Fehler');
+  const v5 = kf.validatePrivateConfig({ ...privOk, vorstand: { aktive: ['Senior@Beispiel.de'], altherren: [] }, galerieUploadOrdnerId: '1UpLoAdOrDnEr0123456789' }, { owner: me.email });
+  check(!v5.errors.length && !v5.warnings.length && v5.values.vorstand?.aktive?.[0] === 'senior@beispiel.de' && v5.values.galerieUploadOrdnerId === '1UpLoAdOrDnEr0123456789',
+    'Vorstände (E45) und Upload-Ordner (E46) gültig, E-Mail-Adressen klein', JSON.stringify(v5));
+  const v6 = kf.validatePrivateConfig({ ...privOk, vorstand: { aktive: ['kein-mail'], kasse: [] }, galerieUploadOrdnerId: 'a b' }, { owner: me.email });
+  check(v6.errors.length === 2, 'Fehler: Vorstand ohne gültige E-Mail-Adressen bzw. mit unbekannter Gruppe, ungültige Upload-Ordner-ID', JSON.stringify(v6.errors));
   const vb = kf.validatePrivateConfig(await (await fetch('../config_private.beispiel.json')).json());
   check(!vb.errors.length && !vb.warnings.length, 'Vorlage config_private.beispiel.json ist gültig', JSON.stringify([vb.errors, vb.warnings]));
   // Laden aus Drive (nur lesen), Vorrang: lokale Werte der Einrichtung vor der privaten Konfiguration

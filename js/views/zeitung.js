@@ -12,14 +12,14 @@ const ZEITUNG = {
   bundesbote: {
     quelle: 'bundesbote', route: 'zeitung', key: 'issues', titel: 'Bundesbote', untertitel: 'Alle Ausgaben zum Durchblättern', icon: 'paper',
     ordner: () => config.zeitungOrdnerId,
-    leer: 'Sobald die erste Ausgabe als PDF im Ordner des Bundesboten liegt, erscheint sie hier.',
-    hinweis: 'Neue Ausgaben erscheinen automatisch, sobald die Redaktion das PDF in den Ordner des Bundesboten legt. Dateiname am besten nach dem Muster „2026-2 Titel.pdf“ (Jahr-Nummer).',
+    leer: 'Sobald die erste Ausgabe im Ordner liegt, erscheint sie hier.',
+    hinweis: 'Neue Ausgaben: PDF in den Ordner des Bundesboten legen, Dateiname wie „2026-2 Titel.pdf“ (Jahr-Nummer).',
   },
   ds: {
     quelle: 'ds', route: 'ds-zeitung', key: 'dsIssues', titel: 'DS-Zeitung', untertitel: 'Zeitung der Deutschen Sängerschaft', icon: 'newspaper',
     ordner: () => config.dsZeitungOrdnerId,
-    leer: 'Sobald die erste Ausgabe als PDF im Ordner der DS-Zeitung liegt, erscheint sie hier.',
-    hinweis: 'Neue Ausgaben erscheinen automatisch, sobald das PDF im Ordner der DS-Zeitung liegt. Dateiname am besten nach dem Muster „2026-2 DS-Zeitung.pdf“ (Jahr-Nummer).',
+    leer: 'Sobald die erste Ausgabe im Ordner liegt, erscheint sie hier.',
+    hinweis: 'Neue Ausgaben: PDF in den Ordner der DS-Zeitung legen, Dateiname wie „2026-2 DS-Zeitung.pdf“ (Jahr-Nummer).',
   },
 };
 
@@ -79,7 +79,7 @@ async function archiv(ctx, z) {
             <span class="title">${i.title}</span>
             <span class="sub">${i.ausgabe || (i.date ? fDateShort(i.date) : '')}</span>
           </a>`)}</div>` : ''}
-      <p class="small muted" style="margin-top:1.375rem">${icon('info', 'icon-sm')} ${z.hinweis}</p>`);
+      ${app.isAdmin() ? html`<p class="small muted" style="margin-top:1.375rem">${icon('info', 'icon-sm')} ${z.hinweis}</p>` : ''}`);
   }
 
   // Im Demo-Modus Titelseiten selbst erzeugen (lokale Dateien, geht schnell)

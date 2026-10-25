@@ -186,10 +186,10 @@ async function enterGoogle(fresh) {
 function privateConfigError(e) {
   if (e?.code === 'config_invalid') return { title: 'App-Einstellungen fehlerhaft', text: `${e.message} Bitte gib den Admins Bescheid.` };
   if (e?.status === 0 || e?.reason === 'network') {
-    return { title: 'Keine Verbindung', text: 'Beim ersten Start lädt die App ihre Einstellungen aus Google Drive – dafür braucht sie eine Internetverbindung. Bitte versuche es gleich noch einmal.' };
+    return { title: 'Keine Verbindung', text: 'Beim ersten Start braucht die App Internet, um ihre Einstellungen zu laden. Bitte gleich noch einmal versuchen.' };
   }
   if (e?.status === 403 || e?.status === 404) {
-    return { title: 'App-Einstellungen nicht erreichbar', text: 'Die Einstellungen der App liegen in Google Drive und sind für dein Konto nicht lesbar (nicht gefunden oder nicht freigegeben). Bitte gib den Admins Bescheid.' };
+    return { title: 'App-Einstellungen nicht erreichbar', text: 'Dein Konto kann die Einstellungen der App in Google Drive nicht lesen. Bitte gib den Admins Bescheid.' };
   }
   return { title: 'App-Einstellungen nicht geladen', text: e?.message || String(e) };
 }
@@ -336,7 +336,7 @@ function onUnauthorized() {
   reloginOpen = true;
   openModal({
     title: 'Sitzung abgelaufen',
-    body: 'Aus Sicherheitsgründen gilt eine Anmeldung bei Google eine Stunde. Mit einem Klick geht es weiter – meist ohne erneute Passworteingabe.',
+    body: 'Eine Google-Anmeldung gilt eine Stunde. Mit einem Klick geht es weiter – meist ohne Passwort.',
     actions: [
       { label: 'Später', kind: 'ghost', value: null },
       { label: 'Weiter', kind: 'primary', onClick: () => { auth.login({ silent: !auth.recentSilentAttempt(), returnTo: location.hash || '#/' }); } },

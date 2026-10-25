@@ -148,7 +148,7 @@ export function calendarEventId() {
 }
 
 export function firstName(name) {
-  const parts = String(name || '').replace(/^(prof\.?|dr\.?|dipl\.?-?\w*\.?)\s+/gi, '').trim().split(/\s+/);
+  const parts = String(name || '').replace(/^(?:(?:prof|dr|dipl)\.?(?:-\w+\.?)?\s+)+/i, '').trim().split(/\s+/);
   return parts[0] || '';
 }
 
