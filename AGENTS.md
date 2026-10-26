@@ -36,7 +36,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 - Seiten: `js/views/<bereich>.js`; Leseansicht für PDFs und Bilder (Bundesbote, Liedermappe): `js/views/reader.js`
 - Google-Zugriffe: `js/google/*.js`; Schreibschutz: `js/google/guard.js`
 - Benachrichtigungen (nur nach Einschalten, E34): `js/lib/hinweise.js`
-- Papierpost abbestellen (E44): `js/views/papierpost.js`; Vorstände kontaktieren und Bierjunge (E45): `js/views/chat.js`, `js/views/mitglieder.js`; Galerie mit Upload-Link und Ordneransicht (E46): `js/views/galerie.js`
+- Papierpost abbestellen (E44): `js/views/papierpost.js`; Vorstände kontaktieren und Bierjunge (E45): `js/views/chat.js`, `js/views/mitglieder.js`; Vorstände aus Google-Gruppen (E48, nur Admins): `js/google/admin.js`, `syncVorstand()` in `js/backend/google-backend.js`, `updatePrivateConfigKeys()` in `js/lib/konfiguration.js`; Galerie mit Upload-Link und Ordneransicht (E46): `js/views/galerie.js`
 - Gruppen (Bereiche je Google-Gruppe ausblenden, E41): `js/lib/gruppen.js`, Kennungsdateien in `js/lib/setup.js`; Sichtbarkeit (E40): `js/backend/google-backend.js`
 - Datenmodelle: `js/backend/common.js`; Einwilligungen: `js/lib/datenschutz.js`, `js/lib/einwilligungsliste.js`; Adressabgleich: `js/lib/adressabgleich.js`
 - Einrichtung (verbindet Vorhandenes, legt nur Fehlendes neu an, prüft Freigaben nur lesend): `js/lib/setup.js`, `js/views/einrichtung.js`

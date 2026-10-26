@@ -47,8 +47,10 @@ const DEFAULTS = {
   // Postfach für Adressänderungen: „Mein Profil“ bereitet bei Abweichungen vom Adressverzeichnis eine E-Mail vor.
   // (Umlaute sind in E-Mail-Adressen bei Google Workspace nicht möglich – daher „ae“.)
   adressaenderung: 'adressaenderung@frankonia-brunonia.de',
-  // Vorstände für „… kontaktieren“ im Chat (E45): E-Mail-Adressen; leer = Knopf ausgeblendet
+  // Vorstände für „… kontaktieren“ im Chat (E45): E-Mail-Adressen; leer = Knopf ausgeblendet.
+  // Mit vorstandGruppen (Google-Gruppen) trägt die App die Mitglieder selbst ein (Abgleich über ein Admin-Konto, E48).
   vorstand: { aktive: [], altherren: [] },
+  vorstandGruppen: { aktive: '', altherren: '' },
   demoErlaubt: true,
   // Datenschutzerklärung und Einwilligungen (Texte: js/lib/datenschutz.js)
   datenschutz: {
@@ -252,7 +254,7 @@ window.FB_CONFIG = ${JSON.stringify(obj, null, 2)};
 /** Schlüssel, die die Einrichtung in die private Konfiguration schreibt (dazu bleiben eigene Zusatzeinstellungen erhalten) */
 export const PRIVATE_WRITE_KEYS = ['mitgliederGruppe', 'admins', 'redaktion', 'appUrl', 'kalenderId', 'tabellen', 'adressenBlatt',
   'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'galerieUploadOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
-  'gruppen', 'adressaenderung', 'vorstand', 'testMitglieder', 'ausgeblendeteKonten'];
+  'gruppen', 'adressaenderung', 'vorstand', 'vorstandGruppen', 'testMitglieder', 'ausgeblendeteKonten'];
 
 /** Private Konfiguration als Objekt: aktuelle Werte, ohne öffentliche Schlüssel (E43) */
 export function privateConfigObject(values = {}) {

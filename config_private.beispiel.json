@@ -33,6 +33,10 @@
     }
   },
   "adressaenderung": "adressaenderung@example.org",
+  "vorstandGruppen": {
+    "aktive": "aktivenvorstand@example.org",
+    "altherren": "altherrenvorstand@example.org"
+  },
   "vorstand": {
     "aktive": ["senior@example.org", "consenior@example.org"],
     "altherren": ["ahv-vorsitz@example.org"]

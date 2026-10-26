@@ -9,6 +9,7 @@ import * as sheets from '../google/sheets.js';
 import * as cal from '../google/calendar.js';
 import * as people from '../google/people.js';
 import * as chat from '../google/chat.js';
+import * as admin from '../google/admin.js';
 import { beginSetup, endSetup, registerSetupResource } from '../google/guard.js';
 import {
   SHEETS, SHEET_HEADERS, appLinkBlock, addressesFromRows, addressTab, issueFromFile, isSongFile, songFromFile,
@@ -779,6 +780,28 @@ export async function checkSetup() {
     const reachable = readers.some((p) => (p.type === 'domain' && String(p.domain).toLowerCase() === d) || (p.type === 'group' && String(p.emailAddress).toLowerCase() === g));
     if (!reachable) c.warn.push('Mitglieder können die Datei noch nicht lesen – „Einstellungen in Google Drive speichern“ gibt sie für die Domain frei.');
   });
+
+  // Vorstände aus Google-Gruppen (E48): Gruppen lesen und mit der Konfiguration vergleichen – nur lesen
+  const vg = config.vorstandGruppen || {};
+  if (vg.aktive || vg.altherren) {
+    await add('Vorstände (Google-Gruppen)', async (c) => {
+      if (!auth.hasScope(auth.SCOPES.adminGruppen[0])) {
+        c.detail = 'Berechtigung „Gruppenmitglieder ansehen“ fehlt';
+        c.warn.push('Unter Optionen „Mitglieder jetzt übernehmen“ tippen – Google fragt dann einmal nach der Berechtigung.');
+        return;
+      }
+      const name = { aktive: 'Aktivenvorstand', altherren: 'Altherrenvorstand' };
+      for (const key of ['aktive', 'altherren']) {
+        const group = String(vg[key] || '').trim();
+        if (!group) continue;
+        const people = await admin.groupPeople(group, d);
+        const eingetragen = [...(config.vorstand?.[key] || [])].sort();
+        c.lines.push(`${name[key]} (${group}): ${people.length} ${people.length === 1 ? 'Person' : 'Personen'}`);
+        if (!people.length) c.warn.push(`${group} hat keine Mitglieder aus der Domain – der Knopf „${name[key]} kontaktieren“ fehlt dann.`);
+        else if (people.join() !== eingetragen.join()) c.warn.push(`${name[key]}: noch nicht übernommen – „Mitglieder jetzt übernehmen“ (sonst beim nächsten Öffnen der App durch den Inhaber der privaten Konfiguration).`);
+      }
+    });
+  }
 
   checks.push({ label: 'Schreibschutz', ok: true, detail: 'aktiv – die App ändert nur eigene Daten (Zusage, Profil, eigene Beiträge, Einwilligung, Chat-Nachrichten)', lines: [], warn: [] });
   return checks;

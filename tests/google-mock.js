@@ -1167,6 +1167,82 @@ async function run() {
   for (const k of Object.keys(config)) delete config[k];
   Object.assign(config, cfgBefore);
 
+  /* ---------------------------------------------------------------- Vorstände aus Google-Gruppen */
+  section('Vorstände aus Google-Gruppen (E48)');
+  const { SCOPES } = await import('../js/auth.js');
+  const tokenVs = localStorage.getItem('fb.token');
+  const withScopes = (list) => localStorage.setItem('fb.token', JSON.stringify({ access_token: 'test-token', expires_at: Date.now() + 3600_000, scope: list.join(' ') }));
+  const vsGruppen = { aktive: 'aktivenvorstand@beispiel.de', altherren: 'altherrenvorstand@beispiel.de' };
+  const vsFile = fake.addFile({ name: 'config_private.json', mimeType: 'application/json',
+    content: asJson({ _hinweis: 'bleibt erhalten', admins: [me.email], kalenderId: 'privat@group.calendar.google.com', vorstandGruppen: vsGruppen }) });
+  config.privateConfigId = vsFile.id;
+  cfgMod.saveOverride({ adressenBlatt: 'Nur lokal' });
+  await step('loadPrivateConfig (mit Vorstandsgruppen)', () => kf.loadPrivateConfig());
+  check(config.vorstandGruppen?.aktive === 'aktivenvorstand@beispiel.de', 'Gruppenadressen aus der privaten Konfiguration', JSON.stringify(config.vorstandGruppen));
+  fake.state.groupMembers = {
+    'aktivenvorstand@beispiel.de': [
+      { email: 'Senior@beispiel.de', type: 'USER', status: 'ACTIVE' },
+      { email: 'consenior@beispiel.de', type: 'USER', status: 'ACTIVE' },
+      { email: 'kasse-ag@beispiel.de', type: 'GROUP', status: 'ACTIVE' },
+      { email: 'fm@beispiel.de', type: 'USER', status: 'ACTIVE' },
+      { email: 'frueher@beispiel.de', type: 'USER', status: 'SUSPENDED' },
+      { email: 'privat@gmail.com', type: 'USER', status: 'ACTIVE' },
+    ],
+    'altherrenvorstand@beispiel.de': [{ email: 'ahv@beispiel.de', type: 'USER', status: 'ACTIVE' }],
+  };
+  const bVs = new GoogleBackend(me);
+  withScopes(ALL_SCOPES);
+  const logVs = fake.state.log.length;
+  const ohne1 = await bVs.autoSyncVorstand();
+  const ohne2 = await bVs.syncVorstand().then(() => null, (e) => e);
+  check(ohne1 === null && ohne2?.code === 'admin_scope' && !fake.state.log.slice(logVs).some((l) => l.includes('admin.googleapis.com')),
+    'ohne die Berechtigung „Gruppenmitglieder ansehen“: keine Abfrage, verständliche Meldung', JSON.stringify([ohne1, ohne2?.message]));
+  withScopes([...ALL_SCOPES, ...SCOPES.adminGruppen]);
+  const gelesen = await step('readVorstandGruppen', () => bVs.readVorstandGruppen());
+  check(gelesen?.aktive?.join() === 'consenior@beispiel.de,fm@beispiel.de,senior@beispiel.de' && gelesen.altherren?.join() === 'ahv@beispiel.de',
+    'aktive Personen der Domain (auch aus Untergruppen, über mehrere Seiten) – ohne Untergruppe selbst, gesperrte und fremde Konten', JSON.stringify(gelesen));
+  const wVs = fake.state.writes.length;
+  const vs1 = await step('syncVorstand', () => bVs.syncVorstand());
+  const vsSaved = fromJson(fake.state.files.get(vsFile.id).content);
+  check(vs1?.status === 'gespeichert' && vsSaved.vorstand?.aktive?.length === 3 && vsSaved.vorstand.altherren?.[0] === 'ahv@beispiel.de'
+    && vsSaved._hinweis === 'bleibt erhalten' && vsSaved.kalenderId === 'privat@group.calendar.google.com' && !('adressenBlatt' in vsSaved),
+  'nur „vorstand“ in der privaten Konfiguration geändert – Anmerkungen bleiben, lokale Einrichtungswerte werden nicht veröffentlicht', JSON.stringify(vsSaved));
+  check(fake.state.writes.length > wVs && fake.state.writes.slice(wVs).every((x) => x.own) && bVs.vorstand().aktive.includes('senior@beispiel.de'),
+    'nur die eigene Datei geschrieben; gilt sofort auf diesem Gerät');
+  const wVs2 = fake.state.writes.length;
+  const vs2 = await step('syncVorstand (unverändert)', () => bVs.syncVorstand());
+  check(vs2?.status === 'gleich' && fake.state.writes.length === wVs2, 'unverändert: nichts geschrieben');
+  localStorage.removeItem(`fb.vorstandSync.${me.email}`);
+  fake.state.groupMembers['altherrenvorstand@beispiel.de'].push({ email: 'ahv2@beispiel.de', type: 'USER', status: 'ACTIVE' });
+  const au1 = await step('autoSyncVorstand', () => bVs.autoSyncVorstand());
+  const au2 = await step('autoSyncVorstand (gleich danach)', () => bVs.autoSyncVorstand());
+  check(au1?.status === 'gespeichert' && au2 === null && fromJson(fake.state.files.get(vsFile.id).content).vorstand?.altherren?.join() === 'ahv2@beispiel.de,ahv@beispiel.de',
+    'beim Start: Wechsel im Vorstand übernommen, danach höchstens alle sechs Stunden', JSON.stringify([au1?.status, au2]));
+  const vsCheck = (await step('checkSetup (Vorstände)', () => setup.checkSetup()))?.find((c) => c.label === 'Vorstände (Google-Gruppen)');
+  check(vsCheck?.ok && vsCheck.lines.length === 2 && !vsCheck.warn.length, 'Verbindung prüfen: Gruppen gelesen, alles übernommen', JSON.stringify(vsCheck));
+  config.vorstandGruppen = { aktive: 'tippfehler@beispiel.de', altherren: '' };
+  const vsNf = await bVs.readVorstandGruppen().then(() => null, (e) => e);
+  check(vsNf?.code === 'group_not_found' && /tippfehler@beispiel\.de/.test(vsNf.message), 'Gruppe gibt es nicht: verständliche Meldung', vsNf?.message);
+  config.vorstandGruppen = vsGruppen;
+  const adminsVs = config.admins;
+  config.admins = ['jan@beispiel.de'];
+  check(!bVs.canReadVorstandGruppen(), 'nur Admins lesen die Gruppen');
+  config.admins = adminsVs;
+  const fremdVs = fake.addFile({ name: 'config_private.json', mimeType: 'application/json', ownerEmail: 'jan@beispiel.de', ownerName: 'Jan', content: asJson({ admins: [me.email, 'jan@beispiel.de'] }) });
+  config.privateConfigId = fremdVs.id;
+  fake.state.groupMembers['altherrenvorstand@beispiel.de'].pop();
+  const wVs3 = fake.state.writes.length;
+  const vs3 = await step('syncVorstand (Datei eines anderen Admins)', () => bVs.syncVorstand());
+  check(vs3?.status === 'nicht-inhaber' && /jan@beispiel\.de/.test(vs3.grund) && fake.state.writes.length === wVs3 && fromJson(fremdVs.content).vorstand === undefined,
+    'private Konfiguration gehört einem anderen Admin: nichts geschrieben, Hinweis auf den Inhaber', JSON.stringify(vs3));
+  await blocked('fremde private Konfiguration mit Vorständen überschreiben', fake, () => drive.updateWithContent(fremdVs.id, {}, new Blob(['{"vorstand":{}}'], { type: 'application/json' })));
+  localStorage.setItem('fb.token', tokenVs);
+  localStorage.removeItem('fb.privateKonfig');
+  localStorage.removeItem(`fb.vorstandSync.${me.email}`);
+  cfgMod.clearOverride();
+  for (const k of Object.keys(config)) delete config[k];
+  Object.assign(config, cfgBefore);
+
   /* ---------------------------------------------------------------- Gesamtbilanz */
   section('Gesamtbilanz');
   const ownWrites = fake.state.writes.filter((w) => w.own).length;

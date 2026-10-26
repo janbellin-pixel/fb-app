@@ -58,6 +58,8 @@ const RULES = {
   adressaenderung: [orEmpty(isEmail), 'eine E-Mail-Adresse oder ""'],
   vorstand: [(v) => isObj(v) && Object.entries(v).every(([k, x]) => ['aktive', 'altherren'].includes(k) && emails(x)),
     '{ "aktive": [E-Mail-Adressen], "altherren": [E-Mail-Adressen] }'],
+  vorstandGruppen: [(v) => isObj(v) && Object.entries(v).every(([k, x]) => ['aktive', 'altherren'].includes(k) && orEmpty(isEmail)(x)),
+    '{ "aktive": "gruppe@…", "altherren": "gruppe@…" }'],
   testMitglieder: [emails, 'eine Liste von E-Mail-Adressen'],
   ausgeblendeteKonten: [emails, 'eine Liste von E-Mail-Adressen'],
   statusOptionen: [texts, 'eine Liste von Texten'],
@@ -71,6 +73,8 @@ const RULES = {
 
 const lower = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim().toLowerCase()) : String(v).trim().toLowerCase());
 const EMAIL_KEYS = ['mitgliederGruppe', 'admins', 'redaktion', 'adressaenderung', 'testMitglieder', 'ausgeblendeteKonten'];
+const EMAIL_MAPS = ['vorstand', 'vorstandGruppen']; // { schlüssel: E-Mail(s) }
+const lowerMap = (v) => Object.fromEntries(Object.entries(v).map(([g, x]) => [g, lower(x)]));
 
 /**
  * Private Konfiguration prüfen. Fehler = Datei wird nicht verwendet; Hinweise = Einträge werden ignoriert.
@@ -101,7 +105,7 @@ export function validatePrivateConfig(data, { owner = '' } = {}) {
     const rule = RULES[k];
     if (!rule) { warnings.push(`Unbekannte Einstellung „${k}“ wird ignoriert.`); continue; }
     if (!rule[0](v)) { errors.push(`„${k}“: erwartet ${rule[1]}.`); continue; }
-    values[k] = EMAIL_KEYS.includes(k) ? lower(v) : k === 'vorstand' ? Object.fromEntries(Object.entries(v).map(([g, x]) => [g, lower(x)])) : v;
+    values[k] = EMAIL_KEYS.includes(k) ? lower(v) : EMAIL_MAPS.includes(k) ? lowerMap(v) : v;
   }
   if (!('admins' in data)) errors.push('„admins“ fehlt: mindestens eine E-Mail-Adresse eintragen.');
   // Inhaber laut Google muss Admin sein – sonst könnte eine fremde Datei die App steuern
@@ -243,6 +247,33 @@ export async function savePrivateConfig(obj, { owner = '', neu = false } = {}) {
   }
   await sharePrivateConfig(file.id);
   return { id: file.id, url: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`, neu: !target, warnings: res.warnings };
+}
+
+/**
+ * Einzelne Schlüssel der privaten Konfiguration in Google Drive ändern (z. B. die Vorstände aus den Google-Gruppen, E48).
+ * Ausgangspunkt ist der Inhalt der Datei in Drive – nicht die Werte auf diesem Gerät, damit lokale Einrichtungswerte
+ * nicht ungefragt veröffentlicht werden. Nur der Inhaber kann die Datei ändern; sonst { gespeichert: false, grund }.
+ */
+export async function updatePrivateConfigKeys(patch, { owner = '' } = {}) {
+  const id = String(config.privateConfigId || '').trim();
+  if (!id) return { gespeichert: false, grund: 'Es gibt keine private Konfiguration in Google Drive (privateConfigId fehlt).' };
+  const meta = await drive.getFile(id, 'id,ownedByMe,trashed,owners(emailAddress)');
+  if (!meta.ownedByMe || meta.trashed) {
+    return { gespeichert: false, grund: `Die private Konfiguration gehört ${meta.owners?.[0]?.emailAddress || 'einem anderen Konto'} – nur dieses Konto kann sie ändern.` };
+  }
+  registerOwnFile(id);
+  const data = parse(await drive.downloadText(id));
+  if (!isObj(data)) throw configError('Die private Konfiguration ist kein JSON-Objekt.');
+  const next = { ...data, ...patch };
+  const res = validatePrivateConfig(next, { owner });
+  if (res.errors.length) throw configError(`Nicht gespeichert – ${res.errors.join(' ')}`, res.errors);
+  const blob = new Blob([`${JSON.stringify(next, null, 2)}\n`], { type: 'application/json' });
+  await drive.updateWithContent(id, {}, blob, 'id,modifiedTime');
+  // auf diesem Gerät gleich gelten lassen, auch für den nächsten Start ohne Netz
+  applyPrivateConfig(res.values);
+  const cache = local.get(CACHE, null);
+  if (isObj(cache?.values)) local.set(CACHE, { ...cache, values: res.values, geladen: new Date().toISOString() });
+  return { gespeichert: true };
 }
 
 /** Lesbar für die Domain (ohne Suche) bzw. die Mitglieder-Gruppe; im Prototyp für die Test-Mitglieder – nie bearbeitbar */

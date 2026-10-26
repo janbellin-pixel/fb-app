@@ -264,6 +264,10 @@ async function boot() {
   if (app.user && app.backend?.autoSyncConsents) {
     setTimeout(() => app.backend.autoSyncConsents().catch((e) => console.warn('Einwilligungsliste nicht abgeglichen', e)), 4000);
   }
+  // Admins mit der Berechtigung „Gruppenmitglieder ansehen“: Vorstände aus den Google-Gruppen übernehmen (E48)
+  if (app.user && app.backend?.autoSyncVorstand) {
+    setTimeout(() => app.backend.autoSyncVorstand().catch((e) => console.warn('Vorstände nicht abgeglichen', e)), 6000);
+  }
 }
 
 /**
