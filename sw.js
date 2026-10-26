@@ -19,7 +19,6 @@ const CORE = [
   './js/backend/demo-backend.js',
   './js/backend/demo-data.js',
   './js/backend/google-backend.js',
-  './js/google/admin.js',
   './js/google/calendar.js',
   './js/google/chat.js',
   './js/google/client.js',

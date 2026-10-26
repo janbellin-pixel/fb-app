@@ -21,7 +21,6 @@ import * as sheets from '../google/sheets.js';
 import * as drive from '../google/drive.js';
 import * as people from '../google/people.js';
 import * as chat from '../google/chat.js';
-import * as admin from '../google/admin.js';
 import { ApiError } from '../google/client.js';
 import { registerOwnFile, isOwnFile, registerOwnTable } from '../google/guard.js';
 import { hasScope } from '../auth.js';
@@ -37,15 +36,12 @@ import { resizeImage } from '../ui.js';
 import { findOwnAddress, nameKey } from '../lib/adressabgleich.js';
 import { local } from '../lib/store.js';
 import { gesperrt, gruppenAdressen } from '../lib/gruppen.js';
-import { updatePrivateConfigKeys } from '../lib/konfiguration.js';
 
 const SCOPE_DIRECTORY = 'https://www.googleapis.com/auth/directory.readonly';
 const SCOPE_CHAT_READ = 'https://www.googleapis.com/auth/chat.spaces.readonly';
 const SCOPE_CHAT_MSG = 'https://www.googleapis.com/auth/chat.messages';
 const SCOPE_CHAT_CREATE = 'https://www.googleapis.com/auth/chat.spaces.create';
 const SCOPE_CHAT_MEMBERS = 'https://www.googleapis.com/auth/chat.memberships';
-const SCOPE_ADMIN_GROUPS = 'https://www.googleapis.com/auth/admin.directory.group.member.readonly';
-const VORSTAND_SYNC = 'fb.vorstandSync'; // letzter automatischer Abgleich der Vorstände (E48)
 const CHAT_NAMES = 'fb.chatNamen'; // Namen selbst angelegter Unterhaltungen (falls das Verzeichnis fehlt)
 const APP_FOLDER = 'Frankonia-Brunonia App – meine Beiträge und Profil';
 const OWN_FIELDS = 'id,name,description,createdTime,modifiedTime,appProperties,ownedByMe,owners(emailAddress,displayName,photoLink)';
@@ -1313,60 +1309,6 @@ export class GoogleBackend {
   vorstand() {
     const norm = (l) => [...new Set((Array.isArray(l) ? l : []).map((e) => String(e).trim().toLowerCase()).filter(Boolean))];
     return { aktive: norm(config.vorstand?.aktive), altherren: norm(config.vorstand?.altherren) };
-  }
-
-  /* ---------------------------------------------------------------- Vorstände aus Google-Gruppen (E48, nur Admins) */
-
-  /** Gruppenadressen der Vorstände ('' = keine Gruppe, dann gilt die Liste in „vorstand“ wie eingetragen) */
-  vorstandGruppen() {
-    const g = config.vorstandGruppen || {};
-    const norm = (v) => String(v || '').trim().toLowerCase();
-    return { aktive: norm(g.aktive), altherren: norm(g.altherren) };
-  }
-
-  /** Gruppen lesen dürfen nur Admins – mit der zusätzlichen Berechtigung aus der Einrichtung */
-  canReadVorstandGruppen() {
-    return this.isWorkspace && this.isAdmin() && hasScope(SCOPE_ADMIN_GROUPS);
-  }
-
-  /** Personen in den Vorstandsgruppen: { aktive?: [...], altherren?: [...] } – nur für eingetragene Gruppen */
-  async readVorstandGruppen() {
-    if (!this.canReadVorstandGruppen()) {
-      throw Object.assign(new Error('Für die Gruppen braucht die App einmalig die Berechtigung „Gruppenmitglieder ansehen“ (nur Admins).'), { code: 'admin_scope' });
-    }
-    const out = {};
-    for (const [key, group] of Object.entries(this.vorstandGruppen())) {
-      if (group) out[key] = await admin.groupPeople(group, config.workspaceDomain);
-    }
-    return out;
-  }
-
-  /**
-   * Vorstände aus den Google-Gruppen in die private Konfiguration übernehmen – nur der Schlüssel „vorstand“
-   * (mitGruppen: auch die Gruppenadressen, Knopf in der Einrichtung).
-   * → { status: 'keine-gruppen' | 'gleich' | 'gespeichert' | 'nicht-inhaber', vorstand, grund? }
-   */
-  async syncVorstand({ mitGruppen = false } = {}) {
-    const gruppen = this.vorstandGruppen();
-    if (!gruppen.aktive && !gruppen.altherren) return { status: 'keine-gruppen' };
-    const gelesen = await this.readVorstandGruppen();
-    const bisher = this.vorstand();
-    const vorstand = { aktive: gelesen.aktive || bisher.aktive, altherren: gelesen.altherren || bisher.altherren };
-    const gleich = (a, b) => [...a].sort().join() === [...b].sort().join();
-    const unveraendert = gleich(vorstand.aktive, bisher.aktive) && gleich(vorstand.altherren, bisher.altherren);
-    if (unveraendert && !mitGruppen) return { status: 'gleich', vorstand };
-    const r = await updatePrivateConfigKeys(mitGruppen ? { vorstand, vorstandGruppen: gruppen } : { vorstand }, { owner: this.myEmail });
-    if (!r.gespeichert) return { status: 'nicht-inhaber', vorstand, grund: r.grund };
-    return { status: unveraendert ? 'gleich' : 'gespeichert', vorstand };
-  }
-
-  /** Beim Start (nur Admins mit der Berechtigung): höchstens alle sechs Stunden abgleichen */
-  async autoSyncVorstand() {
-    if (!this.canReadVorstandGruppen()) return null;
-    const key = `${VORSTAND_SYNC}.${this.myEmail}`;
-    if (Date.now() - Number(local.get(key, 0)) < 6 * 3600_000) return null;
-    local.set(key, Date.now());
-    return this.syncVorstand();
   }
 
   /**

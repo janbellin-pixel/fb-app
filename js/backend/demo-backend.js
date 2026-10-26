@@ -511,29 +511,6 @@ export class DemoBackend {
     return { aktive: pick(/sprecher|fuxmajor|kassenwart/i), altherren: pick(/altherrenschaft/i) };
   }
 
-  /** Demo: Vorstandsgruppen (E48) – die Mitglieder kommen aus den erfundenen Ämtern, abgeglichen wird nichts */
-  vorstandGruppen() {
-    return { aktive: `aktivenvorstand@${DEMO_DOMAIN}`, altherren: `altherrenvorstand@${DEMO_DOMAIN}` };
-  }
-
-  canReadVorstandGruppen() {
-    return true;
-  }
-
-  async readVorstandGruppen() {
-    await wait();
-    return this.vorstand();
-  }
-
-  async syncVorstand() {
-    await wait(300);
-    return { status: 'gleich', vorstand: this.vorstand() };
-  }
-
-  async autoSyncVorstand() {
-    return null;
-  }
-
   /** Gruppe mit genau diesen Personen öffnen oder anlegen; bei einer Person die Direktnachricht (E45) */
   async openGroupChat(emails, name = '') {
     const people = [...new Set(emails.map((x) => String(x).toLowerCase()).filter((x) => x && x !== DEMO_ME_EMAIL))].sort();

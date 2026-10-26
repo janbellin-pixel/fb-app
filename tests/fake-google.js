@@ -463,20 +463,6 @@ export function createFakeGoogle({ me, workspace = true }) {
     return error(400, 'Unbekannter People-Aufruf');
   }
 
-  /* ------------------------------------------------------------ Admin SDK (nur lesen, E48) */
-  // state.groupMembers = { 'gruppe@…': [{ email, type, status }] }; state.adminDenied = true → 403 (kein Admin)
-  function adminApi(url) {
-    const m = url.pathname.match(/^\/admin\/directory\/v1\/groups\/([^/]+)\/members$/);
-    if (!m) return error(400, `Unbekannter Admin-Aufruf ${url.pathname}`);
-    if (state.adminDenied) return error(403, 'Not Authorized to access this resource/api', 'forbidden');
-    const list = state.groupMembers?.[decodeURIComponent(m[1]).toLowerCase()];
-    if (!list) return error(404, 'Resource Not Found: groupKey', 'notFound');
-    // Seiten zu je zwei Einträgen – so wird das Blättern mitgeprüft
-    const start = Number(url.searchParams.get('pageToken') || 0);
-    const next = start + 2 < list.length ? String(start + 2) : undefined;
-    return json({ members: list.slice(start, start + 2), ...(next ? { nextPageToken: next } : {}) });
-  }
-
   const realFetch = window.fetch.bind(window);
   async function fakeFetch(input, init = {}) {
     const url = new URL(typeof input === 'string' ? input : input.url, location.href);
@@ -493,7 +479,6 @@ export function createFakeGoogle({ me, workspace = true }) {
       if (url.pathname.includes('/drive/v3/')) return await driveApi(url, method, body, init.body);
       if (url.hostname === 'chat.googleapis.com') return chatApi(url, method, body);
       if (url.hostname === 'people.googleapis.com') return peopleApi(url);
-      if (url.hostname === 'admin.googleapis.com') return adminApi(url);
       if (url.hostname === 'openidconnect.googleapis.com') return json({ sub: state.myDirectoryId || '1000', email: me.email, name: me.name, picture: me.photo, hd: workspace ? 'beispiel.de' : undefined, given_name: me.name.split(' ')[0] });
       return error(404, `Kein Nachbau für ${url.href}`);
     } catch (e) {

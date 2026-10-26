@@ -20,7 +20,6 @@ const APIS = [
   ['Google Drive API', 'drive.googleapis.com'],
   ['People API', 'people.googleapis.com'],
   ['Google Chat API (nur Workspace)', 'chat.googleapis.com'],
-  ['Admin SDK API (nur für die Vorstandsgruppen)', 'admin.googleapis.com'],
 ];
 
 function copyRow(value) {
@@ -32,12 +31,6 @@ function logLine(text, kind = '') {
 }
 
 const labelsOf = (keys) => RESOURCES.filter((r) => keys.includes(r.key)).map((r) => r.label);
-
-/** Wer gerade als Vorstand eingetragen ist (E48) */
-function vorstandHint(key) {
-  const list = config.vorstand?.[key] || [];
-  return list.length ? `Übernommen: ${list.join(', ')}` : 'Noch niemand übernommen. Leer = kein Knopf im Chat.';
-}
 
 /** Welche Datenquellen sind eingetragen, welche fehlen? (ohne Google-Abfrage) */
 function resourceStatus() {
@@ -181,15 +174,13 @@ export default async function einrichtung(ctx) {
             <input class="input" id="o-adr" name="adressaenderung" type="email" value="${config.adressaenderung}" placeholder="z. B. adressaenderung@frankonia-brunonia.de">
             <span class="hint">Weichen die Angaben in „Mein Profil“ vom Adressverzeichnis ab, bereitet die App eine E-Mail an diese Adresse vor. Ohne Umlaute.</span></div>
           <div class="form-grid cols-2">
-            <div class="field"><label for="o-vs-a">Aktivenvorstand (Google-Gruppe)</label>
-              <input class="input" id="o-vs-a" name="vorstandGruppeAktive" type="email" placeholder="aktivenvorstand@…" value="${config.vorstandGruppen?.aktive || ''}">
-              <span class="hint" id="vs-aktive" style="overflow-wrap:anywhere">${vorstandHint('aktive')}</span></div>
-            <div class="field"><label for="o-vs-ah">Altherrenvorstand (Google-Gruppe)</label>
-              <input class="input" id="o-vs-ah" name="vorstandGruppeAltherren" type="email" placeholder="altherrenvorstand@…" value="${config.vorstandGruppen?.altherren || ''}">
-              <span class="hint" id="vs-altherren" style="overflow-wrap:anywhere">${vorstandHint('altherren')}</span></div>
+            <div class="field"><label for="o-vs-a">Aktivenvorstand</label>
+              <input class="input" id="o-vs-a" name="vorstandAktive" placeholder="senior@…, consenior@…" value="${(config.vorstand?.aktive || []).join(', ')}">
+              <span class="hint">Für „Aktivenvorstand kontaktieren“ im Chat. Leer = kein Knopf.</span></div>
+            <div class="field"><label for="o-vs-ah">Altherrenvorstand</label>
+              <input class="input" id="o-vs-ah" name="vorstandAltherren" placeholder="E-Mail-Adressen, mit Komma getrennt" value="${(config.vorstand?.altherren || []).join(', ')}">
+              <span class="hint">Für „Altherrenvorstand kontaktieren“. Leer = kein Knopf.</span></div>
           </div>
-          <p class="small muted" style="margin-top:0">Für „… kontaktieren“ im Chat. Die Mitglieder der Gruppen trägt die App selbst ein, wenn du sie öffnest (höchstens alle sechs Stunden). Dafür fragt Google beim ersten Mal nach der Berechtigung „Gruppenmitglieder ansehen“ (nur für Admins).</p>
-          <p style="margin-top:0"><button type="button" class="btn btn-sm" data-action="vorstand-sync">${icon('refresh', 'icon-sm')}Mitglieder jetzt übernehmen</button></p>
           <h4 style="margin:1rem 0 .25rem">Datenschutz</h4>
           <p class="small muted" style="margin-top:0">Erscheint in der Datenschutzerklärung, die jedes Mitglied beim ersten Öffnen sieht. Der Text ist ein Muster – bitte vom Vorstand prüfen lassen (<a href="#/datenschutz">ansehen</a>).</p>
           <div class="form-grid cols-2">
@@ -313,9 +304,7 @@ export default async function einrichtung(ctx) {
       dachverband: d.dsDachverband.trim() || config.datenschutz?.dachverband,
       fassung: d.dsFassung.trim() || '1',
     };
-    const vorstandGruppen = { aktive: d.vorstandGruppeAktive.trim().toLowerCase(), altherren: d.vorstandGruppeAltherren.trim().toLowerCase() };
-    // die Personen selbst kommen aus den Gruppen in die private Konfiguration (E48) – keine lokale Liste mehr
-    clearOverrideKeys(['vorstand']);
+    const vorstand = { aktive: list(d.vorstandAktive), altherren: list(d.vorstandAltherren) };
     saveOverride({
       workspaceDomain: d.workspaceDomain.toLowerCase().replace(/^@/, ''),
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
@@ -324,7 +313,7 @@ export default async function einrichtung(ctx) {
       redaktion: list(d.redaktion),
       appUrl: d.appUrl,
       adressaenderung: d.adressaenderung.trim().toLowerCase(),
-      vorstandGruppen,
+      vorstand,
       datenschutz,
     });
     // leere Werte bewusst übernehmen
@@ -333,7 +322,7 @@ export default async function einrichtung(ctx) {
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
       testMitglieder: list(d.testMitglieder),
       redaktion: list(d.redaktion),
-      vorstandGruppen,
+      vorstand,
       datenschutz,
     });
     showCfg();
@@ -447,26 +436,6 @@ export default async function einrichtung(ctx) {
     }
   }
 
-  /** Vorstände aus den Google-Gruppen übernehmen (E48) – schreibt nur „vorstand“ und die Gruppen in die private Konfiguration */
-  async function runVorstandSync(btn) {
-    setBusy(btn, true, 'Wird übernommen …');
-    try {
-      const r = await app.backend.syncVorstand({ mitGruppen: true });
-      if (r.status === 'keine-gruppen') toast('Bitte zuerst mindestens eine Gruppe eintragen.', { type: 'err' });
-      else if (r.status === 'nicht-inhaber') toast(r.grund, { type: 'err', timeout: 9000 });
-      else {
-        const n = (k) => (r.vorstand?.[k] || []).length;
-        toast(`${r.status === 'gleich' ? 'Unverändert' : 'Übernommen'}: Aktivenvorstand ${n('aktive')}, Altherrenvorstand ${n('altherren')} Personen`);
-      }
-      for (const k of ['aktive', 'altherren']) el.querySelector(`#vs-${k}`).textContent = vorstandHint(k);
-      showCfg();
-    } catch (err) {
-      showError(err, 'Vorstände nicht übernommen');
-    } finally {
-      setBusy(btn, false);
-    }
-  }
-
   el.addEventListener('click', async (e) => {
     const t = e.target;
     const cp = t.closest('[data-copy]');
@@ -498,21 +467,6 @@ export default async function einrichtung(ctx) {
       case 'create-gruppen':
         runCreate({ nurGruppen: true });
         break;
-      case 'vorstand-sync': {
-        const f = el.querySelector('#opt-form').elements;
-        const vorstandGruppen = { aktive: f.vorstandGruppeAktive.value.trim().toLowerCase(), altherren: f.vorstandGruppeAltherren.value.trim().toLowerCase() };
-        if (!vorstandGruppen.aktive && !vorstandGruppen.altherren) { toast('Bitte zuerst mindestens eine Gruppe eintragen.', { type: 'err' }); break; }
-        clearOverrideKeys(['vorstand']);
-        saveOverride({ vorstandGruppen });
-        Object.assign(config, { vorstandGruppen });
-        // die zusätzliche Berechtigung „Gruppenmitglieder ansehen“ erst jetzt (nur Admins, E48)
-        if (google && !auth.hasScope(auth.SCOPES.adminGruppen[0])) {
-          auth.login({ extraScopes: auth.SCOPES.adminGruppen, returnTo: '#/einrichtung?vorstand=1' });
-          break;
-        }
-        runVorstandSync(a);
-        break;
-      }
       case 'check': {
         const box = el.querySelector('#check');
         setHtml(box, html`<div class="center-load"><span class="spinner"></span></div>`);
@@ -549,10 +503,6 @@ export default async function einrichtung(ctx) {
   });
 
   // Nach der zusätzlichen Berechtigung automatisch weitermachen
-  if (query.vorstand && google && auth.hasScope(auth.SCOPES.adminGruppen[0]) && app.isAdmin()) {
-    history.replaceState(null, '', '#/einrichtung');
-    runVorstandSync(el.querySelector('[data-action=vorstand-sync]'));
-  }
   if (query.anlegen && google && auth.hasScope(auth.SCOPES.setup[0]) && missingResources().length && app.isAdmin()) {
     history.replaceState(null, '', '#/einrichtung');
     runCreate();

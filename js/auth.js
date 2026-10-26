@@ -37,8 +37,6 @@ export const SCOPES = {
   ],
   // nur für Admins in der Einrichtung: neuen Kalender anlegen und freigeben
   setup: ['https://www.googleapis.com/auth/calendar'],
-  // nur für Admins: Mitglieder der Vorstandsgruppen lesen (E48) – angefragt erst in der Einrichtung
-  adminGruppen: ['https://www.googleapis.com/auth/admin.directory.group.member.readonly'],
 };
 
 export function defaultScopes() {

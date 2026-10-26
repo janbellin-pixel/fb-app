@@ -110,7 +110,7 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 
 ### B1. Google-Cloud-Projekt im Workspace
 
-1. Mit einem Admin-Konto der Verbindung ein neues Projekt in der Google Cloud Console anlegen (wie A2) und alle **fünf** Schnittstellen aktivieren, inklusive **Google Chat API**. Für die Vorstände aus Google-Gruppen (E48) zusätzlich die **Admin SDK API**.
+1. Mit einem Admin-Konto der Verbindung ein neues Projekt in der Google Cloud Console anlegen (wie A2) und alle **fünf** Schnittstellen aktivieren, inklusive **Google Chat API**.
 2. Zustimmungsbildschirm mit **Zielgruppe „Intern“**. Dann können sich nur Konten der Verbindung anmelden, es gibt keine Testnutzer-Grenze und keine „nicht überprüft“-Warnung.
 3. Client wie in A2 anlegen (JavaScript-Quelle und Weiterleitungs-URI der veröffentlichten App).
 4. **Google Chat API → Konfiguration** öffnen und ausfüllen: App-Name „Frankonia-Brunonia“, Avatar-URL z. B. `https://DEINNAME.github.io/fb-app/assets/icons/icon-192.png`, Beschreibung. „Interaktive Funktionen“ können aus bleiben. Ohne diese Konfiguration verweigert Google den Chat-Zugriff. Außerdem müssen in der Admin-Konsole **Chat-Apps erlaubt** sein (B2): Nachrichten aus der App zeigt Google als „über Frankonia-Brunonia“ an – sind Chat-Apps gesperrt, kann das Senden scheitern, während Lesen geht.
@@ -135,7 +135,7 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 
 In der App unter **Einrichtung** (als Admin angemeldet):
 
-1. **Optionen:** Workspace-Domain (z. B. `frankonia-brunonia.de`), Mitglieder-Gruppe (`mitglieder@…`, falls vorhanden), **Admins** (nur sie sehen die Einrichtung und die Liste „Papierpost abbestellen“), **Aktiven- und Altherrenvorstand** als Google-Gruppen (z. B. `aktivenvorstand@…`, `altherrenvorstand@…`; für die Knöpfe „… kontaktieren“ im Chat, E45/E48 – danach „Mitglieder jetzt übernehmen“, siehe unten) und die Angaben zum **Datenschutz** eintragen → „Optionen speichern“.
+1. **Optionen:** Workspace-Domain (z. B. `frankonia-brunonia.de`), Mitglieder-Gruppe (`mitglieder@…`, falls vorhanden), **Admins** (nur sie sehen die Einrichtung und die Liste „Papierpost abbestellen“), **Aktiven- und Altherrenvorstand** (E-Mail-Adressen für die Knöpfe „… kontaktieren“ im Chat, E45) und die Angaben zum **Datenschutz** eintragen → „Optionen speichern“.
 2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit dem Bundesboten, mit der DS-Zeitung, mit der Liedermappe, mit den Fotos und (freiwillig) der **Ordner für Foto-Uploads** (E46) → „Übernehmen“. Den Upload-Ordner in Drive für die Mitglieder als **Mitbearbeiter** freigeben und nicht in den Galerie-Ordner legen. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
 3. **„Verbindung prüfen (nur lesend)“** und die Hinweise abarbeiten (siehe unten). Die Prüfung ändert nichts.
 4. **„2. Fehlendes neu anlegen“:** legt nur noch an, was nicht verbunden ist – typischerweise die **News-Tabelle** und die **Einwilligungsliste**. Was verbunden ist, wird dabei weder verändert noch neu freigegeben; Beispieldaten sind hier nicht vorausgewählt.
@@ -365,18 +365,7 @@ Der automatische Test `tests/google-mock.html` spielt alle Funktionen gegen eine
 | Chat: „Google Chat für dein Konto nicht verfügbar“ | Chat für dieses Konto aus, keine Lizenz oder Konto ganz neu | Admin-Konsole: Nutzer → Apps/Lizenzen bzw. Google Chat → Dienststatus |
 | „App-Einstellungen nicht erreichbar“ (Anmeldeseite) | Die private Konfiguration ist für dieses Konto nicht lesbar: falsche `privateConfigId` in `config.js`, Datei gelöscht oder nicht für die Domain freigegeben | Einrichtung → „Verbindung prüfen“; Datei für die Domain als „Betrachter“ freigeben (macht „Einstellungen in Google Drive speichern“) |
 | „App-Einstellungen fehlerhaft“ (Anmeldeseite) | Die Prüfung beim Start fand Fehler, z. B. falscher Wert, keine Admins oder die Datei gehört keinem Admin | Datei korrigieren (Einrichtung → speichern). Geräte mit einem früher geprüften Stand arbeiten so lange damit weiter |
-| „Mitglieder jetzt übernehmen“: „Admin SDK API has not been used …“ bzw. „Not Authorized“ | Admin SDK nicht aktiviert bzw. dem Konto fehlen Admin-Rechte für Gruppen | Admin SDK API in der Cloud Console aktivieren (B1); als Super-Admin bzw. mit einer Admin-Rolle mit Lesezugriff auf Gruppen anmelden |
 | Neue Version erscheint nicht | Handy hat alte Version zwischengespeichert | App schließen und neu öffnen; es erscheint „Neue Version verfügbar → Neu laden“ |
-
-## Vorstände aus Google-Gruppen (E48)
-
-Die Knöpfe „Aktivenvorstand kontaktieren“ und „Altherrenvorstand kontaktieren“ im Chat öffnen eine Unterhaltung mit den Personen in den Google-Gruppen der Vorstände.
-
-1. In der Cloud Console die **Admin SDK API** aktivieren (B1).
-2. Einrichtung → Optionen: die beiden Gruppenadressen eintragen → **„Mitglieder jetzt übernehmen“**. Beim ersten Mal fragt Google nach der Berechtigung „Gruppenmitglieder ansehen“ (nur dein Admin-Konto; Mitglieder werden nie gefragt).
-3. Die App schreibt die Personen in `config_private.json` (nur den Eintrag `vorstand`). Danach gleicht sie bei jedem Öffnen durch dich automatisch ab, höchstens alle sechs Stunden. Wechselt der Vorstand, reicht es also, die Google-Gruppe in der Admin-Konsole zu ändern.
-
-Gezählt werden aktive Konten der Domain, auch über Untergruppen. Schreiben kann nur das Konto, dem `config_private.json` gehört; „Verbindung prüfen“ zeigt, ob alles übernommen ist. Ohne Gruppen gelten die Listen unter `vorstand` so, wie sie in der Datei stehen.
 
 ## Private Konfiguration (config_private.json, E43)
 
@@ -395,8 +384,7 @@ Neben den Werten aus der Einrichtung kann die private Konfiguration (`config_pri
 ```js
 datenschutz: { empfaenger: ['vorstand@…'] },   // wer die Einwilligungen sieht (Name, Anschrift, Fassung: im öffentlichen config.js)
 adressaenderung: 'adressaenderung@frankonia-brunonia.de', // Empfänger für Adressänderungen aus „Mein Profil“
-vorstandGruppen: { aktive: 'aktivenvorstand@…', altherren: 'altherrenvorstand@…' }, // Personen übernimmt die App selbst (E48)
-vorstand: { aktive: ['senior@…'], altherren: ['ahv@…'] }, // ohne Gruppen von Hand; leer = kein Knopf (E45)
+vorstand: { aktive: ['senior@…'], altherren: ['ahv@…'] }, // Knöpfe „… kontaktieren“ im Chat (E45); leer = kein Knopf
 galerieUploadOrdnerId: '1AbC…',                  // Ordner für „Fotos hochladen“ (E46); für die Mitglieder bearbeitbar freigeben
 forum: { aktiv: false },                         // Forum ausblenden
 profilBearbeiten: false,                         // keine eigenen Profilangaben (nur Adressverzeichnis + Google-Konto)
