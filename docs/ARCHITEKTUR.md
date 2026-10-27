@@ -44,7 +44,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | `js/lib/adressabgleich.js` | Abgleich „Mein Profil“ ↔ Adressverzeichnis, E-Mail-Entwurf für Adressänderungen |
 | `AGENTS.md`, `CLAUDE.md` | verbindliche Kurzregeln für KI-Assistenten |
 | `js/lib/*.js` | weitere Hilfen: Datum, Text/Markdown, Export (ICS/vCard), Speicher, Schriftgröße, Einrichtung |
-| `vendor/` | PDF.js 6.3 (Apache 2.0), StPageFlip 2.0.7 (MIT), qrcode-generator 2.0.4 (MIT) |
+| `vendor/` | PDF.js 6.3 (Apache 2.0), StPageFlip 2.0.7 (MIT, lokal korrigiert: E49), qrcode-generator 2.0.4 (MIT) |
 | `assets/` | Wappen, Skyline, Icons, Schriften (Raleway, UnifrakturMaguntia – OFL), Demo-Zeitungen und -Fotos |
 | `apps-script/Automatik.gs` | optional, läuft im Konto des Kalender-Inhabers: App-Link und Gruppe in neue Termine |
 | `apps-script/Einwilligungen.gs` | optional, läuft im Konto der Datenschutz-Verantwortlichen: sammelt die Einwilligungen stündlich in die Sammeltabelle |

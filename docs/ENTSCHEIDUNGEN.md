@@ -21,6 +21,7 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Kontext:** Die App soll lange und von wechselnden, nicht unbedingt professionellen Entwicklern gepflegt werden.
 - **Entscheidung:** Reines HTML/CSS/JavaScript mit ES-Modulen, ohne npm, Bundler oder Framework. Bibliotheken liegen mit fester Version in `vendor/` (PDF.js 6.3, StPageFlip 2.0.7, qrcode-generator 2.0.4). Schriften werden mitgeliefert.
 - **Folgen:** Jede Datei ist direkt lesbar und änderbar. Es gibt nichts zu bauen, das veralten kann. Keine Abfragen an fremde Server (DSGVO). Neue Dateien müssen in die Liste des Service Workers (`python tools/update_sw.py`).
+- **Ergänzt 2026-10-27:** StPageFlip 2.0.7 enthält eine kleine lokale Korrektur (E49).
 
 ## E3 · Google Workspace als einziges Backend, kein eigener Server
 *2026-10-16*
@@ -404,3 +405,10 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Kontext:** Gruppenmitglieder kann die App nur mit einer zusätzlichen Berechtigung lesen (Admin SDK für Admins oder Cloud Identity für alle) – dazu eine weitere Schnittstelle im Cloud-Projekt und ein Abgleich mit der privaten Konfiguration.
 - **Entscheidung:** Die Vorstände bleiben E-Mail-Listen, die ein Admin in der Einrichtung pflegt (E45). Das ist einfacher als Schnittstelle, Berechtigung und Abgleich.
 - **Folgen:** Keine neue Berechtigung. Bei einem Vorstandswechsel die Adressen unter Einrichtung → Optionen ändern und „Einstellungen in Google Drive speichern“. Der Stand mit Abgleich liegt in der Git-Historie (Commit a43ab90).
+
+## E49 · Umblättern: Die Titelseite bleibt an ihrem Platz
+*2026-10-27 – beim Aufnehmen des Demo-Videos bemerkt: Auf dem Handy rutschte die Titelseite von Bundesbote und DS-Zeitung beim Umblättern nach oben und am Ende wieder zurück*
+
+- **Kontext:** StPageFlip setzt die Seite im Modus „stretch“ senkrecht in die Mitte der Fläche (`getRect().top`). Feste Seiten (`density: 'hard'`, bei uns Titel- und Rückseite über `hardCover` in `zeitung.js`) zeichnet die Bibliothek beim Umblättern aber ohne diesen Versatz, also oben bündig, ihre Schatten ebenso. Weiche Seiten sind nicht betroffen. Sichtbar wird es, wenn die Fläche höher ist als die Seite (Handy hochkant). 2.0.7 ist die letzte Version; die Bibliothek wird nicht mehr gepflegt.
+- **Entscheidung:** `vendor/page-flip/page-flip.browser.js` wird lokal korrigiert (Hinweis am Dateianfang): `drawHard` verschiebt die Seite um `getRect().top`, `drawHardOuterShadow` und `drawHardInnerShadow` setzen `top`. Sonst bleibt die Datei unverändert.
+- **Folgen:** Kein neuer Scope, CSP unverändert. `m.flip()` aus `tests/layout-check.js` meldet, wenn eine Seite oder ein Schatten beim Umblättern der Titelseite senkrecht versetzt ist. Wird die Bibliothek ersetzt oder aktualisiert, die Korrektur prüfen und bei Bedarf neu einspielen.

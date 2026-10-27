@@ -33,7 +33,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 
 - Start, Datenschutz-Abfrage, Navigation: `js/app.js`, `js/router.js`
 - Konfiguration: `config.js` (öffentlich), `js/config.js` (Standardwerte, Zusammenführen), private Konfiguration laden/prüfen/speichern: `js/lib/konfiguration.js`, Vorlage `config_private.beispiel.json` (E43)
-- Seiten: `js/views/<bereich>.js`; Leseansicht für PDFs und Bilder (Bundesbote, Liedermappe): `js/views/reader.js`
+- Seiten: `js/views/<bereich>.js`; Leseansicht für PDFs und Bilder (Bundesbote, Liedermappe): `js/views/reader.js` (Umblättern mit StPageFlip, in `vendor/` lokal korrigiert, E49)
 - Google-Zugriffe: `js/google/*.js`; Schreibschutz: `js/google/guard.js`
 - Benachrichtigungen (nur nach Einschalten, E34): `js/lib/hinweise.js`
 - Papierpost abbestellen (E44): `js/views/papierpost.js`; Vorstände kontaktieren und Bierjunge (E45): `js/views/chat.js`, `js/views/mitglieder.js`; Galerie mit Upload-Link und Ordneransicht (E46): `js/views/galerie.js`

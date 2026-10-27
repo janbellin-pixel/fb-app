@@ -3,6 +3,7 @@
 //   const m = await import('/tests/layout-check.js'); await m.run({ levels: ['normal', 'sehr-gross'] })
 // Meldet: seitlich überstehende Inhalte, abgeschnittene obere Navigation, welche Navigation sichtbar ist
 // und wie viele Spalten die Startseite nutzt.
+// Umblättern (E49), in der Demo bei Handygröße: await m.flip()
 
 const ROUTES = ['#/', '#/termine', '#/chat', '#/mitglieder', '#/mehr', '#/zeitung', '#/ds-zeitung', '#/lieder', '#/galerie', '#/news', '#/forum',
   '#/adressen', '#/profil', '#/einstellungen', '#/datenschutz', '#/datenschutz/uebersicht', '#/papierpost', '#/installieren',
@@ -45,4 +46,43 @@ export async function run({ routes = ROUTES, levels = ['normal'], pause = 800 } 
     startseiteSpalten: columns,
     probleme: problems.length ? problems : 'keine',
   };
+}
+
+// Öffnet eine Zeitung, blättert die feste Titelseite um und meldet, wenn eine Seite oder ein Schatten dabei
+// senkrecht gegenüber der stehenden Seite versetzt ist (StPageFlip ohne die Korrektur aus E49: oben bündig).
+// Das Fenster muss sichtbar sein – verdeckte Tabs halten die Animation an.
+export async function flip({ issue = '#/ds-zeitung/ds2026-2' } = {}) {
+  location.hash = issue;
+  let next = null;
+  for (let i = 0; i < 300 && !next; i++) {
+    await wait(100);
+    next = document.querySelector('.reader [data-action=next]:not([disabled])');
+  }
+  if (!next) return { probleme: ['Leser nicht geöffnet oder nur eine Seite'] };
+  await wait(1500);
+  const shown = (sel) => [...document.querySelectorAll(sel)].filter((e) => visible(e) && e.getBoundingClientRect().height > 0);
+  const middle = (e) => { const b = e.getBoundingClientRect(); return b.top + b.height / 2; };
+  const before = shown('.reader-book .flip-page');
+  if (before.length !== 1) return { probleme: [`vor dem Umblättern ${before.length} Seiten sichtbar`] };
+  const target = middle(before[0]);
+  const problems = [];
+  let seen = 0;
+  next.click();
+  for (let i = 1; i <= 10; i++) {
+    await wait(60);
+    const pages = shown('.reader-book .flip-page');
+    if (pages.length > 1) seen++;
+    for (const [what, list] of [['Seite', pages], ['Schatten', shown('.reader-book .stf__hardShadow, .reader-book .stf__hardInnerShadow')]]) {
+      for (const e of list) {
+        const d = Math.round(middle(e) - target);
+        if (Math.abs(d) > 2) problems.push(`nach ${i * 60} ms: ${what} ${d} px senkrecht versetzt`);
+      }
+    }
+  }
+  await wait(1200);
+  const after = shown('.reader-book .flip-page');
+  if (after.length === 1 && Math.abs(middle(after[0]) - target) > 2) problems.push('nach dem Umblättern: Seite versetzt');
+  if (!seen) problems.push('Umblättern nicht beobachtet (Fenster verdeckt?)');
+  const list = problems.length > 8 ? [...problems.slice(0, 8), `… insgesamt ${problems.length}`] : problems;
+  return { seite: document.querySelector('#count')?.textContent, probleme: list.length ? list : 'keine' };
 }
