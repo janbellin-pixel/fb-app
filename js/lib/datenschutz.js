@@ -205,13 +205,14 @@ export function erklaerung() {
         <li><strong>Was du selbst einträgst:</strong> Profilangaben (z. B. Kneipname, Studium/Beruf, aktuelle Tätigkeit, Wohnort, Telefon, „Über mich“ und was du jüngeren Bundesbrüdern anbietest), Zu- und Absagen zu Terminen mit Gästen und Kommentar, Forumsbeiträge, als Admin oder Redaktion auch News mit Bildern, Chat-Nachrichten, deine Entscheidungen zu den Einwilligungen, ob du in der Mitgliederliste der App sichtbar bist und ob du Semesterprogramm und Bundesbote noch per Post bekommen möchtest.</li>
         <li><strong>App-Nutzung und Sichtbarkeit:</strong> Sobald du deine Auswahl speicherst, legt die App in deinem Google Drive eine kleine Datei an, die die Mitglieder lesen können. Sie enthält nur, ob du in der Mitgliederliste sichtbar sein möchtest, und den Zeitpunkt. Daran erkennt die App der anderen, dass du die App nutzt und ob sie dich anzeigen darf.</li>
         <li><strong>Adressänderungen:</strong> Unter „Mein Profil“ vergleicht die App deine Anschrift mit dem Adressverzeichnis. Weicht etwas ab, öffnet sie auf Wunsch dein E-Mail-Programm mit einer vorbereiteten Nachricht an das Postfach für Adressänderungen. Die App selbst speichert oder versendet diese Angaben nicht – erst du schickst die E-Mail ab.</li>
+        <li><strong>Push-Mitteilungen (nur wenn du sie einschaltest):</strong> Dein Browser erzeugt für das Gerät eine Push-Adresse mit Schlüsseln. Die App legt sie mit deiner Themenwahl (News, Forum, Termine) und einer groben Geräteangabe (z. B. „iPhone · Safari“) als kleine Datei in deinem Google Drive ab, lesbar nur für das Konto der Verbindung, das die Mitteilungen verschickt. Ein Skript in diesem Konto schaut alle paar Minuten nach Neuem und schickt die Mitteilung verschlüsselt über den Push-Dienst deines Browser-Herstellers (Apple, Google, Mozilla oder Microsoft). Der kann den Inhalt nicht lesen, erfährt aber, dass eine Mitteilung an dein Gerät geht. Ausschalten löscht die Datei.</li>
         <li><strong>Daten der Verbindung:</strong> Termine, Adressverzeichnis (z. B. Anschrift, Telefon, Geburtsdatum, Status), Neuigkeiten, Bundesbote, DS-Zeitung und Fotos von Veranstaltungen.</li>
-        <li><strong>Technisch notwendig:</strong> Beim Laden der App-Dateien verarbeitet der Webhoster deine IP-Adresse und Browserangaben kurzzeitig in Server-Protokollen. Auf deinem Gerät speichert die App einen Zugangsschlüssel (eine Stunde gültig), deine Einstellungen (z. B. Schriftgröße, Benachrichtigungen), die Einstellungen der App (damit sie auch offline startet), Entwürfe (Chat-Nachrichten, noch nicht eingetragene Adressänderungen), bei eingeschalteten Benachrichtigungen, welche Nachrichten und News du schon gesehen hast, und einen Zwischenspeicher, damit sie schnell startet und auch offline funktioniert (z. B. gespeicherte Lieder). Mitteilungen zeigt dein Gerät an; die App schickt dafür nichts an weitere Dienste.</li>
+        <li><strong>Technisch notwendig:</strong> Beim Laden der App-Dateien verarbeitet der Webhoster deine IP-Adresse und Browserangaben kurzzeitig in Server-Protokollen. Auf deinem Gerät speichert die App einen Zugangsschlüssel (eine Stunde gültig), deine Einstellungen (z. B. Schriftgröße, Benachrichtigungen), die Einstellungen der App (damit sie auch offline startet), Entwürfe (Chat-Nachrichten, noch nicht eingetragene Adressänderungen), bei eingeschalteten Benachrichtigungen, welche Nachrichten und News du schon gesehen hast, und einen Zwischenspeicher, damit sie schnell startet und auch offline funktioniert (z. B. gespeicherte Lieder). Mitteilungen der offenen App zeigt dein Gerät selbst an; nur eingeschaltete Push-Mitteilungen laufen über den Push-Dienst deines Browsers (siehe oben).</li>
       </ul>`,
     },
     {
       titel: 'Wo liegen die Daten?',
-      inhalt: html`<p>Alle Inhalte liegen im Google Workspace der Verbindung (Google Kalender, Google Drive, Google Tabellen, Google Chat). Google verarbeitet sie im Auftrag der Verbindung. Die App-Dateien selbst liefert GitHub Pages aus. Die App hat keinen eigenen Server, keine Werbung und keine Tracker, und sie lädt keine Inhalte anderer Anbieter nach. Soweit Daten in die USA übermittelt werden, stützen sich Google und GitHub auf das EU-US Data Privacy Framework bzw. auf EU-Standardvertragsklauseln.</p>`,
+      inhalt: html`<p>Alle Inhalte liegen im Google Workspace der Verbindung (Google Kalender, Google Drive, Google Tabellen, Google Chat). Google verarbeitet sie im Auftrag der Verbindung. Die App-Dateien selbst liefert GitHub Pages aus. Die App hat keinen eigenen Server, keine Werbung und keine Tracker, und sie lädt keine Inhalte anderer Anbieter nach. Soweit Daten in die USA übermittelt werden, stützen sich Google und GitHub auf das EU-US Data Privacy Framework bzw. auf EU-Standardvertragsklauseln. Eingeschaltete Push-Mitteilungen stellt der Push-Dienst deines Browser-Herstellers zu, zum Teil über Server in den USA; er bekommt nur die verschlüsselte Mitteilung und die Push-Adresse deines Geräts.</p>`,
     },
     {
       titel: 'Wer sieht was?',
@@ -221,6 +222,7 @@ export function erklaerung() {
         <li>Chat-Nachrichten sehen die Mitglieder des jeweiligen Chat-Raums.</li>
         <li>Deine Einwilligungen sehen nur du und die für den Datenschutz Verantwortlichen der Verbindung.</li>
         <li>Ob du Papierpost abbestellt hast, sehen nur du und die Admins der App.</li>
+        <li>Deine Push-Anmeldung sieht nur das Konto der Verbindung, das die Mitteilungen verschickt.</li>
       </ul>
       <p>Gemeinsame Daten kann in der App niemand verändern. Ändern kannst du nur deine eigenen Angaben.</p>`,
     },
@@ -230,11 +232,12 @@ export function erklaerung() {
         <li>Was für die Mitgliedschaft nötig ist – Mitgliederverwaltung, Beiträge, Einladungen zu Conventen und Pflichtveranstaltungen –, beruht auf der Satzung und deiner Mitgliedschaft (Art. 6 Abs. 1 lit. b DSGVO).</li>
         <li>Der Betrieb der App (Bereitstellung, Sicherheit, Austausch unter Mitgliedern) beruht auf dem berechtigten Interesse der Verbindung an einer einfachen internen Organisation (Art. 6 Abs. 1 lit. f DSGVO).</li>
         <li>Darüber hinausgehende Zwecke und die Weitergabe an den Dachverband erfolgen nur mit deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO) – siehe „Deine Einwilligungen“.</li>
+        <li>Push-Mitteilungen bekommst du nur, wenn du sie auf einem Gerät einschaltest (Art. 6 Abs. 1 lit. a DSGVO); ausschalten kannst du sie dort jederzeit.</li>
       </ul>`,
     },
     {
       titel: 'Wie lange werden Daten gespeichert?',
-      inhalt: html`<p>Solange du Mitglied bist, und darüber hinaus nur, soweit gesetzliche Aufbewahrungspflichten bestehen (z. B. für Beitrags- und Spendenunterlagen) oder du in die Aufbewahrung im Archiv eingewilligt hast. Eigene Forumsbeiträge kannst du jederzeit selbst löschen. Nachweise über Einwilligungen und Widerrufe bewahrt die Verbindung auf, solange sie diese zum Nachweis benötigt. „Abmelden“ löscht Zugangsschlüssel, Entwürfe und Zwischenspeicher auf dem Gerät.</p>`,
+      inhalt: html`<p>Solange du Mitglied bist, und darüber hinaus nur, soweit gesetzliche Aufbewahrungspflichten bestehen (z. B. für Beitrags- und Spendenunterlagen) oder du in die Aufbewahrung im Archiv eingewilligt hast. Eigene Forumsbeiträge kannst du jederzeit selbst löschen. Nachweise über Einwilligungen und Widerrufe bewahrt die Verbindung auf, solange sie diese zum Nachweis benötigt. „Abmelden“ löscht Zugangsschlüssel, Entwürfe und Zwischenspeicher auf dem Gerät und schaltet dort Push-Mitteilungen aus. Die Push-Anmeldung eines Geräts löscht die App, sobald du Push ausschaltest; nicht mehr erreichbare Geräte beliefert das Skript nicht mehr.</p>`,
     },
     {
       titel: 'Deine Rechte',

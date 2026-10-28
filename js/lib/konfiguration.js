@@ -58,6 +58,9 @@ const RULES = {
   adressaenderung: [orEmpty(isEmail), 'eine E-Mail-Adresse oder ""'],
   vorstand: [(v) => isObj(v) && Object.entries(v).every(([k, x]) => ['aktive', 'altherren'].includes(k) && emails(x)),
     '{ "aktive": [E-Mail-Adressen], "altherren": [E-Mail-Adressen] }'],
+  push: [(v) => isObj(v) && (v.konto === undefined || v.konto === '' || isEmail(v.konto))
+    && (v.schluessel === undefined || v.schluessel === '' || (isStr(v.schluessel) && /^B[\w-]{86}$/.test(v.schluessel))),
+  '{ "konto": "E-Mail-Adresse des Push-Skripts", "schluessel": "öffentlicher Schlüssel aus Push.gs (87 Zeichen)" }'],
   testMitglieder: [emails, 'eine Liste von E-Mail-Adressen'],
   ausgeblendeteKonten: [emails, 'eine Liste von E-Mail-Adressen'],
   statusOptionen: [texts, 'eine Liste von Texten'],
@@ -101,7 +104,8 @@ export function validatePrivateConfig(data, { owner = '' } = {}) {
     const rule = RULES[k];
     if (!rule) { warnings.push(`Unbekannte Einstellung „${k}“ wird ignoriert.`); continue; }
     if (!rule[0](v)) { errors.push(`„${k}“: erwartet ${rule[1]}.`); continue; }
-    values[k] = EMAIL_KEYS.includes(k) ? lower(v) : k === 'vorstand' ? Object.fromEntries(Object.entries(v).map(([g, x]) => [g, lower(x)])) : v;
+    values[k] = EMAIL_KEYS.includes(k) ? lower(v) : k === 'vorstand' ? Object.fromEntries(Object.entries(v).map(([g, x]) => [g, lower(x)]))
+      : k === 'push' ? { konto: lower(v.konto || ''), schluessel: String(v.schluessel || '').trim() } : v;
   }
   if (!('admins' in data)) errors.push('„admins“ fehlt: mindestens eine E-Mail-Adresse eintragen.');
   // Inhaber laut Google muss Admin sein – sonst könnte eine fremde Datei die App steuern

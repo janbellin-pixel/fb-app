@@ -181,6 +181,15 @@ export default async function einrichtung(ctx) {
               <input class="input" id="o-vs-ah" name="vorstandAltherren" placeholder="E-Mail-Adressen, mit Komma getrennt" value="${(config.vorstand?.altherren || []).join(', ')}">
               <span class="hint">Für „Altherrenvorstand kontaktieren“. Leer = kein Knopf.</span></div>
           </div>
+          <h4 style="margin:1rem 0 .25rem">Push-Mitteilungen</h4>
+          <p class="small muted" style="margin-top:0">Mitteilungen bei geschlossener App (News, Forum, Termine) verschickt das Skript <code>apps-script/Push.gs</code> in einem Konto der Verbindung. Konto und Schlüssel stehen nach „einrichten“ in dessen Protokoll (docs/EINRICHTUNG.md). Leer = aus.</p>
+          <div class="form-grid cols-2">
+            <div class="field"><label for="o-push-konto">Konto des Skripts</label>
+              <input class="input" id="o-push-konto" name="pushKonto" type="email" value="${config.push?.konto || ''}" placeholder="z. B. vorstand@…">
+              <span class="hint">Nur dieses Konto kann die Push-Anmeldungen der Geräte lesen.</span></div>
+            <div class="field"><label for="o-push-key">Öffentlicher Schlüssel</label>
+              <input class="input" id="o-push-key" name="pushSchluessel" value="${config.push?.schluessel || ''}" placeholder="B… (87 Zeichen)" autocomplete="off" spellcheck="false"></div>
+          </div>
           <h4 style="margin:1rem 0 .25rem">Datenschutz</h4>
           <p class="small muted" style="margin-top:0">Erscheint in der Datenschutzerklärung, die jedes Mitglied beim ersten Öffnen sieht. Der Text ist ein Muster – bitte vom Vorstand prüfen lassen (<a href="#/datenschutz">ansehen</a>).</p>
           <div class="form-grid cols-2">
@@ -305,6 +314,11 @@ export default async function einrichtung(ctx) {
       fassung: d.dsFassung.trim() || '1',
     };
     const vorstand = { aktive: list(d.vorstandAktive), altherren: list(d.vorstandAltherren) };
+    const pushWerte = { konto: d.pushKonto.trim().toLowerCase(), schluessel: d.pushSchluessel.trim() };
+    if (pushWerte.schluessel && !/^B[\w-]{86}$/.test(pushWerte.schluessel)) {
+      toast('Der öffentliche Schlüssel für Push sieht nicht richtig aus (87 Zeichen, beginnt mit „B“).', { type: 'err' });
+      return;
+    }
     saveOverride({
       workspaceDomain: d.workspaceDomain.toLowerCase().replace(/^@/, ''),
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
@@ -314,6 +328,7 @@ export default async function einrichtung(ctx) {
       appUrl: d.appUrl,
       adressaenderung: d.adressaenderung.trim().toLowerCase(),
       vorstand,
+      push: pushWerte,
       datenschutz,
     });
     // leere Werte bewusst übernehmen
@@ -323,6 +338,7 @@ export default async function einrichtung(ctx) {
       testMitglieder: list(d.testMitglieder),
       redaktion: list(d.redaktion),
       vorstand,
+      push: pushWerte,
       datenschutz,
     });
     showCfg();

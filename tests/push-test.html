@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test: Push-Skript</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 980px; background: #f3f3f3; color: #111; }
+    h1 { font-weight: 300; }
+    h2 { font-size: 17px; margin: 22px 0 6px; }
+    .ok { color: #2f5a0b; }
+    .fail { color: #a3341b; font-weight: 600; }
+    #summary { font-size: 20px; padding: 10px 14px; background: #fff; border-radius: 6px; display: inline-block; }
+    code { font-size: 12px; background: #fff; padding: 1px 4px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Test des Push-Skripts (apps-script/Push.gs)</h1>
+  <p>Prüft die Verschlüsselung mit den Prüfwerten der RFCs und gegen die Web-Crypto-Schnittstelle des Browsers und spielt Durchläufe mit nachgebauten Google-Diensten durch. Es geht nichts ins Netz.</p>
+  <p id="summary">Läuft …</p>
+  <div id="out"></div>
+  <script type="module" src="push-test.js"></script>
+</body>
+</html>

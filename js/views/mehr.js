@@ -1,10 +1,11 @@
 // „Mehr“-Menü, Einstellungen & Datenschutz, Installationsanleitung
 import {
-  html, raw, setHtml, icon, hero, avatar, toast, confirmDialog, isStandalone, isIos, loadScript, copyText, notice,
+  html, raw, setHtml, icon, hero, avatar, toast, confirmDialog, isStandalone, isIos, loadScript, copyText, notice, setBusy, showError,
 } from '../ui.js';
 import { config, appBaseUrl, hasOverride, clearOverride, isGoogleConfigured, hasSongbook, hasDsZeitung, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
 import * as hinweise from '../lib/hinweise.js';
+import * as push from '../lib/push.js';
 import * as auth from '../auth.js';
 import { schriftAuswahl, bindSchriftAuswahl } from '../lib/schrift.js';
 import { gesperrt, linkGesperrt } from '../lib/gruppen.js';
@@ -82,11 +83,15 @@ export async function settings(ctx) {
         </section>
         <section class="card card-pad" id="notify-box">
           <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Benachrichtigungen</h2>
-          <p class="small"><strong>Aufs Handy, auch wenn diese App zu ist:</strong> die App „Google Chat“ installieren
+          <h3 style="margin:.75rem 0 .25rem;font-size:1.0625rem">Push-Mitteilungen</h3>
+          <p class="small" style="margin-top:0">Auch wenn die App zu ist: bei neuen News, Forumsbeiträgen und Terminen. Gilt nur für dieses Gerät.</p>
+          <div id="push-state"></div>
+          <h3 style="margin:1.25rem 0 .25rem;font-size:1.0625rem">In der App</h3>
+          <p class="small muted" style="margin-top:0">Zahlen und Markierungen für Neues, auch im Chat, und – solange die App offen ist – Mitteilungen. Gilt nur für dieses Gerät.</p>
+          <div id="notify-state"></div>
+          <p class="small" style="margin:1rem 0 0"><strong>Chat-Nachrichten aufs Handy:</strong> die App „Google Chat“ installieren
             (<a href="${hinweise.GOOGLE_CHAT_APP.android}" target="_blank" rel="noopener">Android</a> · <a href="${hinweise.GOOGLE_CHAT_APP.ios}" target="_blank" rel="noopener">iPhone</a>)
             und mit dem Verbindungskonto anmelden.</p>
-          <p class="small muted">In dieser App, wenn du es einschaltest: Zahlen und Markierungen für Neues und – solange die App offen ist – Mitteilungen. Gilt nur für dieses Gerät.</p>
-          <div id="notify-state"></div>
         </section>
         <div class="card card-pad">
           <h2 style="margin:0 0 .75rem;font-weight:300;font-size:1.375rem">Konto</h2>
@@ -123,6 +128,7 @@ export async function settings(ctx) {
           <li><strong>Anmeldung über Google:</strong> Dein Passwort sieht die App nie.</li>
           <li><strong>Auf dem Gerät</strong> liegen nur Zugangsschlüssel und Zwischenspeicher. „Abmelden“ löscht beides.</li>
           <li><strong>Keine Tracker, keine Werbung,</strong> nichts von Fremdanbietern.</li>
+          <li><strong>Push-Mitteilungen</strong> (nur wenn du sie einschaltest) kommen verschlüsselt über den Push-Dienst deines Browsers (Apple, Google, Mozilla oder Microsoft).</li>
           <li>Über <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener">myaccount.google.com</a> kannst du den Zugriff der App jederzeit widerrufen.</li>
         </ul>
         <p><a class="btn btn-sm" href="#/datenschutz">${icon('shield', 'icon-sm')}Datenschutzerklärung und Einwilligungen</a></p>
@@ -133,7 +139,7 @@ export async function settings(ctx) {
   const renderNotify = () => {
     const perm = hinweise.notificationPermission();
     if (!hinweise.notificationsWanted()) {
-      setHtml(el.querySelector('#notify-state'), html`<p class="small"><strong>Aus.</strong> Die App zeigt keine Zahlen, Hinweise oder Mitteilungen.</p>
+      setHtml(el.querySelector('#notify-state'), html`<p class="small"><strong>Aus.</strong> Die offene App zeigt keine Zahlen, Hinweise oder Mitteilungen.</p>
         <button class="btn btn-sm btn-primary" data-action="notify-on">${icon('chat', 'icon-sm')}Benachrichtigungen einschalten</button>`);
       return;
     }
@@ -150,6 +156,58 @@ export async function settings(ctx) {
       </div>`);
   };
   renderNotify();
+
+  // Push-Mitteilungen (E50)
+  const pushThemen = () => [...el.querySelectorAll('#push-themen input:checked')].map((i) => i.name);
+  const renderPush = () => {
+    const box = el.querySelector('#push-state');
+    const stand = push.pushStand(me.email);
+    const themen = push.moeglicheThemen();
+    if (app.mode !== 'demo' && !push.pushEingerichtet()) {
+      setHtml(box, html`<p class="small muted">Noch nicht eingerichtet.${app.isAdmin() ? html` Admins: <a href="#/einrichtung">Einrichtung</a> › Optionen › Push-Mitteilungen.` : ''}</p>`);
+    } else if (push.pushNurInstalliert()) {
+      setHtml(box, html`<p class="small">Auf iPhone und iPad geht das nur mit der App auf dem Home-Bildschirm.</p>
+        <a class="btn btn-sm" href="#/installieren">${icon('smartphone', 'icon-sm')}App installieren</a>`);
+    } else if (!push.pushUnterstuetzt()) {
+      setHtml(box, html`<p class="small muted">Dieser Browser kann keine Push-Mitteilungen empfangen.</p>`);
+    } else if (!themen.length) {
+      setHtml(box, html`<p class="small muted">Für dich gibt es hier nichts zu melden.</p>`);
+    } else {
+      const gewaehlt = stand.an ? stand.themen : themen.map((t) => t.id);
+      const blockiert = Notification.permission === 'denied';
+      const aktiv = stand.an && !stand.neu;
+      setHtml(box, html`
+        <div class="pick-list" id="push-themen">${themen.map((t) => html`
+          <label class="pick-row"><input type="checkbox" name="${t.id}" ${gewaehlt.includes(t.id) ? 'checked' : ''} ${blockiert ? 'disabled' : ''}>
+            <span class="grow"><span class="name">${t.label}</span><span class="sub">${t.sub}</span></span></label>`)}</div>
+        ${blockiert ? html`<p class="small">${icon('alert', 'icon-sm')} Mitteilungen sind im Browser blockiert. Erlaube sie in den Website-Einstellungen, dann hier einschalten.</p>` : ''}
+        ${stand.an && stand.neu ? html`<p class="small">${icon('alert', 'icon-sm')} Bitte einmal neu einschalten – die Anmeldung dieses Geräts hat sich geändert.</p>` : ''}
+        ${aktiv ? html`<p class="small">${icon('check', 'icon-sm')} <strong>Eingeschaltet.</strong>${stand.demo ? ' In der Demo gibt es nur eine Beispiel-Mitteilung.' : ''}</p>` : ''}
+        <div class="row wrap" style="margin-top:.5rem">
+          ${aktiv ? '' : html`<button class="btn btn-sm btn-primary" data-action="push-on" ${blockiert ? 'disabled' : ''}>${icon('smartphone', 'icon-sm')}Push einschalten</button>`}
+          ${stand.an ? html`<button class="btn btn-sm btn-ghost" data-action="push-off">Ausschalten</button>` : ''}
+        </div>`);
+    }
+  };
+  renderPush();
+  el.querySelector('#push-state').addEventListener('change', async (e) => {
+    const stand = push.pushStand(me.email);
+    if (!e.target.closest('#push-themen') || !stand.an || stand.neu) return;
+    try {
+      if (!pushThemen().length) {
+        await push.pushAusschalten(app);
+        toast('Push ausgeschaltet');
+        renderPush();
+        return;
+      }
+      await push.pushThemenSetzen(app, pushThemen());
+      toast('Gespeichert');
+    } catch (err) {
+      showError(err);
+      renderPush();
+    }
+  });
+
   el.addEventListener('click', async (e) => {
     const a = e.target.closest('[data-action]');
     if (!a) return;
@@ -166,6 +224,28 @@ export async function settings(ctx) {
       case 'notify-off':
         hinweise.disableNotifications();
         renderNotify();
+        break;
+      case 'push-on': {
+        if (!pushThemen().length) { toast('Bitte mindestens ein Thema wählen.', { type: 'err' }); break; }
+        setBusy(a, true, 'Wird eingeschaltet …');
+        try {
+          await push.pushEinschalten(app, pushThemen());
+          toast(app.mode === 'demo' ? 'Push eingeschaltet (Demo)' : 'Push eingeschaltet – in den nächsten Minuten kommt eine Bestätigung.');
+        } catch (err) {
+          showError(err);
+        }
+        renderPush();
+        break;
+      }
+      case 'push-off':
+        setBusy(a, true, 'Wird ausgeschaltet …');
+        try {
+          await push.pushAusschalten(app);
+          toast('Push ausgeschaltet');
+        } catch (err) {
+          showError(err);
+        }
+        renderPush();
         break;
       case 'notify-test': {
         const reg = await navigator.serviceWorker?.getRegistration();

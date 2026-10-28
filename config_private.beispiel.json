@@ -37,6 +37,7 @@
     "aktive": ["senior@example.org", "consenior@example.org"],
     "altherren": ["ahv-vorsitz@example.org"]
   },
+  "push": { "konto": "", "schluessel": "" },
   "datenschutz": { "empfaenger": [] },
   "testMitglieder": [],
   "ausgeblendeteKonten": []

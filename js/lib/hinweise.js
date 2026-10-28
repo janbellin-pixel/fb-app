@@ -1,13 +1,14 @@
 // Benachrichtigungen (E34) – nur, wenn das Mitglied sie in der App einschaltet (Mehr › Einstellungen
 // oder im Chat). Dann gibt es: Zahlen am Chat und an „Mehr“/News und am App-Symbol (Badging API),
 // Markierungen in den Listen, Hinweise in der App und – mit Erlaubnis des Browsers – Mitteilungen des
-// Systems, solange die App läuft (auch im Hintergrund, solange der Browser sie lässt). Ohne eigenen
-// Server gibt es keine Push-Nachrichten bei geschlossener App; dafür gibt es die App „Google Chat“
-// (Direktnachrichten und Ankündigungen neuer News, E33). Ausgeschaltet fragt die App nichts ab.
+// Systems, solange die App läuft (auch im Hintergrund, solange der Browser sie lässt). Bei geschlossener App
+// melden sich News, Forum und Termine per Push (E50, lib/push.js), Chat-Nachrichten über die App „Google Chat“
+// (E33). Ausgeschaltet fragt die App nichts ab.
 // Ein/aus und was gelesen ist, merkt sich nur dieses Gerät (localStorage, je Konto).
 import { local } from './store.js';
 import { toast } from '../ui.js';
 import * as auth from '../auth.js';
+import { pushThemaAn } from './push.js';
 
 const prefKey = (email) => `fb.benachrichtigungen.${email}`;
 const stateKey = (email) => `fb.gelesen.${email}`;
@@ -169,9 +170,12 @@ async function flush() {
     return;
   }
   if (notificationPermission() !== 'granted') return;
+  // was auf diesem Gerät schon per Push kommt (E50), nicht doppelt zeigen
+  const zeigen = list.filter((n) => !(n.key.startsWith('news:') && pushThemaAn(app.user.email, 'news')));
+  if (!zeigen.length) return;
   try {
     const reg = await navigator.serviceWorker.getRegistration();
-    for (const n of list.length > 3 ? [summary(list)] : list) {
+    for (const n of zeigen.length > 3 ? [summary(zeigen)] : zeigen) {
       await reg?.showNotification(n.title, {
         body: n.body.length > 140 ? `${n.body.slice(0, 139)}…` : n.body,
         tag: n.key,

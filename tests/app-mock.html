@@ -52,6 +52,8 @@
     const res = await setup.createEverything({ withSamples: true, withIssues: true, withPhotos: true, group: config.mitgliederGruppe, domain: 'beispiel.de', testUsers: [], me, log: () => {} });
     fake.state.setupPhase = false;
     Object.assign(config, { kalenderId: res.kalenderId, tabellen: res.tabellen, zeitungOrdnerId: res.zeitungOrdnerId, liedermappeOrdnerId: res.liedermappeOrdnerId, dsZeitungOrdnerId: res.dsZeitungOrdnerId, galerieOrdnerId: res.galerieOrdnerId });
+    // Push (E50): Konto des Skripts und ein gültiger öffentlicher Schlüssel (Beispiel aus RFC 8291) – so lässt sich das Gerät anmelden
+    config.push = { konto: 'push@beispiel.de', schluessel: 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8' };
     // Private Konfiguration (E43) wie im Echtbetrieb: als JSON-Datei in „Drive“, die App lädt und prüft sie beim Start
     const { privateConfigContent } = await import('./js/config.js');
     const priv = fake.addFile({ name: 'config_private.json', mimeType: 'application/json', content: new TextEncoder().encode(privateConfigContent()).buffer });

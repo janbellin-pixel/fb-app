@@ -14,6 +14,7 @@
 //   Einwilligungen     → eigene Datei im eigenen Drive, nur für die Datenschutz-Verantwortlichen lesbar
 //                        (die Sammeltabelle schreibt nur deren eigenes Konto)
 //   Papierpost-Wahl    → eigene Datei im eigenen Drive, nur für die Admins lesbar
+//   Push-Anmeldung     → eigene Datei je Gerät im eigenen Drive, nur für das Konto des Push-Skripts lesbar (E50)
 // Der Schreibschutz (google/guard.js) erzwingt das für jede einzelne Anfrage.
 import { config, isAdminEmail, isNewsAuthorEmail } from '../config.js';
 import * as cal from '../google/calendar.js';
@@ -50,6 +51,9 @@ const TABLE_FIELDS = 'id,name,ownedByMe,appProperties,owners(emailAddress,displa
 const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
 const VISIBILITY_FILE = 'Sichtbarkeit (Mitglieder-App).json';
 const PAPIERPOST_FILE = 'Papierpost (Mitglieder-App).json';
+const PUSH_FILE = 'Push-Mitteilungen (Mitglieder-App).json';
+// Diese Typen tragen fbTyp auch als öffentliche Eigenschaft – daran findet das Push-Skript neue Beiträge (E50)
+const OEFFENTLICHE_TYPEN = ['forum', 'news'];
 /** Wahl aus einer Sichtbarkeits-Datei (E40): true = in der Mitgliederliste zeigen */
 const visibilityOf = (f) => {
   const d = parseJson(f.description);
@@ -207,6 +211,7 @@ export class GoogleBackend {
       mimeType: 'application/json',
       parents: [folder],
       appProperties: { fbTyp: typ, ...props },
+      ...(OEFFENTLICHE_TYPEN.includes(typ) ? { properties: { fbTyp: typ, ...props } } : {}),
       description: JSON.stringify(data),
     }, 'id,createdTime');
     registerOwnFile(f.id);
@@ -545,8 +550,68 @@ export class GoogleBackend {
     }).sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }
 
+  /* ================================================================ Push-Mitteilungen (E50) */
+
+  /** Wer die Push-Anmeldungen lesen darf: nur das Konto, in dem apps-script/Push.gs läuft (ohne mich) */
+  pushEmpfaenger() {
+    const konto = String(config.push?.konto || '').trim().toLowerCase();
+    return konto && konto !== this.myEmail ? [konto] : [];
+  }
+
+  /** Eigene Push-Anmeldungen (je Gerät eine Datei), neueste zuerst */
+  async pushFiles() {
+    const files = await drive.listFiles(
+      "appProperties has { key='fbTyp' and value='push' } and 'me' in owners and trashed = false",
+      { fields: OWN_FIELDS, orderBy: 'modifiedTime desc' },
+    );
+    const own = files.filter((f) => f.ownedByMe).sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)));
+    for (const f of own) registerOwnFile(f.id);
+    return own;
+  }
+
   /**
-   * Eigene Datei NUR für diese Konten lesbar machen (Einwilligung, Papierpost-Wahl).
+   * Gerät für Push anmelden oder Themen ändern: eigene Datei je Gerät im eigenen Drive, lesbar nur für das Konto des
+   * Push-Skripts. Dasselbe Gerät (gleiche Kennung oder Push-Adresse) bekommt keine zweite Datei.
+   */
+  async saveMyPush({ geraet, endpoint, p256dh, auth, themen, name }) {
+    if (!String(config.push?.konto || '').trim()) throw new Error('Push-Mitteilungen sind noch nicht eingerichtet.');
+    if (!/^https:\/\/\S+$/.test(String(endpoint || '')) || !p256dh || !auth) throw new Error('Der Browser hat keine gültige Push-Adresse geliefert.');
+    const data = {
+      endpoint: String(endpoint),
+      p256dh: String(p256dh),
+      auth: String(auth),
+      themen: (themen || []).filter((t) => ['news', 'forum', 'termine'].includes(t)),
+      geraet: clip(name, 80),
+      geaendert: nowIso(),
+    };
+    const props = { fbTyp: 'push', fbGeraet: clip(geraet, 40) };
+    const files = await this.pushFiles();
+    const [own, ...doppelt] = files.filter((f) => f.appProperties?.fbGeraet === props.fbGeraet || parseJson(f.description).endpoint === data.endpoint);
+    let id = own?.id;
+    if (own) {
+      await drive.updateFile(own.id, { description: JSON.stringify(data), appProperties: props, properties: { fbTyp: 'push' } });
+    } else {
+      const folder = await this.appFolder();
+      const f = await drive.createFile({ name: PUSH_FILE, mimeType: 'application/json', parents: [folder], appProperties: props, properties: { fbTyp: 'push' }, description: JSON.stringify(data) }, 'id');
+      registerOwnFile(f.id);
+      id = f.id;
+    }
+    for (const f of doppelt) await drive.trashFile(f.id).catch((e) => console.warn('Doppelte Push-Anmeldung nicht entfernt', e));
+    // ohne Freigabe sieht das Skript das Gerät nicht – Fehler hier also nicht verschlucken
+    await this.ensureReaders(id, this.pushEmpfaenger(), own?.appProperties?.fbEmpf);
+    return data;
+  }
+
+  /** Gerät abmelden: seine Datei(en) in den Papierkorb */
+  async deleteMyPush({ geraet, endpoint }) {
+    const files = await this.pushFiles();
+    for (const f of files.filter((x) => (geraet && x.appProperties?.fbGeraet === geraet) || (endpoint && parseJson(x.description).endpoint === endpoint))) {
+      await drive.trashFile(f.id);
+    }
+  }
+
+  /**
+   * Eigene Datei NUR für diese Konten lesbar machen (Einwilligung, Papierpost-Wahl, Push-Anmeldung).
    * Frühere Empfänger und alle anderen Freigaben (Gruppe, Domain, Link) werden entfernt.
    * currentKey: gespeicherte Prüfsumme der Empfänger – stimmt sie, ist nichts zu tun.
    */

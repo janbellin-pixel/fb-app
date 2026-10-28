@@ -723,6 +723,58 @@ async function run() {
   check(ppPerms2.join() === 'schriftwart@beispiel.de', 'Freigabe folgt dem Wechsel der Admins (alter Zugriff entfernt)', ppPerms2.join());
   config.admins = adminsBefore;
 
+  section('Push-Mitteilungen (E50)');
+  const pushBefore = config.push;
+  config.push = { konto: 'push@beispiel.de', schluessel: `B${'A'.repeat(86)}` };
+  const pushFiles = () => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'push' && f.ownerEmail === me.email && !f.trashed);
+  const pushDaten = (f) => JSON.parse(f?.description || '{}');
+  const abo = { geraet: 'geraet1', endpoint: 'https://fcm.googleapis.com/fcm/send/abc', p256dh: 'BPUB', auth: 'AUTH', themen: ['news', 'forum'], name: 'Android · Chrome' };
+  await step('saveMyPush (erstmals)', () => b.saveMyPush(abo));
+  const pf = pushFiles()[0];
+  check(pushFiles().length === 1 && pf.parents.includes(folder.id) && pf.appProperties.fbGeraet === 'geraet1' && pf.properties?.fbTyp === 'push',
+    'eigene Datei je Gerät im eigenen App-Ordner, für das Skript auffindbar (öffentliche Eigenschaft fbTyp)', JSON.stringify(pf?.properties));
+  check(pushDaten(pf).endpoint === abo.endpoint && pushDaten(pf).p256dh === 'BPUB' && pushDaten(pf).auth === 'AUTH' && pushDaten(pf).themen.join() === 'news,forum' && pushDaten(pf).geraet === 'Android · Chrome',
+    'Push-Adresse, Schlüssel, Themen und Geräteangabe in der Datei', JSON.stringify(pushDaten(pf)));
+  const pPerms = fake.state.permissions.filter((p) => p.file === pf?.id);
+  check(pPerms.length === 1 && pPerms[0].type === 'user' && pPerms[0].emailAddress === 'push@beispiel.de' && pPerms[0].role === 'reader',
+    'nur für das Konto des Push-Skripts lesbar – nicht für Gruppe, Domain oder Admins', JSON.stringify(pPerms));
+  await step('saveMyPush (Themen geändert)', () => b.saveMyPush({ ...abo, themen: ['termine', 'chat'] }));
+  check(pushFiles().length === 1 && pushDaten(pushFiles()[0]).themen.join() === 'termine', 'Änderung in derselben Datei; unbekannte Themen fallen weg');
+  await step('saveMyPush (Gerätespeicher gelöscht: neue Kennung, gleiche Push-Adresse)', () => b.saveMyPush({ ...abo, geraet: 'geraet1neu' }));
+  check(pushFiles().length === 1, 'gleiche Push-Adresse: keine zweite Datei');
+  const apple = { ...abo, geraet: 'tablet', endpoint: 'https://web.push.apple.com/QXYZ' };
+  await step('saveMyPush (zweites Gerät)', () => b.saveMyPush(apple));
+  check(pushFiles().length === 2, 'zweites Gerät: eigene Datei');
+  config.push = { ...config.push, konto: 'push2@beispiel.de' };
+  await step('saveMyPush (anderes Konto des Skripts)', () => b.saveMyPush(apple));
+  const tablet = pushFiles().find((f) => pushDaten(f).endpoint === apple.endpoint);
+  const tabletPerms = fake.state.permissions.filter((p) => p.file === tablet?.id).map((p) => p.emailAddress);
+  check(tabletPerms.join() === 'push2@beispiel.de', 'Freigabe folgt dem Konto des Skripts (alter Zugriff entfernt)', tabletPerms.join());
+  // Anna hat eine Datei mit derselben Gerätekennung – sie gehört ihr und bleibt unberührt
+  const annaPush = fake.addFile({ name: 'Push-Mitteilungen (Mitglieder-App).json', appProperties: { fbTyp: 'push', fbGeraet: 'geraet1' }, properties: { fbTyp: 'push' },
+    description: JSON.stringify({ endpoint: abo.endpoint, themen: ['news'] }), ownerEmail: ANNA, ownerName: 'Anna Andere' });
+  await step('saveMyPush (fremde Datei mit gleicher Kennung)', () => b.saveMyPush(abo));
+  check(pushDaten(annaPush).themen.join() === 'news' && !annaPush.trashed && !fake.state.permissions.some((p) => p.file === annaPush.id), 'fremde Datei mit gleicher Kennung bleibt unberührt');
+  await blocked('fremde Push-Anmeldung ändern', fake, () => drive.updateFile(annaPush.id, { description: '{}' }));
+  await blocked('fremde Push-Anmeldung freigeben', fake, () => drive.addPermission(annaPush.id, { type: 'user', role: 'reader', emailAddress: me.email }));
+  await blocked('fremde Push-Anmeldung löschen', fake, () => drive.trashFile(annaPush.id));
+  await step('deleteMyPush', () => b.deleteMyPush({ geraet: 'tablet', endpoint: apple.endpoint }));
+  check(pushFiles().length === 1 && pushDaten(pushFiles()[0]).endpoint === abo.endpoint && !annaPush.trashed, 'Gerät abmelden: nur seine eigene Datei in den Papierkorb');
+  config.push = { ...config.push, konto: me.email };
+  await step('saveMyPush (ich bin das Konto des Skripts)', () => b.saveMyPush(abo));
+  check(!fake.state.permissions.some((p) => p.file === pushFiles()[0]?.id), 'eigenes Konto verschickt: keine Freigabe nötig');
+  config.push = { konto: '', schluessel: '' };
+  check(await b.saveMyPush(abo).then(() => false, (e) => /nicht eingerichtet/.test(e.message)), 'ohne Einrichtung: Fehler statt stiller Datei');
+  config.push = { konto: 'push@beispiel.de', schluessel: `B${'A'.repeat(86)}` };
+  check(await b.saveMyPush({ ...abo, endpoint: 'http://unsicher.example/x' }).then(() => false, () => true), 'nur https-Push-Adressen');
+  // Forum und News tragen den Typ als öffentliche Eigenschaft (findet das Skript), das Profil nicht
+  const ownTyp = (typ) => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === typ && f.ownerEmail === me.email);
+  check(ownTyp('forum').length > 0 && ownTyp('forum').every((f) => f.properties?.fbTyp === 'forum' && f.properties.fbRolle === f.appProperties.fbRolle && (f.properties.fbThema || '') === (f.appProperties.fbThema || '')),
+    'Forumsbeiträge: Typ, Rolle und Thema auch als öffentliche Eigenschaft', JSON.stringify(ownTyp('forum').map((f) => f.properties)));
+  check(ownTyp('news').length > 0 && ownTyp('news').every((f) => f.properties?.fbTyp === 'news'), 'News: Typ auch als öffentliche Eigenschaft');
+  check(ownTyp('profil').length > 0 && ownTyp('profil').every((f) => !f.properties?.fbTyp), 'Profil: keine öffentliche Eigenschaft (nur, was das Skript braucht)');
+  config.push = pushBefore;
+
   section('Datenschutz: vertrauliche Sammeltabelle');
   const tId = res.tabellen.einwilligungen;
   const tFile = fake.state.files.get(tId);
@@ -1107,6 +1159,11 @@ async function run() {
     'Vorstände (E45) und Upload-Ordner (E46) gültig, E-Mail-Adressen klein', JSON.stringify(v5));
   const v6 = kf.validatePrivateConfig({ ...privOk, vorstand: { aktive: ['kein-mail'], kasse: [] }, galerieUploadOrdnerId: 'a b' }, { owner: me.email });
   check(v6.errors.length === 2, 'Fehler: Vorstand ohne gültige E-Mail-Adressen bzw. mit unbekannter Gruppe, ungültige Upload-Ordner-ID', JSON.stringify(v6.errors));
+  const pushKey = `B${'x1_-'.repeat(21)}AB`;
+  const v7 = kf.validatePrivateConfig({ ...privOk, push: { konto: 'Push@Beispiel.de', schluessel: pushKey } }, { owner: me.email });
+  check(!v7.errors.length && v7.values.push?.konto === 'push@beispiel.de' && v7.values.push.schluessel === pushKey, 'Push (E50): Konto und Schlüssel gültig, E-Mail-Adresse klein', JSON.stringify(v7));
+  const v8 = kf.validatePrivateConfig({ ...privOk, push: { konto: 'kein-mail', schluessel: 'BKURZ' } }, { owner: me.email });
+  check(v8.errors.length === 1 && /push/.test(v8.errors[0]), 'Push: ungültiges Konto bzw. falscher Schlüssel → Fehler', JSON.stringify(v8.errors));
   const vb = kf.validatePrivateConfig(await (await fetch('../config_private.beispiel.json')).json());
   check(!vb.errors.length && !vb.warnings.length, 'Vorlage config_private.beispiel.json ist gültig', JSON.stringify([vb.errors, vb.warnings]));
   // Laden aus Drive (nur lesen), Vorrang: lokale Werte der Einrichtung vor der privaten Konfiguration

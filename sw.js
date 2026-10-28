@@ -34,6 +34,7 @@ const CORE = [
   './js/lib/gruppen.js',
   './js/lib/hinweise.js',
   './js/lib/konfiguration.js',
+  './js/lib/push.js',
   './js/lib/schrift.js',
   './js/lib/setup.js',
   './js/lib/store.js',
@@ -101,7 +102,22 @@ self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') self.skipWaiting();
 });
 
-// Mitteilung angetippt (E34): offenes Fenster der App nach vorn holen und zur Unterhaltung bzw. News wechseln
+// Push-Mitteilung (E50, verschickt von apps-script/Push.gs): Titel, Text und Ziel in der App. Jede Push-Nachricht
+// muss sichtbar werden (sonst entziehen die Browser die Erlaubnis) – zur Not mit einem allgemeinen Text.
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch { d = {}; }
+  const text = (v, n) => String(v || '').slice(0, n);
+  const hash = typeof d.url === 'string' && d.url.startsWith('#/') ? d.url : '#/';
+  event.waitUntil(self.registration.showNotification(text(d.title, 120) || 'Mitglieder-App', {
+    body: text(d.body, 300) || 'Es gibt Neues in der App.',
+    tag: text(d.tag, 120) || undefined,
+    icon: 'assets/icons/icon-192.png',
+    data: { url: new URL(hash, self.registration.scope).href },
+  }));
+});
+
+// Mitteilung angetippt (E34, E50): offenes Fenster der App nach vorn holen und zur Unterhaltung bzw. News wechseln
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const scope = self.registration.scope;

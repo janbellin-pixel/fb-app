@@ -59,6 +59,7 @@ Je nach Gruppe (z. B. Chordamen, Verkehrsgäste, Gäste) blendet die App einzeln
 ## Gut zu wissen
 
 - **Schrift zu klein?** Mehr › Schriftgröße › „Groß“ oder „Sehr groß“.
+- **Mitteilungen bei Neuem:** Mehr › Einstellungen › „Push einschalten“ – dann meldet sich die App auch, wenn sie zu ist, sobald es neue News, Forumsbeiträge oder Termine gibt. Was du bekommen willst, wählst du dort aus. Auf dem iPhone geht das nur mit der App auf dem Home-Bildschirm. Chat-Nachrichten meldet die App „Google Chat“.
 - **Abmelden oder Konto wechseln:** Mehr › oben **„Abmelden“**. Beim nächsten „Mit Google anmelden“ fragt Google, welches Konto du nehmen willst.
 - **Bitte dein Profil ausfüllen und deine Anschrift prüfen:** Mehr › Mein Profil (Kneipname, Tätigkeit, was du Jüngeren anbieten kannst …). Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart. Dein Foto änderst du in deinem Google-Konto.
 - **Keine Papierpost mehr?** Mehr › Papierpost abbestellen: Semesterprogramm und Bundesbote einzeln abwählen – du bekommst alles über die App. Ganz verhindern lässt sich Post beim Versand nicht immer.

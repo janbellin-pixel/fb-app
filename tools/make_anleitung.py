@@ -503,10 +503,11 @@ def page_overview(c, sample, kontakt, crest, skyline):
     # Gut zu wissen
     tips = [
         ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße › „Groß“ oder „Sehr groß“."),
-        ("users", f"{b('Profil ausfüllen, Anschrift prüfen:')} Mehr › Mein Profil. Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart."),
+        ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“ (News, Forum, Termine). iPhone: vorher auf den Home-Bildschirm legen."),
+        ("users", f"{b('Profil ausfüllen:')} Mehr › Mein Profil – dort auch Adressänderungen melden."),
         ("music", f"{b('Liedermappe:')} Liednummer eintippen und Enter – schon ist das Lied offen."),
-        ("shield", f"{b('Keine Sorge:')} Gemeinsame Daten zeigt die App nur an – kaputt machen kann man nichts. Ändern kannst du nur deine eigenen Angaben und Beiträge."),
-        ("share", f"{b('iPhone:')} Links aus dem Kalender öffnen sich in Safari statt in der App. Beim ersten Mal dort einmal anmelden – danach geht es direkt."),
+        ("shield", f"{b('Keine Sorge:')} Kaputt machen kann man nichts, Gemeinsames zeigt die App nur an."),
+        ("share", f"{b('iPhone:')} Kalender-Links öffnen Safari – dort einmal anmelden, dann geht es."),
         ("chat", f"{b('Fragen?')} {kontakt}"),
     ]
     tip_st = style(11, leading=15)

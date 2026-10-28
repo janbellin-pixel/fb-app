@@ -132,6 +132,20 @@ export class DemoBackend {
     return this.state.papierpost;
   }
 
+  /* ---------------------------------------------------------- Push-Mitteilungen (E50) – in der Demo ohne Absender */
+  async saveMyPush({ geraet, themen }) {
+    await wait(120);
+    this.state.push = { ...(this.state.push || {}), [geraet]: { themen: [...(themen || [])], geaendert: new Date().toISOString() } };
+    this.save();
+    return this.state.push[geraet];
+  }
+
+  async deleteMyPush({ geraet }) {
+    await wait(60);
+    if (this.state.push) delete this.state.push[geraet];
+    this.save();
+  }
+
   /** Erfundene Abbestellungen der Demo-Mitglieder (plus die eigene) */
   async listPapierpost() {
     await wait();

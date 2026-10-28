@@ -2,7 +2,7 @@
 
 Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile, Geburtstage, Chat, Adressverzeichnis, den Bundesboten (Zeitung der Verbindung) und die DS-Zeitung zum Durchblättern, die Liedermappe mit allen Noten, Fotogalerie, News und Forum**. Sie lässt sich auf iPhone, Android und PC installieren, ohne App-Store. Alle Daten liegen im **Google Workspace der Verbindung**; angemeldet wird einmalig mit dem Verbindungskonto.
 
-**Grundsatz:** Die App dient der Information und dem Austausch. Gemeinsame Daten zeigt sie nur an und ändert sie nie. Jedes Mitglied ändert ausschließlich seine eigenen Daten: die eigene Zu-/Absage, das eigene Profil, eigene Forumsbeiträge, die eigene Datenschutz-Einwilligung, die eigene Papierpost-Wahl, eigene Chat-Nachrichten und neue Unterhaltungen mit Personen (siehe [Schreibschutz](#schreibschutz)).
+**Grundsatz:** Die App dient der Information und dem Austausch. Gemeinsame Daten zeigt sie nur an und ändert sie nie. Jedes Mitglied ändert ausschließlich seine eigenen Daten: die eigene Zu-/Absage, das eigene Profil, eigene Forumsbeiträge, die eigene Datenschutz-Einwilligung, die eigene Papierpost-Wahl, die eigene Push-Anmeldung, eigene Chat-Nachrichten und neue Unterhaltungen mit Personen (siehe [Schreibschutz](#schreibschutz)).
 
 ![Die App auf dem Handy](docs/screenshots/handy.jpg)
 
@@ -16,7 +16,7 @@ Die App für alle Bundesbrüder: **Termine mit Zu- und Absage, Mitgliederprofile
 | **Zu- und Absagen** | Normale Google-Kalender-Antwort (Ja/Vielleicht/Nein, Gäste, Kommentar) im eigenen Kalender. „Wer kommt?“ zeigt Fotos. Jeder Termin enthält einen Link, der direkt in die App führt, auch im exportierten Kalender. |
 | **Geburtstage** | Die nächsten drei Geburtstage auf der Startseite, aus dem Adressverzeichnis (Nachname, dahinter klein der Vorname). |
 | **Chat** | Google Chat in der App: private Nachrichten (aus dem Profil oder „Neue Nachricht“), eigene Gruppen, Räume der Verbindung; Personen hinzufügen. „Aktivenvorstand“ und „Altherrenvorstand kontaktieren“ öffnen die Gruppe mit dem jeweiligen Vorstand; Hinweis auf die WhatsApp-Gruppen. Im Profil schickt „Bierjunge“ genau das als Nachricht – mit kleiner Animation. |
-| **Benachrichtigungen** | Nur wenn man sie einschaltet: Zahlen am Chat und an „Mehr“, „Neu“ an News, Hinweise und – solange die App läuft – Mitteilungen des Systems. Bei geschlossener App über die App „Google Chat“; die Redaktion kann neue News dort ankündigen. |
+| **Benachrichtigungen** | Nur wenn man sie einschaltet: **Push-Mitteilungen** bei neuen News, Forumsbeiträgen und Terminen, auch wenn die App zu ist (je Gerät, Themen wählbar; verschickt von einem Apps-Script im Konto eines Admins). In der offenen App Zahlen am Chat und an „Mehr“, „Neu“ an News und Hinweise. Chat-Nachrichten bei geschlossener App über die App „Google Chat“. |
 | **Adressverzeichnis** | Google-Tabelle, nur lesbar. Suche, anrufen, E-Mail, Karte, in Kontakte übernehmen (vCard). |
 | **Bundesbote** | Die Zeitung der Verbindung: PDFs aus einem Drive-Ordner mit allen Ausgaben, immer eine Seite (Doppelseiten aus Scans werden geteilt), **realistische Umblätter-Animation**, Zoom, offline verfügbar. |
 | **DS-Zeitung** | Die Zeitung der Deutschen Sängerschaft: PDFs aus einem eigenen Drive-Ordner, Archiv und Blättern wie beim Bundesboten. Freiwillig – ohne Ordner ausgeblendet. |
@@ -40,7 +40,7 @@ Die App ändert **keine** gemeinsamen Daten, weder Termine noch News, Adressen, 
 
 1. **Google-Freigaben:** Mitglieder haben auf Kalender, Tabellen und Ordner nur Leserechte.
 2. **Angefragte Berechtigungen:** Die App fragt bei Google für Drive nur „lesen“ und „eigene, von der App angelegte Dateien“ an (`drive.readonly` und `drive.file`), für Tabellen gar keine Schreibberechtigung. Damit kann sie fremde Dateien technisch nicht ändern.
-3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Zusagen ohne Einladung, News der Redaktion, Einwilligung, Sichtbarkeit, Papierpost-Wahl), eigene Chat-Nachrichten sowie neue Unterhaltungen mit Personen und das Hinzufügen von Personen. Alles andere wird blockiert.
+3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird geprüft, bevor sie das Gerät verlässt. Erlaubt sind nur die eigene Zu-/Absage im eigenen Kalender, eigene Dateien (Profil, Forumsbeiträge, Zusagen ohne Einladung, News der Redaktion, Einwilligung, Sichtbarkeit, Papierpost-Wahl, Push-Anmeldung), eigene Chat-Nachrichten sowie neue Unterhaltungen mit Personen und das Hinzufügen von Personen. Alles andere wird blockiert.
 
 Ausnahmen gibt es zwei, beide betreffen nur eigene Dateien:
 - Der Knopf **„Fehlendes neu anlegen“** in der Einrichtung ist nur für Admins sichtbar und legt nur an, was noch nicht verbunden ist – ausschließlich neue Dateien im eigenen Drive. Verbundenes (vorhandener Kalender, Mitgliederliste, Ordner) wird nie verändert oder neu freigegeben.

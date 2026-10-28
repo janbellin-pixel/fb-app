@@ -6,7 +6,7 @@
 
 Die Mitglieder-App ist eine **Progressive Web App (PWA)**: eine Web-App, die sich wie eine normale App auf iPhone, Android und PC installieren lässt. Es gibt **keinen eigenen Server**. Die App spricht direkt mit den Google-Schnittstellen, angemeldet mit dem Google-Konto des Mitglieds. Wer was sehen darf, regeln die **Freigaben in Google**.
 
-**Leitlinie:** Die App dient der Information und dem Austausch. Gemeinsame Daten werden nur **gelesen**. Schreiben darf jedes Mitglied ausschließlich **eigene** Daten (eigene Zu-/Absage, eigenes Profil, eigene Forumsbeiträge, eigene Datenschutz-Einwilligung und Sichtbarkeit, eigene Papierpost-Wahl, eigene Chat-Nachrichten). Siehe [Schreibschutz](#schreibschutz).
+**Leitlinie:** Die App dient der Information und dem Austausch. Gemeinsame Daten werden nur **gelesen**. Schreiben darf jedes Mitglied ausschließlich **eigene** Daten (eigene Zu-/Absage, eigenes Profil, eigene Forumsbeiträge, eigene Datenschutz-Einwilligung und Sichtbarkeit, eigene Papierpost-Wahl, eigene Push-Anmeldung, eigene Chat-Nachrichten). Siehe [Schreibschutz](#schreibschutz).
 
 ```
 Handy / PC (PWA)  ──OAuth 2.0──▶  Google-Konto des Mitglieds
@@ -15,10 +15,12 @@ Handy / PC (PWA)  ──OAuth 2.0──▶  Google-Konto des Mitglieds
        ├─ Google Sheets API     nur lesen: News, Adressverzeichnis
        ├─ Google Drive API      lesen: Zeitungs-PDFs, Galerie, News-Bilder
        │                        eigene Dateien: Profil, Forum, Zusagen, Einwilligung,
-       │                        Sichtbarkeit, Papierpost-Wahl
+       │                        Sichtbarkeit, Papierpost-Wahl, Push-Anmeldung
        ├─ People API            Workspace-Verzeichnis (Namen, Fotos)
        └─ Google Chat API       Räume lesen, eigene Nachrichten
 GitHub Pages: liefert nur die statischen App-Dateien aus
+Push (optional, E50): apps-script/Push.gs im Konto eines Admins liest Neues und schickt es
+       verschlüsselt über den Push-Dienst des Browser-Herstellers an die angemeldeten Geräte
 ```
 
 Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). Bibliotheken liegen im Ordner `vendor/`; zur Laufzeit hängt nichts von fremden Servern ab, auch nicht die Schriften.
@@ -48,6 +50,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | `assets/` | Wappen, Skyline, Icons, Schriften (Raleway, UnifrakturMaguntia – OFL), Demo-Zeitungen und -Fotos |
 | `apps-script/Automatik.gs` | optional, läuft im Konto des Kalender-Inhabers: App-Link und Gruppe in neue Termine |
 | `apps-script/Einwilligungen.gs` | optional, läuft im Konto der Datenschutz-Verantwortlichen: sammelt die Einwilligungen stündlich in die Sammeltabelle |
+| `apps-script/Push.gs` (+ `Push.appsscript.json`) | optional, läuft im Konto eines Admins: alle 10 Minuten Push-Mitteilungen bei neuen News, Forumsbeiträgen und Terminen (E50); nur Lese-Rechte |
 | `tests/` | Nachbau der Google-APIs und automatische Tests |
 | `tools/` | Hilfsskripte (lokaler Server, Grafiken, Demo-Daten, Service-Worker-Liste, Anleitung mit QR-Code) |
 
@@ -72,13 +75,14 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Benachrichtigungen | nur auf dem Gerät: ein/aus und was gelesen ist (`fb.benachrichtigungen.<email>`, `fb.gelesen.<email>`); Mitteilungen über den Service Worker, solange die App läuft (E34). Ankündigung neuer News = eigene Chat-Nachricht (E33) | – | jedes Mitglied selbst |
 | Galerie | Bilder im Drive-Ordner; Unterordner = Alben (`JJJJ-MM Name`, bis drei Ebenen tief, Ansicht „Alben“ oder „Ordner“), lose Bilder = Album „Allgemein“. „Fotos hochladen“ verlinkt nur einen Upload-Ordner in Drive (E46) | lesen | Admins / Fotowart in Google Drive |
 | Papierpost-Wahl (E44) | Datei *„Papierpost (Mitglieder-App).json“* im **eigenen** Drive (`fbTyp = papierpost`, `{ semesterprogramm, bundesbote, geaendert }`) | **kein Zugriff**; lesen nur Mitglied und Admins (`type: user`, `role: reader`) | jedes Mitglied selbst |
+| Push-Anmeldung (E50) | je Gerät eine Datei *„Push-Mitteilungen (Mitglieder-App).json“* im **eigenen** Drive (`fbTyp = push`, öffentlich `properties.fbTyp` für das Apps-Script; `{ endpoint, p256dh, auth, themen, geraet, geaendert }`) | **kein Zugriff**; lesen nur Mitglied und das Konto des Push-Skripts (`type: user`, `role: reader`) | jedes Mitglied selbst (ein-/ausschalten) |
 | Chat | Google Chat (Räume des Workspace) | wie in Google Chat | – |
 | Datenschutz-Einwilligung | Datei *„Datenschutz-Einwilligung (Mitglieder-App).json“* im **eigenen** Drive (`appProperties.fbTyp = einwilligung`, öffentlich `properties.fbTyp` für das Apps-Script). Inhalt und Beschreibung: Entscheidungen, Zeitpunkt, Fassung, Prüfsumme des Wortlauts, Gerät, letzte 10 Entscheidungen | **kein Zugriff**; lesen nur Mitglied und Verantwortliche (`type: user`, `role: reader`) | jedes Mitglied selbst |
 | Sichtbarkeit (E40) | Datei *„Sichtbarkeit (Mitglieder-App).json“* im **eigenen** Drive (`fbTyp = sichtbarkeit`, `{ sichtbar, geaendert }`), entsteht beim Speichern der Datenschutz-Auswahl. Wer eine hat, hat die App genutzt („App-Nutzer“ in der Mitgliederliste); bei „nein“ blendet die App das Mitglied aus | lesen (Freigabe Gruppe/Domain) | jedes Mitglied selbst |
 | Gruppen-Kennungen (E41) | je Google-Gruppe eine kleine Datei in „Meine Ablage“ eines Admins (`fbTyp = gruppe`, `fbGruppe`), nur für diese Gruppe lesbar; wer sie lesen kann, gehört dazu. `config.gruppen.ohne` legt fest, welche Bereiche eine Gruppe nicht sieht | lesen (nur die eigene Gruppe) | Admins in der Einrichtung |
 | Einwilligungsliste | Google-Tabelle im Drive der Verantwortlichen, **außerhalb** des freigegebenen Ordners (`appProperties.fbTyp = einwilligungen-tabelle`), Blätter „Stand“, „Verlauf“, „Fassungen“ | **kein Zugriff** | nur das Konto, dem sie gehört (App oder Apps-Script) |
 
-**Wer hat das geschrieben?** Für Profile, Forumsbeiträge, Einwilligungen, Sichtbarkeit und Papierpost-Wahl nimmt die App den Verfasser aus dem Dateieigentümer, den Google selbst meldet (`owners[0]`). Angaben in der Datei selbst, z. B. eine eingetragene E-Mail-Adresse, werden dafür nicht verwendet. Damit kann niemand im Namen eines anderen auftreten. Hat jemand mehrere solcher Dateien, zählt die zuletzt geänderte.
+**Wer hat das geschrieben?** Für Profile, Forumsbeiträge, Einwilligungen, Sichtbarkeit, Papierpost-Wahl und Push-Anmeldungen nimmt die App den Verfasser aus dem Dateieigentümer, den Google selbst meldet (`owners[0]`). Angaben in der Datei selbst, z. B. eine eingetragene E-Mail-Adresse, werden dafür nicht verwendet. Damit kann niemand im Namen eines anderen auftreten. Hat jemand mehrere solcher Dateien, zählt die zuletzt geänderte.
 
 **Einwilligungen nachvollziehbar:** Jede Entscheidung entsteht in der angemeldeten Google-Sitzung des Mitglieds und liegt als dessen eigene Datei vor; Inhaber und Änderungszeit setzt Google. Die Sammeltabelle übernimmt jede Erklärung in den „Verlauf“ (nur anhängen, Schlüssel = Datei-ID + Zeitstempel) und hält im Blatt „Fassungen“ den genauen Wortlaut mit Prüfsumme fest. Die Freigabe jeder Einwilligung wird beim Öffnen der App an die aktuelle Liste der Verantwortlichen angepasst; andere Freigaben (Gruppe, Domain, Link) werden entfernt. Wird die Fassung in `config.js` erhöht, fragt die App alle Mitglieder erneut.
 

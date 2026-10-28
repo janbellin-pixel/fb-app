@@ -80,11 +80,16 @@ const app = {
     reloadAtStart();
   },
 
-  logout({ revoke = false } = {}) {
+  async logout({ revoke = false } = {}) {
     // Wichtig: Vor dem Neuladen keinen Seitenwechsel auslösen. Früher setzte diese Funktion
     // location.hash = '#/'; der Seitenwechsel lief noch vor dem Neuladen durch beforeRoute(),
     // fand keinen Zugangsschlüssel mehr und meldete still wieder an (Google kennt die Sitzung).
     this.loggingOut = true;
+    // Push auf diesem Gerät abmelden (E50) – sonst kämen die Mitteilungen dieses Kontos weiter hierher
+    if (this.user && this.mode === 'google') {
+      const aus = import('./lib/push.js').then((m) => (m.pushStand(this.user.email).an ? m.pushAusschalten(this) : null));
+      await Promise.race([aus, new Promise((r) => setTimeout(r, 4000))]).catch((e) => console.warn('Push nicht abgemeldet', e));
+    }
     auth.logout({ revoke });
     local.del('fb.mode');
     clearPrivateConfigCache();
@@ -260,6 +265,8 @@ async function boot() {
   watchKeyboard();
   // Hinweise auf Neues (Zahlen am Chat und an „Mehr“, Mitteilungen solange die App läuft, E34)
   if (app.user) import('./lib/hinweise.js').then((m) => m.startHinweise(app)).catch((e) => console.warn('Hinweise nicht gestartet', e));
+  // Push-Mitteilungen (E50): Anmeldung dieses Geräts aktuell halten (neue Push-Adresse, neuer Schlüssel …)
+  if (app.user && app.mode === 'google') import('./lib/push.js').then((m) => m.pushAbgleichen(app)).catch((e) => console.warn('Push nicht abgeglichen', e));
   // Verantwortliche: Einwilligungs-Sammeltabelle im Hintergrund abgleichen
   if (app.user && app.backend?.autoSyncConsents) {
     setTimeout(() => app.backend.autoSyncConsents().catch((e) => console.warn('Einwilligungsliste nicht abgeglichen', e)), 4000);

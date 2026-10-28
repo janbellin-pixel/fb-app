@@ -202,6 +202,16 @@ Die App ändert selbst keine Termine. Damit Termine aus dem Google Kalender trot
 
 Einrichtung: Die Anleitung steht oben in der Datei (5 Minuten, kein Programmieren). Ohne das Skript: Gruppe beim Anlegen des Termins selbst als Gast hinzufügen.
 
+**Push-Mitteilungen (optional, E50):** Damit die App auch bei geschlossener App meldet, wenn es neue News, Forumsbeiträge oder Termine gibt, schickt das Apps-Script `apps-script/Push.gs` alle 10 Minuten verschlüsselte Mitteilungen an die Geräte, die Push eingeschaltet haben. Es liest nur und ändert nichts.
+
+1. Im Konto, das die Mitteilungen verschicken soll (am besten ein Admin), auf https://script.google.com ein **eigenes, neues Projekt** anlegen und den Inhalt von `Push.gs` einfügen.
+2. Projekteinstellungen (Zahnrad) → „Manifestdatei „appsscript.json“ im Editor anzeigen“ anhaken. Im Editor `appsscript.json` öffnen und den Inhalt von `apps-script/Push.appsscript.json` einfügen: Das gibt dem Skript nur Lese-Rechte und schaltet Kalender- und Drive-Dienst ein.
+3. In `Push.gs` oben unter `EINSTELLUNGEN` die ID der privaten Konfiguration eintragen (`privateConfigId` aus `config.js`).
+4. Oben die Funktion **„einrichten“** wählen, ▶ Ausführen, Berechtigungen bestätigen. Im Ausführungsprotokoll stehen danach **Konto** und **öffentlicher Schlüssel**.
+5. In der App unter **Einrichtung → Optionen → Push-Mitteilungen** beides eintragen, „Optionen speichern“ und danach „Einstellungen in Google Drive speichern“.
+
+Danach kann jedes Mitglied Push unter **Mehr → Einstellungen** für sein Gerät einschalten und wählen: News, Forum, Termine. Beim nächsten Durchlauf bekommt das Gerät eine Bestätigung. Auf iPhone und iPad geht Push nur mit der App auf dem Home-Bildschirm (ab iOS 16.4). Den Ablauf zeigt das Ausführungsprotokoll des Skripts („3 Neuigkeit(en), 42 Gerät(e) …“). Abschalten: Funktion „abschalten“. Neuer Schlüssel: „schluesselErneuern“, dann den neuen Schlüssel in der App eintragen – die Geräte melden sich beim nächsten Öffnen der App von selbst neu an.
+
 ### B5. Verteilen an die Mitglieder
 
 - **Anleitung als PDF** (mit QR-Code, Installation, „Was finde ich wo?“) mit der echten Adresse erzeugen:
@@ -213,7 +223,7 @@ Einrichtung: Die Anleitung steht oben in der Datei (5 Minuten, kein Programmiere
   Ergebnis: `docs/Anleitung-Mitglieder-App.pdf` und `docs/qr-code.png`. Die PDF per E-Mail oder im Chat verschicken bzw. ausdrucken.
 - In der App unter **Mehr → App installieren** gibt es den QR-Code ebenfalls, zum Zeigen auf dem Handy oder Teilen.
 - Erinnerung an alle: einmal anmelden, **Profil ausfüllen**, App auf den Startbildschirm legen.
-- **Benachrichtigungen:** Wer bei geschlossener App benachrichtigt werden will, installiert zusätzlich die App **„Google Chat“** (Direktnachrichten und Ankündigungen neuer News, E33). In unserer App schaltet jedes Mitglied Zahlen und Hinweise selbst ein (Mehr › Einstellungen › Benachrichtigungen); ohne Einschalten zeigt die App nichts an.
+- **Benachrichtigungen:** Mitteilungen bei neuen News, Forumsbeiträgen und Terminen schaltet jedes Mitglied selbst ein (Mehr › Einstellungen › Push-Mitteilungen; dafür muss `Push.gs` eingerichtet sein, B4). Für Chat-Nachrichten bei geschlossener App gibt es die App **„Google Chat“**. Zahlen und Hinweise in der offenen App schaltet ebenfalls jedes Mitglied selbst ein; ohne Einschalten zeigt die App nichts an.
 
 ---
 
@@ -333,7 +343,7 @@ Die App ist so gebaut, dass Mitglieder damit **nichts außer ihren eigenen Daten
 2. **Berechtigungen beim Anmelden:** Die App fragt für Google Drive nur „Dateien ansehen“ (`drive.readonly`) und „von dieser App angelegte Dateien“ (`drive.file`) an, für Google Tabellen gar keine Schreibberechtigung. Fremde Dateien kann sie damit technisch nicht ändern, auch nicht im Konto eines Admins.
 3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird vor dem Absenden geprüft. Erlaubt sind nur:
    - die eigene Antwort auf einen Termin, nur im eigenen Kalender und nur die Teilnehmerliste;
-   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung, Sichtbarkeit, Papierpost-Wahl), und deren Lese-Freigaben;
+   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung, Sichtbarkeit, Papierpost-Wahl, Push-Anmeldung), und deren Lese-Freigaben;
    - eigene Chat-Nachrichten, neue Unterhaltungen nur mit Personen und das Hinzufügen von Personen;
    - für die Datenschutz-Verantwortlichen: die **eigene**, von der App angelegte Einwilligungsliste.
 
@@ -386,6 +396,7 @@ datenschutz: { empfaenger: ['vorstand@…'] },   // wer die Einwilligungen sieht
 adressaenderung: 'adressaenderung@frankonia-brunonia.de', // Empfänger für Adressänderungen aus „Mein Profil“
 vorstand: { aktive: ['senior@…'], altherren: ['ahv@…'] }, // Knöpfe „… kontaktieren“ im Chat (E45); leer = kein Knopf
 galerieUploadOrdnerId: '1AbC…',                  // Ordner für „Fotos hochladen“ (E46); für die Mitglieder bearbeitbar freigeben
+push: { konto: 'vorstand@…', schluessel: 'B…' }, // Push-Mitteilungen (E50): Konto, in dem Push.gs läuft, und dessen öffentlicher Schlüssel
 forum: { aktiv: false },                         // Forum ausblenden
 profilBearbeiten: false,                         // keine eigenen Profilangaben (nur Adressverzeichnis + Google-Konto)
 chat: { aktiv: false },                          // Chat ausblenden
