@@ -114,7 +114,7 @@ Nur Google (intern): `cached(key, ttl, fn)` und `invalidate(key)` (Speicher-Cach
 
 | Typ | `appProperties` | Beschreibung (JSON) | Freigabe |
 |---|---|---|---|
-| Profil | `fbTyp=profil` | Felder aus `PROFILE_FIELDS`: `kneipname, status, rezeption, studium, taetigkeit, wohnort, aemter, ueberMich, angebot, telefon, instagram, linkedin` | Gruppe/Domain/Testkonten: Leser – nur, solange das Mitglied sichtbar ist (E40), sonst ohne Freigabe |
+| Profil | `fbTyp=profil` | Felder aus `PROFILE_FIELDS`: `kneipname, status, rezeption, studium, taetigkeit, wohnort, aemter, ueberMich, angebot, telefon, instagram, linkedin` (`rezeption` heißt in der Oberfläche „Aktiv seit“) | Gruppe/Domain/Testkonten: Leser – nur, solange das Mitglied sichtbar ist (E40), sonst ohne Freigabe |
 | Forum | `fbTyp=forum`, `fbRolle=thema\|antwort`, `fbThema=<Datei-ID>`, `fbKategorie` | `{ titel, text, bearbeitet }` | Gruppe/Domain/Testkonten: Leser |
 | News (Redaktion, E29) | `fbTyp=news`, `fbKategorie` | `{ titel, text, kategorie, angeheftet, bild, datum, bearbeitet }` – zählt nur, wenn der Eigentümer Admin oder in `redaktion` ist | Gruppe/Domain/Testkonten: Leser |
 | News-Bild | `fbTyp=newsbild` (JPEG, verkleinert) | – | Gruppe/Domain/Testkonten: Leser |
@@ -151,7 +151,7 @@ Nur Google (intern): `cached(key, ttl, fn)` und `invalidate(key)` (Speicher-Cach
 
 - **Design-Tokens** in `:root` (`--bg`, `--ink`, `--green`, `--line` …). Stil der Website: hellgrau, schwarze Titelkästen, Raleway, Grün aus dem Wappen; Wappen klein oben, Skyline unten.
 - **Nur `rem`** für Größen (Schriftstufen in `html[data-schrift]`). Ausnahmen in `px` nur dort, wo bewusst nicht mitskaliert wird (Kopfzeilenhöhe, Wappen oben, Avatar oben).
-- **Raster** mit `minmax(0, 1fr)`; lange Wörter mit `hyphens: auto`, in engen Spalten zusätzlich `overflow-wrap: anywhere` (z. B. „Adressverzeichnis“).
+- **Raster** mit `minmax(0, 1fr)`; lange Wörter mit `hyphens: auto`, in engen Spalten zusätzlich `overflow-wrap: anywhere` (z. B. „Adressverzeichnis“). Ausnahme: die Begrüßung auf der Startseite wird nicht getrennt (sonst „Mo-ritz“): Name und Semester (`.ganz`) rutschen als Ganzes in die nächste Zeile, bei langen Vornamen wird die Schrift kleiner (`--zeichen` aus `home.js`, Container-Einheit `cqi`); getrennt wird nur, was allein keine Zeile mehr füllt.
 - **Breakpoints:** 480/520/560 (kleine Handys), 600 (Dialoge mittig), 640, 700 (Abstände, Formulare zweispaltig, Tab-Leiste mittig), **768** (zweispaltige Seiten), 900 (größere Skyline), 1000/1100. Die **Navigation** hängt nur an `(min-width: 1280px) and (hover: hover) and (pointer: fine)` (E17). Bei `(orientation: landscape) and (max-height: 500px)` ist die Ansicht kompakt.
 - **Safe Areas:** `--safe-t/-b/-l/-r` und `--pad-l/-r` (Rand + Aussparung) für alles, was bis an den Rand reicht.
 - **Bildschirmtastatur (E36):** `js/lib/tastatur.js` setzt `--vvh`/`--vv-top` (sichtbarer Bereich) und `body.keyboard-open`, solange auf einem Touch-Gerät ein Textfeld die Tastatur geöffnet hat. Dann ist die Tab-Leiste ausgeblendet, und der Chat füllt genau den sichtbaren Bereich. Ganze Seitenhöhen nie nur mit `100dvh` rechnen, wenn dort getippt wird. Im versteckten Browser-Fenster (Test) feuern `visualViewport`-Ereignisse nicht – dort per `visualViewport.dispatchEvent(new Event('resize'))` auslösen.

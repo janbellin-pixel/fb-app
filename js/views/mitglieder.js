@@ -176,7 +176,7 @@ export async function detail(ctx) {
     ['Studium / Beruf', m.studium || m.organisation],
     ['Tätigkeit', m.taetigkeit],
     ['Wohnort', m.wohnort || m.location],
-    ['Rezeption', m.rezeption],
+    ['Aktiv seit', m.rezeption],
   ].filter(([, v]) => v);
 
   setHtml(c, html`

@@ -1002,8 +1002,20 @@ body.lightbox-open { overflow: hidden; }
   padding: 1.125rem calc(1.25rem + var(--safe-r)) 1.125rem 1.25rem;
   margin-right: calc(-1 * var(--pad-r));
 }
-.home-hero .welcome h1 { margin: 0; font-weight: 200; font-size: clamp(1.75rem, 1.2rem + 3vw, 3.125rem); line-height: 1.05; }
-.home-hero .welcome p { overflow-wrap: break-word; -webkit-hyphens: auto; hyphens: auto; margin: .375rem 0 0; color: #cfcfcf; font-weight: 300; }
+/* Begrüßung ohne Silbentrennung: Name (mit „!“) und Semester rutschen als Ganzes in die nächste Zeile, getrennt wird nur,
+   was allein keine Zeile mehr füllt. Bei langen Vornamen (--zeichen = Länge mit „!“, aus home.js) wird die Schrift so weit
+   kleiner, dass der Name in eine Zeile passt. */
+.home-hero .welcome { container-type: inline-size; }
+.home-hero .welcome h1, .home-hero .welcome p { overflow-wrap: break-word; -webkit-hyphens: manual; hyphens: manual; }
+.home-hero .welcome .ganz { display: inline-block; max-width: 100%; -webkit-hyphens: auto; hyphens: auto; }
+.home-hero .welcome h1 {
+  margin: 0;
+  font-weight: 200;
+  font-size: clamp(1.75rem, 1.2rem + 3vw, 3.125rem);
+  font-size: min(clamp(1.75rem, 1.2rem + 3vw, 3.125rem), 100cqi / (.55 * max(var(--zeichen, 8), 8)));
+  line-height: 1.05;
+}
+.home-hero .welcome p { margin: .375rem 0 0; color: #cfcfcf; font-weight: 300; }
 @media (min-width: 700px) {
   .home-hero { gap: 1.75rem; margin-top: 1.75rem; }
   .home-hero .crest { width: 9.375rem; }

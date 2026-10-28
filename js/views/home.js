@@ -20,6 +20,7 @@ export default async function home(ctx) {
   const { el, app } = ctx;
   const b = app.backend;
   const me = app.user;
+  const vorname = me.firstName || '';
   const showInstall = !isStandalone() && !local.get('fb.installDismissed');
   // Bereiche, die die eigene Gruppe nicht sieht, fehlen auf der Startseite (E41)
   const zeig = (bereich) => !gesperrt(bereich);
@@ -31,8 +32,8 @@ export default async function home(ctx) {
     <section class="home-hero">
       <img class="crest" src="assets/wappen.webp" alt="Wappen" width="150" height="142">
       <div class="welcome">
-        <h1>${greeting()}${me.firstName ? html`, ${me.firstName}` : ''}!</h1>
-        <p>${fDateLong(new Date())} · ${semesterLabel()}</p>
+        <h1 style="--zeichen:${vorname.length + 1}">${greeting()}${vorname ? html`, <span class="ganz">${vorname}!</span>` : '!'}</h1>
+        <p>${fDateLong(new Date())} · <span class="ganz">${semesterLabel()}</span></p>
       </div>
     </section>
     ${showInstall ? html`

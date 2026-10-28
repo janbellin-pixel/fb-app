@@ -24,7 +24,7 @@ export const ADRESS_FELDER = [
 export const PROFIL_FELDER = [
   { key: 'kneipname', label: 'Kneipname' },
   { key: 'status', label: 'Status' },
-  { key: 'rezeption', label: 'Rezeption' },
+  { key: 'rezeption', label: 'Aktiv seit' },
 ];
 
 export const ALLE_FELDER = [...PROFIL_FELDER, ...ADRESS_FELDER];

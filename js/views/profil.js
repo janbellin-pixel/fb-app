@@ -98,7 +98,7 @@ export default async function profil(ctx) {
         <div class="form-grid cols-2">
           ${field('kneipname', 'Kneipname (v/o)', m.kneipname, { ph: 'z. B. Merlin' })}
           ${statusSelect(m.status)}
-          ${field('rezeption', 'Rezeption', m.rezeption, { ph: 'z. B. WiSe 2024/25' })}
+          ${field('rezeption', 'Aktiv seit', m.rezeption, { ph: 'z. B. WiSe 2024/25' })}
           ${field('aemter', 'Ämter / Chargen', m.aemter, { ph: 'z. B. Kassenwart (xx)' })}
           ${field('studium', 'Studium / Beruf', m.studium, { ph: 'z. B. Maschinenbau (M.Sc.)' })}
           ${field('taetigkeit', 'Aktuelle bzw. letzte Tätigkeit', m.taetigkeit, { max: 200, ph: 'z. B. Projektleiter bei … / im Ruhestand, zuletzt …' })}
@@ -244,7 +244,7 @@ export default async function profil(ctx) {
 
   /**
    * Felder unter „Anschrift und Kontakt“ mit den Angaben aus dem Adressverzeichnis füllen (eigene Eingaben
-   * dort weg). Kneipname, Status und Rezeption im Profil oben nur, wo noch nichts steht.
+   * dort weg). Kneipname, Status und „Aktiv seit“ im Profil oben nur, wo noch nichts steht.
    */
   function fillFromEntry(entry) {
     for (const f of [...ADRESS_FELDER, ...(editable ? [] : PROFIL_FELDER)]) {
