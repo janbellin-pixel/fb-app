@@ -52,6 +52,18 @@ const minuten_ = function () { return Math.floor(Date.now() / 60000); };
 
 /* ======================================================================= Ablauf */
 
+/** Einmalig ausführen: Schlüssel anlegen, Auslöser einrichten, ersten Durchlauf machen (steht vorn, damit der Editor sie vorauswählt) */
+function einrichten() {
+  const speicher = PropertiesService.getScriptProperties();
+  const schluessel = vapidSchluessel_(speicher, true);
+  konfiguration_(); // prüft die ID der Konfiguration schon jetzt
+  abschalten();
+  ScriptApp.newTrigger('pushSenden').timeBased().everyMinutes(EINSTELLUNGEN.minuten).create();
+  pushSenden();
+  console.log('Fertig. In der App unter Einrichtung › Optionen › Push-Mitteilungen eintragen:\n'
+    + '  Konto: ' + Session.getEffectiveUser().getEmail() + '\n  Öffentlicher Schlüssel: ' + schluessel.oeffentlich);
+}
+
 /** Hauptfunktion – wird vom Auslöser alle paar Minuten aufgerufen */
 function pushSenden() {
   const sperre = LockService.getScriptLock();
@@ -117,18 +129,6 @@ function pushSenden() {
   } finally {
     sperre.releaseLock();
   }
-}
-
-/** Einmalig ausführen: Schlüssel anlegen, Auslöser einrichten, ersten Durchlauf machen */
-function einrichten() {
-  const speicher = PropertiesService.getScriptProperties();
-  const schluessel = vapidSchluessel_(speicher, true);
-  konfiguration_(); // prüft die ID der Konfiguration schon jetzt
-  abschalten();
-  ScriptApp.newTrigger('pushSenden').timeBased().everyMinutes(EINSTELLUNGEN.minuten).create();
-  pushSenden();
-  console.log('Fertig. In der App unter Einrichtung › Optionen › Push-Mitteilungen eintragen:\n'
-    + '  Konto: ' + Session.getEffectiveUser().getEmail() + '\n  Öffentlicher Schlüssel: ' + schluessel.oeffentlich);
 }
 
 /** Auslöser entfernen (die Geräte bleiben angemeldet, bekommen aber nichts mehr) */

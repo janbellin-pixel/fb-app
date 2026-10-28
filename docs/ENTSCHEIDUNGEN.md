@@ -430,5 +430,5 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
   - Die Datenschutzerklärung nennt Push-Adresse, Themen, Geräteangabe und die Push-Dienste der Browser-Hersteller (Apple, Google, Mozilla, Microsoft); die sehen nur die verschlüsselte Mitteilung und die Adresse. Die Einwilligungstexte bleiben gleich (keine neue Fassung), Stand der Erklärung 28.10.2026.
   - iPhone und iPad: nur für die App auf dem Home-Bildschirm (ab iOS 16.4); die Einstellungen weisen darauf hin.
   - Bis zu 10 Minuten Verzögerung (Zeitauslöser; 5 Minuten wären möglich).
-  - Apple und Mozilla sind nur nach den Standards geprüft, nicht mit einem echten Gerät; `Push.gs` lief nur mit nachgebauten Diensten, nicht in echtem Apps Script.
+  - Apple und Mozilla sind nur nach den Standards geprüft, nicht mit einem echten Gerät. `Push.gs` läuft seit dem 28.10.2026 in echtem Apps Script: eingerichtet, die erste Bestätigung kam auf dem Handy an.
   - Verworfen: Firebase Cloud Messaging (SDK, eigenes Firebase-Projekt, neue CSP-Ziele), ein eigener Server (E3), Push ohne Inhalt (nur „Es gibt Neues“) und Chat-Nachrichten über die Workspace Events API (s. o.).
