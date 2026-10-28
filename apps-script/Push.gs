@@ -22,7 +22,7 @@
  *      → diesen Code einfügen.
  *   2. Projekteinstellungen (Zahnrad) → „Manifestdatei „appsscript.json“ im Editor anzeigen“ anhaken, dann
  *      im Editor appsscript.json öffnen und den Inhalt von Push.appsscript.json einfügen (Lese-Rechte,
- *      Kalender- und Drive-Dienst, Zeitzone).
+ *      Kalender-, Drive- und Sheets-Dienst, Zeitzone).
  *   3. Unten in EINSTELLUNGEN die ID der privaten Konfiguration eintragen (steht in config.js der App
  *      unter privateConfigId).
  *   4. Oben die Funktion „einrichten“ auswählen und ▶ Ausführen klicken, Berechtigungen bestätigen.
@@ -227,9 +227,8 @@ function vapidSchluessel_(speicher, anlegen) {
 /** Zeilen der Tabelle „News“: neu ist, was noch nicht bekannt war (beim ersten Durchlauf: alles bekannt) */
 function tabellenNews_(cfg, stand, erster) {
   if (!cfg.newsTabelle) return [];
-  const blatt = SpreadsheetApp.openById(cfg.newsTabelle).getSheetByName('News');
-  if (!blatt) return [];
-  const werte = blatt.getDataRange().getDisplayValues();
+  // über den Sheets-Dienst wie in der App – SpreadsheetApp ginge nur mit Schreibrechten für alle Tabellen
+  const werte = Sheets.Spreadsheets.Values.get(cfg.newsTabelle, "'News'!A1:AZ", { valueRenderOption: 'FORMATTED_VALUE' }).values || [];
   const kopf = (werte[0] || []).map(norm_);
   const spalte = function (label, key) { return kopf.indexOf(norm_(label)) >= 0 ? kopf.indexOf(norm_(label)) : kopf.indexOf(norm_(key)); };
   const s = { id: spalte('ID', 'id'), datum: spalte('Datum', 'datum'), titel: spalte('Titel', 'titel'), text: spalte('Text', 'text'),

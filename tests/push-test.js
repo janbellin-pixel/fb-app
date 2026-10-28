@@ -104,6 +104,18 @@ await step('Push.gs laden', async () => {
   section('Laden');
   await ladePushGs();
   check(typeof pushSenden === 'function' && typeof verschluesseln_ === 'function', 'Push.gs geladen, Funktionen vorhanden');
+  // Manifest: nur Lese-Rechte; jeder benutzte Google-Dienst ist eingeschaltet und kommt mit Lese-Rechten aus
+  const manifest = await (await fetch('../apps-script/Push.appsscript.json', { cache: 'no-store' })).json();
+  const ohneDaten = ['script.external_request', 'script.scriptapp', 'userinfo.email'].map((s) => `https://www.googleapis.com/auth/${s}`);
+  const scopes = manifest.oauthScopes || [];
+  check(scopes.length && scopes.every((s) => s.endsWith('.readonly') || ohneDaten.includes(s)), 'Manifest: nur Lese-Rechte (dazu Auslöser, Abrufe nach außen, eigene Adresse)', scopes.join(' '));
+  const code = (await (await fetch('../apps-script/Push.gs', { cache: 'no-store' })).text())
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  const dienste = (manifest.dependencies?.enabledAdvancedServices || []).map((d) => d.userSymbol);
+  const benutzt = [...new Set([...code.matchAll(/\b(Drive|Calendar|Sheets|Gmail|People|AdminDirectory)\.[A-Z]/g)].map((m) => m[1]))];
+  check(benutzt.length && benutzt.every((d) => dienste.includes(d)), 'jeder benutzte Google-Dienst ist im Manifest eingeschaltet', `benutzt: ${benutzt}, eingeschaltet: ${dienste}`);
+  const schreibend = code.match(/\b(SpreadsheetApp|CalendarApp|DocumentApp|GmailApp|FormApp|SlidesApp)\b/g);
+  check(!schreibend, 'keine Apps-Script-Dienste, die Schreibrechte verlangen (z. B. SpreadsheetApp)', schreibend);
 });
 
 await step('Bausteine', async () => {
@@ -226,7 +238,7 @@ await step('VAPID', async () => {
 /* ------------------------------------------------------------ Durchläufe mit nachgebauten Google-Diensten */
 
 const PUSH = 'push@beispiel.de';
-const welt = { props: {}, dateien: [], termine: [], tabelle: null, anfragen: [], ausloeser: [], antwort: () => 201, konfiguration: null };
+const welt = { props: {}, dateien: [], termine: [], tabelle: null, tabellenAbrufe: [], anfragen: [], ausloeser: [], antwort: () => 201, konfiguration: null };
 const iso = (ms) => new Date(ms).toISOString();
 
 Object.assign(window, {
@@ -244,7 +256,12 @@ Object.assign(window, {
     deleteTrigger: (x) => { welt.ausloeser = welt.ausloeser.filter((t) => t !== x.t); },
   },
   DriveApp: { getFileById: () => ({ getBlob: () => ({ getDataAsString: () => JSON.stringify(welt.konfiguration) }) }) },
-  SpreadsheetApp: { openById: () => ({ getSheetByName: (n) => (n === 'News' && welt.tabelle ? { getDataRange: () => ({ getDisplayValues: () => welt.tabelle.map((r) => r.slice()) }) } : null) }) },
+  Sheets: { Spreadsheets: { Values: { get: (id, range, o) => {
+    welt.tabellenAbrufe.push({ id, range, o });
+    if (!welt.tabelle || !range.startsWith("'News'!")) throw new Error(`Unable to parse range: ${range}`);
+    // wie die echte API: leere Zellen am Zeilenende fallen weg
+    return { range, majorDimension: 'ROWS', values: welt.tabelle.map((r) => r.slice(0, r.findLastIndex((z) => z !== '') + 1)) };
+  } } } },
   Drive: { Files: {
     list: ({ q, corpora }) => {
       const typ = /value='(\w+)'/.exec(q)[1];
@@ -311,6 +328,8 @@ await step('Durchläufe', async () => {
   check(/^B[A-Za-z0-9_-]{86}$/.test(oeffentlich || '') && /^[A-Za-z0-9_-]{43}$/.test(welt.props.vapidPrivat || ''), 'Schlüsselpaar angelegt (privat bleibt in den Skript-Eigenschaften)');
   check(b64u(punktBytes_(mul_(zahl_(vonB64u(welt.props.vapidPrivat)), G_))) === oeffentlich, 'öffentlicher Schlüssel passt zum privaten');
   check(welt.ausloeser.length === 1 && welt.ausloeser[0].name === 'pushSenden' && welt.ausloeser[0].n === 10, 'ein Auslöser alle 10 Minuten');
+  check(welt.tabellenAbrufe.length > 0 && welt.tabellenAbrufe.every((a) => a.id === 'tab1' && a.range === "'News'!A1:AZ" && a.o?.valueRenderOption === 'FORMATTED_VALUE'),
+    'News-Tabelle über den Sheets-Dienst gelesen (Anzeigewerte, Bereich wie in der App)', JSON.stringify(welt.tabellenAbrufe));
   einrichten();
   check(welt.ausloeser.length === 1 && welt.props.vapidOeffentlich === oeffentlich, 'nochmal einrichten: kein zweiter Auslöser, Schlüssel bleibt');
   check(welt.anfragen.length === 0 && !!welt.props.seit, 'erster Durchlauf verschickt nichts und merkt sich die Zeit');

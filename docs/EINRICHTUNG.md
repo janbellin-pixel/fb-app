@@ -205,7 +205,7 @@ Einrichtung: Die Anleitung steht oben in der Datei (5 Minuten, kein Programmiere
 **Push-Mitteilungen (optional, E50):** Damit die App auch bei geschlossener App meldet, wenn es neue News, Forumsbeiträge oder Termine gibt, schickt das Apps-Script `apps-script/Push.gs` alle 10 Minuten verschlüsselte Mitteilungen an die Geräte, die Push eingeschaltet haben. Es liest nur und ändert nichts.
 
 1. Im Konto, das die Mitteilungen verschicken soll (am besten ein Admin), auf https://script.google.com ein **eigenes, neues Projekt** anlegen und den Inhalt von `Push.gs` einfügen.
-2. Projekteinstellungen (Zahnrad) → „Manifestdatei „appsscript.json“ im Editor anzeigen“ anhaken. Im Editor `appsscript.json` öffnen und den Inhalt von `apps-script/Push.appsscript.json` einfügen: Das gibt dem Skript nur Lese-Rechte und schaltet Kalender- und Drive-Dienst ein.
+2. Projekteinstellungen (Zahnrad) → „Manifestdatei „appsscript.json“ im Editor anzeigen“ anhaken. Im Editor `appsscript.json` öffnen und den Inhalt von `apps-script/Push.appsscript.json` einfügen: Das gibt dem Skript nur Lese-Rechte und schaltet Kalender-, Drive- und Sheets-Dienst ein.
 3. In `Push.gs` oben unter `EINSTELLUNGEN` die ID der privaten Konfiguration eintragen (`privateConfigId` aus `config.js`).
 4. Oben die Funktion **„einrichten“** wählen, ▶ Ausführen, Berechtigungen bestätigen. Im Ausführungsprotokoll stehen danach **Konto** und **öffentlicher Schlüssel**.
 5. In der App unter **Einrichtung → Optionen → Push-Mitteilungen** beides eintragen, „Optionen speichern“ und danach „Einstellungen in Google Drive speichern“.
