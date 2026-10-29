@@ -1,5 +1,7 @@
-// Papierpost abbestellen (E44): Semesterprogramm und Bundesbote einzeln abwählen.
+// Papierpost (E44): Semesterprogramm und Bundesbote – wer braucht sie nicht mehr auf Papier?
 // Die Wahl liegt als eigene Datei im eigenen Drive und ist nur für die Admins lesbar.
+// Das Formular steht unter Mehr › Einstellungen (papierpostFormular); die Seite #/papierpost zeigt es
+// den Admins zusammen mit der Liste der Abbestellungen.
 import { html, setHtml, icon, hero, toast, showError, setBusy, loading, errorBox, emptyState, copyText } from '../ui.js';
 import { fDateShort, toDate, isValid } from '../lib/dates.js';
 
@@ -8,37 +10,37 @@ const ARTEN = [
   { id: 'bundesbote', titel: 'Bundesbote', app: 'Jede Ausgabe steht unter „Bundesbote“.' },
 ];
 
+/** Hinweis, warum vorerst trotzdem alles verschickt wird (Stand der Verbindung, 2026) */
+export const PAPIERPOST_HINWEIS = 'Zurzeit verschicken wir aus logistischen Gründen ohnehin noch alles an alle. Mit deiner Angabe wollen wir erst einmal sehen, wer das künftig nicht mehr gedruckt braucht.';
+
 const datum = (iso) => {
   const d = toDate(iso);
   return isValid(d) ? fDateShort(d) : '';
 };
 
-export default async function papierpost(ctx) {
-  const { el, app } = ctx;
+/**
+ * Formular in ein Element zeichnen (Einstellungen und Seite „Papierpost“). opts.onSaved() nach dem Speichern.
+ */
+export async function papierpostFormular(ctx, mount, opts = {}) {
+  const { app } = ctx;
   const b = app.backend;
   let current = null;
 
-  setHtml(el, html`
-    ${hero('Papierpost abbestellen', 'Semesterprogramm und Bundesbote')}
-    <form class="card card-pad" id="pp-form" novalidate>
-      <p style="margin-top:0">Was du hier abwählst, bekommst du nicht mehr per Post, sondern über die App.</p>
-      <div class="pick-list" id="pp-items">${loading()}</div>
-      <p class="small muted">${icon('info', 'icon-sm')} Es kann sein, dass dich trotzdem einmal etwas per Post erreicht – beim Versand lässt sich das nicht immer verhindern.</p>
+  setHtml(mount, html`
+    <form class="pp-form" novalidate>
+      <p style="margin-top:0">Semesterprogramm und Bundesbote gibt es auch in der App. Sag uns hier, was du nicht mehr auf Papier brauchst.</p>
+      <div class="pick-list pp-items">${loading()}</div>
+      <p class="small muted">${icon('info', 'icon-sm')} ${PAPIERPOST_HINWEIS}</p>
       <div class="form-actions" style="justify-content:flex-start">
         <button class="btn btn-primary" type="submit" disabled>${icon('check', 'icon-sm')}Speichern</button>
       </div>
-      <p class="tiny muted" id="pp-status" aria-live="polite"></p>
-    </form>
-    ${app.isAdmin() ? html`<section class="card card-pad" style="margin-top:1rem">
-      <h2 class="card-title">Abbestellungen</h2>
-      <p class="small muted" style="margin-top:0">Nur für Admins sichtbar.</p>
-      <div id="pp-list">${loading()}</div>
-    </section>` : ''}`);
+      <p class="tiny muted pp-status" aria-live="polite"></p>
+    </form>`);
 
-  const form = el.querySelector('#pp-form');
-  const items = el.querySelector('#pp-items');
+  const form = mount.querySelector('.pp-form');
+  const items = form.querySelector('.pp-items');
   const submit = form.querySelector('[type=submit]');
-  const statusEl = el.querySelector('#pp-status');
+  const statusEl = form.querySelector('.pp-status');
 
   const chosen = () => Object.fromEntries(ARTEN.map((a) => [a.id, !!form.elements[a.id]?.checked]));
   const changed = () => {
@@ -50,7 +52,7 @@ export default async function papierpost(ctx) {
     setHtml(items, html`${ARTEN.map((a) => html`
       <label class="pick-row">
         <input type="checkbox" name="${a.id}" ${current?.[a.id] ? 'checked' : ''}>
-        <span class="grow"><span class="name">${a.titel} nicht mehr per Post</span><span class="sub">${a.app}</span></span>
+        <span class="grow"><span class="name">${a.titel} brauche ich nicht auf Papier</span><span class="sub">${a.app}</span></span>
       </label>`)}`);
     update();
   }
@@ -61,7 +63,7 @@ export default async function papierpost(ctx) {
   }
 
   form.addEventListener('change', update);
-  el.addEventListener('click', (e) => {
+  form.addEventListener('click', (e) => {
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
   });
@@ -73,13 +75,39 @@ export default async function papierpost(ctx) {
       setBusy(submit, false);
       toast('Gespeichert');
       renderItems();
-      loadList();
+      opts.onSaved?.();
     } catch (err) {
       setBusy(submit, false);
       showError(err);
       update();
     }
   });
+
+  try {
+    current = await b.getMyPapierpost();
+  } catch (err) {
+    if (!ctx.alive()) return;
+    setHtml(items, errorBox(err));
+    return;
+  }
+  if (!ctx.alive()) return;
+  renderItems();
+}
+
+/** Seite „Papierpost“: Formular und – für Admins – die Liste der Abbestellungen */
+export default async function papierpost(ctx) {
+  const { el, app } = ctx;
+  const b = app.backend;
+
+  setHtml(el, html`
+    ${hero('Papierpost', 'Semesterprogramm und Bundesbote')}
+    <div class="card card-pad" id="pp-form-box"></div>
+    ${app.isAdmin() ? html`<section class="card card-pad" style="margin-top:1rem">
+      <h2 class="card-title">Abbestellungen</h2>
+      <p class="small muted" style="margin-top:0">Nur für Admins sichtbar. ${PAPIERPOST_HINWEIS}</p>
+      <div id="pp-list">${loading()}</div>
+    </section>` : ''}
+    <p class="small muted" style="margin-top:1rem"><a href="#/einstellungen">${icon('settings', 'icon-sm')} Zu den Einstellungen</a></p>`);
 
   async function loadList() {
     const box = el.querySelector('#pp-list');
@@ -103,14 +131,6 @@ export default async function papierpost(ctx) {
     box.querySelector('[data-action=copy]')?.addEventListener('click', () => copyText(text));
   }
 
-  try {
-    current = await b.getMyPapierpost();
-  } catch (err) {
-    if (!ctx.alive()) return;
-    setHtml(items, errorBox(err));
-    return;
-  }
-  if (!ctx.alive()) return;
-  renderItems();
+  await papierpostFormular(ctx, el.querySelector('#pp-form-box'), { onSaved: loadList });
   loadList();
 }

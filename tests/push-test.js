@@ -464,8 +464,9 @@ await step('Chat-Hinweise', async () => {
   m = await verschickt(start);
   check(an('gerd').length === 1 && an('gerd')[0].title === 'Neues im Chat' && an('gerd')[0].body === '1 Gruppennachricht, 1 Bierjunge' && an('gerd')[0].tag === 'chat:sammel',
     'Gerd: Gruppennachricht und Bierjunge als eine Mitteilung – die alte Direktnachricht nicht noch einmal', JSON.stringify(an('gerd')));
-  check(an('QHanna').length === 1 && an('QHanna')[0].title === 'Bierjunge!' && an('QHanna')[0].tag === 'chat:bierjunge' && /Prost/.test(an('QHanna')[0].body),
-    'Hanna: „Bierjunge!“ (volle Adresse in der Datei), die Gruppe nicht (abgewählt)', JSON.stringify(an('QHanna')));
+  check(an('QHanna').length === 1 && an('QHanna')[0].title === 'Bierjunge!' && an('QHanna')[0].tag === 'chat:bierjunge' && an('QHanna')[0].body === 'Carl Beispiel hat dir einen angehängt!',
+    'Hanna: „Bierjunge!“ mit dem Absender laut Google-Konto (volle Adresse in der Datei), die Gruppe nicht (abgewählt)', JSON.stringify(an('QHanna')));
+  check(bierjungeText_('') === 'Jemand hat dir einen angehängt!' && bierjungeText_('  Carl   Beispiel ') === 'Carl Beispiel hat dir einen angehängt!', 'Bierjungen-Text ohne Namen: „Jemand …“');
   check(an('ingo').length === 1 && an('ingo')[0].title === 'Gruppennachricht' && an('ingo')[0].tag === 'chat:gruppe' && m.length === 3,
     'Ingo: „Gruppennachricht“; Doras nicht geteilte Datei bleibt unsichtbar', JSON.stringify(m.map((x) => [x.url, x.nachricht?.title])));
   check(chatMitteilung_([{ art: 'direkt' }, { art: 'direkt' }, { art: 'bierjunge' }]).body === '2 Direktnachrichten, 1 Bierjunge', 'Sammeltext mit Mehrzahl');

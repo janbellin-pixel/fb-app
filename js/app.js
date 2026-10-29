@@ -8,6 +8,7 @@ import { firstName } from './lib/text.js';
 import { watchKeyboard } from './lib/tastatur.js';
 import { gesperrt, ladeGemerkteGruppen, setMeineGruppen, meineGruppen } from './lib/gruppen.js';
 import { loadPrivateConfig, clearPrivateConfigCache } from './lib/konfiguration.js';
+import { startDarstellung } from './lib/darstellung.js';
 
 export const APP_VERSION = '1.0.0';
 
@@ -220,6 +221,7 @@ function describeOAuthError(code) {
 }
 
 async function boot() {
+  startDarstellung(); // hell/dunkel (E53) – boot.js hat es schon vor dem ersten Zeichnen gesetzt
   registerServiceWorker();
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();

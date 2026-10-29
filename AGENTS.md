@@ -22,6 +22,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 3. Prüfen:
    - http://localhost:8080/tests/google-mock.html – alles grün, 0 Verstöße
    - http://127.0.0.1:8080/tests/app-mock.html – App gegen den Google-Nachbau; `window.__fake.state.violations` leer
+   - nach Änderungen an den Skripten: http://localhost:8080/tests/push-test.html (`Push.gs`) und http://localhost:8080/tests/ds-zeitung-test.html (`DsZeitung.gs`)
    - Layout in der Konsole: `const m = await import('/tests/layout-check.js'); await m.run({ levels: ['normal', 'sehr-gross'] })` bei Handy-, Querformat- und Tablet-Größen
 4. **Dokumentation mitpflegen** (Pflicht bei jeder Änderung):
    - `docs/ENTWICKLUNG.md` – Aufbau, Schnittstellen, Datenformate, Aufgaben, offene Punkte
@@ -36,9 +37,9 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 - Seiten: `js/views/<bereich>.js`; Leseansicht für PDFs und Bilder (Bundesbote, Liedermappe): `js/views/reader.js` (Umblättern mit StPageFlip, in `vendor/` lokal korrigiert, E49)
 - Google-Zugriffe: `js/google/*.js`; Schreibschutz: `js/google/guard.js`
 - Benachrichtigungen (nur nach Einschalten, E34): `js/lib/hinweise.js`; Push-Mitteilungen (E50): `js/lib/push.js`, Service Worker `sw.js` (`push`), Absender `apps-script/Push.gs`, Test `tests/push-test.html`; Chat-Hinweise ohne Inhalt (E51): `chatHinweis()` in `js/backend/google-backend.js`, `chatSenden()` in `Push.gs`
-- Papierpost abbestellen (E44): `js/views/papierpost.js`; Vorstände kontaktieren und Bierjunge (E45): `js/views/chat.js`, `js/views/mitglieder.js`; Galerie mit Upload-Link und Ordneransicht (E46): `js/views/galerie.js`
+- Papierpost (E44, Formular unter Einstellungen): `js/views/papierpost.js`, eingebettet in `js/views/mehr.js`; Darstellung hell/dunkel (E53): `js/lib/darstellung.js`, `js/boot.js`, Block `html[data-theme="dunkel"]` in `css/app.css`; Vorlesen (E54): `js/lib/vorlesen.js`, `js/views/reader.js` (Option `vorlesen`); DS-Zeitung automatisch von der Website (E55): `apps-script/DsZeitung.gs`, Test `tests/ds-zeitung-test.html`; Vorstände kontaktieren und Bierjunge (E45): `js/views/chat.js`, `js/views/mitglieder.js`; Galerie mit Upload-Link und Ordneransicht (E46): `js/views/galerie.js`
 - Gruppen (Bereiche je Google-Gruppe ausblenden, E41; Kästchen in der Einrichtung, E52): `js/lib/gruppen.js`, Kennungsdateien in `js/lib/setup.js`; Sichtbarkeit (E40): `js/backend/google-backend.js`
 - Datenmodelle: `js/backend/common.js`; Einwilligungen: `js/lib/datenschutz.js`, `js/lib/einwilligungsliste.js`; Adressabgleich: `js/lib/adressabgleich.js`
 - Einrichtung (verbindet Vorhandenes, legt nur Fehlendes neu an, prüft Freigaben nur lesend): `js/lib/setup.js`, `js/views/einrichtung.js`
-- Gestaltung: `css/app.css` (Tokens in `:root`, Navigation nur an einer Media-Query, siehe E17)
+- Gestaltung: `css/app.css` (Tokens in `:root`, dunkle Darstellung unter `html[data-theme="dunkel"]` – neue Farbliterale brauchen dort einen Gegenpart; Navigation nur an einer Media-Query, siehe E17)
 - Tests: `tests/`; Werkzeuge: `tools/`; optionale Skripte für Verantwortliche: `apps-script/`

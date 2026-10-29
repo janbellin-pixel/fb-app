@@ -9,9 +9,10 @@
  *     • neue Themen und Antworten im Forum,
  *     • neue Termine im Verbindungskalender,
  *     • Chat (E51): „Direktnachricht“, „Gruppennachricht“ oder „Bierjunge!“, wenn jemand aus der Mitglieder-App
- *       schreibt – ohne Inhalt und ohne Absender. Die App des Absenders legt dafür in seinem Drive eine Hinweis-Datei
- *       ab (je Empfänger und Art nur der Zeitpunkt der letzten Nachricht, eine Stunde lang), lesbar nur für dieses
- *       Konto. Was direkt in Google Chat geschrieben wird, meldet weiter die App „Google Chat“.
+ *       schreibt – ohne Inhalt und ohne Absender; nur der Bierjunge nennt, wer ihn geschickt hat („Carl Beispiel hat
+ *       dir einen angehängt!“, Name laut Google-Konto des Absenders). Die App des Absenders legt dafür in seinem
+ *       Drive eine Hinweis-Datei ab (je Empfänger und Art nur der Zeitpunkt der letzten Nachricht, eine Stunde lang),
+ *       lesbar nur für dieses Konto. Was direkt in Google Chat geschrieben wird, meldet weiter die App „Google Chat“.
  *
  *   Das Skript LIEST nur: die private Konfiguration der App, den Kalender, die News-Tabelle, Forum- und
  *   News-Dateien, die Push-Anmeldungen und die Chat-Hinweise, die Mitglieder mit diesem Konto geteilt haben. Es
@@ -57,8 +58,12 @@ const CHAT_ARTEN = ['direkt', 'gruppe', 'bierjunge'];
 const CHAT_TEXTE = {
   direkt: { title: 'Direktnachricht', body: 'Jemand hat dir aus der Mitglieder-App geschrieben.', einzahl: 'Direktnachricht', mehrzahl: 'Direktnachrichten', thema: 'chat' },
   gruppe: { title: 'Gruppennachricht', body: 'Neue Nachricht in einer deiner Gruppen oder Räume.', einzahl: 'Gruppennachricht', mehrzahl: 'Gruppennachrichten', thema: 'chatgruppen' },
-  bierjunge: { title: 'Bierjunge!', body: 'Dir wurde ein Bierjunge geschickt. Prost!', einzahl: 'Bierjunge', mehrzahl: 'Bierjungen', thema: 'chat' },
+  bierjunge: { title: 'Bierjunge!', body: 'Jemand hat dir einen angehängt!', einzahl: 'Bierjunge', mehrzahl: 'Bierjungen', thema: 'chat' },
 };
+/** Text der Bierjungen-Mitteilung mit dem Absender (Name laut Google-Konto, Wunsch der Verbindung) */
+function bierjungeText_(von) {
+  return (kurz_(von, 60) || 'Jemand') + ' hat dir einen angehängt!';
+}
 // Anmeldungen nur bei diesen Push-Diensten annehmen (Apple, Google, Mozilla, Microsoft)
 const PUSH_DIENSTE = [/^fcm\.googleapis\.com$/, /(^|\.)push\.apple\.com$/, /^updates\.push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/];
 const UEBERLAPPUNG = 5 * 60000; // Zeitfenster überlappen, Doppeltes fällt über „gesendet“ heraus
@@ -427,14 +432,16 @@ function gueltigesAbo_(d) {
 /**
  * Chat-Hinweise (E51) aus den Hinweis-Dateien, die seit „seit“ geändert wurden – je Datei (= ein Absender) zählt, was
  * jünger ist als der zuletzt gemeldete Zeitpunkt dieser Datei (stand.chat). Die App schreibt die Zeit innerhalb einer
- * Datei immer aufsteigend, darum reicht dieser eine Zeitpunkt. Ergebnis ohne Absender: { empfaenger, art, thema }.
+ * Datei immer aufsteigend, darum reicht dieser eine Zeitpunkt. Ergebnis: { empfaenger, art, thema, von } –
+ * „von“ (Name des Absenders laut Google) nur beim Bierjungen, sonst leer.
  */
 function chatHinweise_(seit, stand) {
   const domain = String(Session.getEffectiveUser().getEmail() || '').toLowerCase().split('@')[1] || '';
   const raus = [];
   const q = "properties has { key='fbTyp' and value='chathinweis' } and modifiedTime > '" + seit.toISOString() + "' and trashed = false";
   dateien_(q, ['user']).forEach(function (f) {
-    const wer = inhaber_(f).email; // Absender = Inhaber laut Google, steht nie in der Mitteilung
+    const absender = inhaber_(f); // Absender = Inhaber laut Google (nicht der Dateiinhalt)
+    const wer = absender.email;
     const d = json_(f.description);
     const an = d.an && typeof d.an === 'object' ? d.an : {};
     const marke = Number(stand.chat[f.id]) || 0;
@@ -447,7 +454,7 @@ function chatHinweise_(seit, stand) {
       CHAT_ARTEN.forEach(function (art) {
         const t = Number(arten[art]);
         if (!(t > marke)) return;
-        raus.push({ empfaenger: email, art: art, thema: CHAT_TEXTE[art].thema });
+        raus.push({ empfaenger: email, art: art, thema: CHAT_TEXTE[art].thema, von: art === 'bierjunge' ? absender.name : '' });
         if (t > neu) neu = t;
       });
     });
@@ -456,11 +463,12 @@ function chatHinweise_(seit, stand) {
   return raus;
 }
 
-/** Eine Mitteilung für alle Chat-Hinweise eines Geräts in diesem Durchlauf – ohne Inhalt, ohne Absender */
+/** Eine Mitteilung für alle Chat-Hinweise eines Geräts in diesem Durchlauf – ohne Inhalt; Absender nur beim Bierjungen */
 function chatMitteilung_(liste) {
   if (liste.length === 1) {
     const t = CHAT_TEXTE[liste[0].art];
-    return { title: t.title, body: t.body, url: '#/chat', tag: 'chat:' + liste[0].art, renotify: true };
+    const body = liste[0].art === 'bierjunge' ? bierjungeText_(liste[0].von) : t.body;
+    return { title: t.title, body: body, url: '#/chat', tag: 'chat:' + liste[0].art, renotify: true };
   }
   const teile = CHAT_ARTEN.map(function (art) {
     const n = liste.filter(function (x) { return x.art === art; }).length;

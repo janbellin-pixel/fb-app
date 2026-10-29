@@ -1,8 +1,9 @@
 // Leseansicht mit Umblätter-Animation für PDFs und Bilder – gemeinsam für den Bundesboten (E11)
 // und die Liedermappe (E31). Immer EINE Seite; Inhalt (PDF-Lesezeichen) und „Zu Seite …“ bei
-// längeren Dateien; auf Wunsch bleibt der Bildschirm an (Wake Lock, beim Singen).
+// längeren Dateien; auf Wunsch bleibt der Bildschirm an (Wake Lock, beim Singen); Vorlesen (E54).
 import { html, setHtml, icon, errorBox, toast, loadScript, isIos } from '../ui.js';
 import { matchesQuery } from '../lib/text.js';
+import { vorlesenMoeglich, seitenText, vorleser } from '../lib/vorlesen.js';
 
 const PDFJS = new URL('../../vendor/pdfjs/pdf.min.mjs', import.meta.url).href;
 const PDFJS_WORKER = new URL('../../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
@@ -128,6 +129,12 @@ async function pdfSource(data, { split }) {
       await walk(items, 0);
       return out;
     },
+    /** Text einer Leseseite zum Vorlesen (E54) – leer bei Scans ohne Textebene */
+    async text(i) {
+      const page = await pdf.getPage(pages[i].p);
+      const tc = await page.getTextContent();
+      return seitenText(tc.items, { part: pages[i].part, width: page.getViewport({ scale: 1 }).width });
+    },
     close() { closePdf(pdf); },
   };
 }
@@ -146,6 +153,7 @@ async function imageSource(blob) {
       pages: [{ p: 1, part: 'F', w: img.naturalWidth || 1, h: img.naturalHeight || 1 }],
       async render() { return { blob, width: Infinity }; },
       async outline() { return []; },
+      async text() { return ''; },
       close() {},
     };
   } catch {
@@ -167,6 +175,7 @@ async function imageSource(blob) {
  *   split              – Querformat-Seiten als Doppelseiten teilen (nur Bundesbote)
  *   hardCover          – erste und letzte Seite als feste Umschlagseiten
  *   keepAwake          – Bildschirm anlassen, solange der Leser offen ist (Liedermappe)
+ *   vorlesen           – Knopf „Vorlesen“: Text der Seiten mit der Sprachausgabe lesen (Bundesbote, DS-Zeitung, E54)
  *   onOpen(item, src)  – nach dem Öffnen (z. B. Titelbild merken)
  */
 export async function openReader(ctx, opts) {
@@ -174,11 +183,13 @@ export async function openReader(ctx, opts) {
   document.body.classList.add('reader-open');
   const canFullscreen = !!document.documentElement.requestFullscreen && !isIos();
   const openLabel = opts.openLabel || 'Datei öffnen';
+  const mitVorlesen = !!opts.vorlesen && vorlesenMoeglich();
   setHtml(el, html`
     <div class="reader" role="dialog" aria-label="${opts.label}">
       <div class="reader-bar">
         <a class="btn btn-on-dark btn-icon btn-sm" href="${opts.back}" data-back aria-label="Schließen">${icon('x')}</a>
         <h1 id="r-title">${opts.heading || ''}</h1>
+        ${mitVorlesen ? html`<button class="btn btn-on-dark btn-icon btn-sm hidden" data-action="vorlesen" title="Vorlesen" aria-label="Vorlesen" aria-pressed="false">${icon('speaker')}</button>` : ''}
         <button class="btn btn-on-dark btn-icon btn-sm hidden" data-action="toc" title="Inhalt und Seiten" aria-label="Inhalt und Seiten">${icon('list')}</button>
         <button class="btn btn-on-dark btn-icon btn-sm" data-action="zoom" title="Seite vergrößern" aria-label="Seite vergrößern" disabled>${icon('zoom')}</button>
         <a class="btn btn-on-dark btn-icon btn-sm" id="r-open" target="_blank" rel="noopener" title="${openLabel}" aria-label="${openLabel}">${icon('download')}</a>
@@ -205,9 +216,14 @@ export async function openReader(ctx, opts) {
   let queue = Promise.resolve();
   let n = 0;
   let wake = null;
+  // Vorlesen (E54): liesIndex = Seite, die gerade vorgelesen wird (-1 = aus)
+  let liesIndex = -1;
+  let liesToken = 0;
+  const leser = mitVorlesen ? vorleser({ onEnde: () => naechsteSeiteVorlesen(), onFehler: (e) => { vorlesenBeenden(); toast(`Vorlesen nicht möglich${e?.error ? ` (${e.error})` : ''}`, { type: 'err' }); } }) : null;
 
   const cleanup = () => {
     destroyed = true;
+    leser?.stop();
     document.body.classList.remove('reader-open');
     document.removeEventListener('keydown', onKey);
     document.removeEventListener('visibilitychange', onVisible);
@@ -219,9 +235,9 @@ export async function openReader(ctx, opts) {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   };
 
-  // Bildschirm anlassen (z. B. beim Singen); der Browser gibt die Sperre beim Wegschalten frei
+  // Bildschirm anlassen (z. B. beim Singen oder Vorlesen); der Browser gibt die Sperre beim Wegschalten frei
   async function keepAwake() {
-    if (!opts.keepAwake || destroyed || document.visibilityState !== 'visible' || (wake && !wake.released)) return;
+    if (!(opts.keepAwake || liesIndex >= 0) || destroyed || document.visibilityState !== 'visible' || (wake && !wake.released)) return;
     try {
       wake = await navigator.wakeLock?.request('screen');
       if (destroyed) wake?.release?.().catch(() => {});
@@ -248,6 +264,7 @@ export async function openReader(ctx, opts) {
     status.textContent = 'Seiten werden vorbereitet …';
     src = image ? await imageSource(new Blob([data], { type: item.mimeType || 'image/jpeg' })) : await pdfSource(data, { split: !!opts.split });
     n = src.pages.length;
+    if (mitVorlesen && !image) el.querySelector('[data-action=vorlesen]')?.classList.remove('hidden');
     if (n > 1) await loadScript(PAGEFLIP);
   } catch (err) {
     console.error(err);
@@ -367,12 +384,71 @@ export async function openReader(ctx, opts) {
     el.querySelector('[data-action=next]').disabled = cur >= n - 1;
     el.querySelector('[data-action=zoom]').disabled = false;
     schedule();
+    // beim Vorlesen von Hand umgeblättert: auf der neuen Seite weiterlesen
+    if (liesIndex >= 0 && cur !== liesIndex) vorlesenAb(cur);
   }
 
   function goTo(i) {
     if (!flip) return;
     flip.turnToPage(Math.max(0, Math.min(n - 1, i)));
     update();
+  }
+
+  /* ---------------------------------------------------------------- Vorlesen (E54) */
+  async function vorlesenAb(i) {
+    if (!leser || destroyed) return;
+    const token = ++liesToken;
+    liesIndex = i;
+    let text = '';
+    let k = i;
+    // Seiten ohne Text (Titelbild, Anzeigen) überspringen – höchstens drei
+    while (k < n && k < i + 3 && !text) {
+      text = await src.text(k).catch(() => '');
+      if (token !== liesToken || destroyed) return;
+      if (!text) k++;
+    }
+    if (!text) {
+      vorlesenBeenden();
+      toast(k >= n && i === 0 ? 'Diese Ausgabe hat keinen Text zum Vorlesen – sie besteht aus Bildern (Scan).' : 'Auf dieser Seite gibt es keinen Text zum Vorlesen.', { type: 'info' });
+      return;
+    }
+    liesIndex = k;
+    if (k !== current()) goTo(k);
+    el.querySelector('.reader-hint')?.remove();
+    zeigeVorlesen();
+    leser.start(text);
+    keepAwake();
+  }
+
+  function naechsteSeiteVorlesen() {
+    if (destroyed || liesIndex < 0) return;
+    if (liesIndex + 1 < n) vorlesenAb(liesIndex + 1);
+    else { vorlesenBeenden(); toast('Ende der Ausgabe', { type: 'info' }); }
+  }
+
+  function vorlesenBeenden() {
+    liesToken++;
+    liesIndex = -1;
+    leser?.stop();
+    el.querySelector('.reader-speech')?.remove();
+    el.querySelector('[data-action=vorlesen]')?.setAttribute('aria-pressed', 'false');
+    if (!opts.keepAwake) { wake?.release?.().catch(() => {}); wake = null; }
+  }
+
+  function zeigeVorlesen() {
+    let box = el.querySelector('.reader-speech');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'reader-speech';
+      box.setAttribute('role', 'status');
+      box.setAttribute('aria-live', 'polite');
+      stage.appendChild(box);
+    }
+    const pausiert = !!leser?.pausiert;
+    setHtml(box, html`<span class="txt">Seite ${liesIndex + 1}${pausiert ? ' – Pause' : ' wird vorgelesen'}</span>
+      <button class="btn btn-on-dark btn-icon btn-sm" data-action="vorlesen-pause" title="${pausiert ? 'Weiter' : 'Pause'}" aria-label="${pausiert ? 'Weiterlesen' : 'Pause'}">${icon(pausiert ? 'play' : 'pause')}</button>
+      <button class="btn btn-on-dark btn-icon btn-sm" data-action="vorlesen-stop" title="Vorlesen beenden" aria-label="Vorlesen beenden">${icon('stop')}</button>`);
+    el.querySelector('[data-action=vorlesen]')?.setAttribute('aria-pressed', 'true');
   }
 
   flip?.on('flip', update);
@@ -488,6 +564,13 @@ export async function openReader(ctx, opts) {
     if (t.closest('[data-action=next]')) flip?.flipNext();
     else if (t.closest('[data-action=prev]')) flip?.flipPrev();
     else if (t.closest('[data-action=toc]')) showToc();
+    else if (t.closest('[data-action=vorlesen]')) {
+      if (liesIndex >= 0) vorlesenBeenden();
+      else { leser.freischalten(); vorlesenAb(current()); }
+    } else if (t.closest('[data-action=vorlesen-pause]')) {
+      if (leser.pausiert) leser.weiter(); else leser.pause();
+      zeigeVorlesen();
+    } else if (t.closest('[data-action=vorlesen-stop]')) vorlesenBeenden();
     else if (t.closest('[data-action=zoom]')) zoom().catch((err) => toast(err.message, { type: 'err' }));
     else if (t.closest('[data-action=fullscreen]')) {
       if (document.fullscreenElement) document.exitFullscreen();

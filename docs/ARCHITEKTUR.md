@@ -51,7 +51,8 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | `assets/` | Wappen, Skyline, Icons, Schriften (Raleway, UnifrakturMaguntia – OFL), Demo-Zeitungen und -Fotos |
 | `apps-script/Automatik.gs` | optional, läuft im Konto des Kalender-Inhabers: App-Link und Gruppe in neue Termine |
 | `apps-script/Einwilligungen.gs` | optional, läuft im Konto der Datenschutz-Verantwortlichen: sammelt die Einwilligungen stündlich in die Sammeltabelle |
-| `apps-script/Push.gs` (+ `Push.appsscript.json`) | optional, läuft im Konto eines Admins: alle 10 Minuten Push-Mitteilungen bei neuen News, Forumsbeiträgen und Terminen (E50), jede Minute „Direktnachricht“, „Gruppennachricht“ oder „Bierjunge!“ aus den Chat-Hinweisen (E51); nur Lese-Rechte |
+| `apps-script/Push.gs` (+ `Push.appsscript.json`) | optional, läuft im Konto eines Admins: alle 10 Minuten Push-Mitteilungen bei neuen News, Forumsbeiträgen und Terminen (E50), jede Minute „Direktnachricht“, „Gruppennachricht“ oder „Bierjunge!“ (mit Absender: „… hat dir einen angehängt!“) aus den Chat-Hinweisen (E51); nur Lese-Rechte |
+| `apps-script/DsZeitung.gs` (+ `DsZeitung.appsscript.json`) | optional, läuft im Konto eines Admins: holt täglich neue Ausgaben der DS-Zeitung von der Website der Deutschen Sängerschaft in den Drive-Ordner (E55); legt nur neue Dateien an, ändert und löscht nichts |
 | `tests/` | Nachbau der Google-APIs und automatische Tests |
 | `tools/` | Hilfsskripte (lokaler Server, Grafiken, Demo-Daten, Service-Worker-Liste, Anleitung mit QR-Code) |
 

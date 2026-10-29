@@ -17,7 +17,7 @@ export const THEMEN = [
   { id: 'forum', label: 'Forum', sub: 'Neue Themen und Antworten', bereich: 'forum' },
   { id: 'termine', label: 'Termine', sub: 'Neu eingetragene Termine', bereich: 'termine' },
   // Chat (E51): nur, was jemand aus der Mitglieder-App schickt – die Mitteilung nennt weder Inhalt noch Absender
-  { id: 'chat', label: 'Direktnachrichten und Bierjunge', sub: 'Aus der Mitglieder-App an dich geschickt', bereich: 'chat' },
+  { id: 'chat', label: 'Direktnachrichten und Bierjungen', sub: 'Aus der Mitglieder-App an dich geschickt', bereich: 'chat' },
   { id: 'chatgruppen', label: 'Gruppen und Räume', sub: 'Aus der Mitglieder-App in deine Gruppen und Räume geschickt', bereich: 'chat', vorgewaehlt: false },
 ];
 /** Vorwahl beim Einschalten: alles außer Gruppen und Räumen (die können laut werden) */

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test: DS-Zeitung-Skript</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 980px; background: #f3f3f3; color: #111; }
+    h1 { font-weight: 300; }
+    h2 { font-size: 17px; margin: 22px 0 6px; }
+    .ok { color: #2f5a0b; }
+    .fail { color: #a3341b; font-weight: 600; }
+    #summary { font-size: 20px; padding: 10px 14px; background: #fff; border-radius: 6px; display: inline-block; }
+    code { font-size: 12px; background: #fff; padding: 1px 4px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Test des DS-Zeitung-Skripts (apps-script/DsZeitung.gs)</h1>
+  <p>Spielt das Skript mit einer nachgebauten Website und nachgebauten Google-Diensten durch: Ausgaben erkennen, nur Fehlendes herunterladen, nichts ändern oder löschen. Es geht nichts ins Netz.</p>
+  <p id="summary">Läuft …</p>
+  <div id="out"></div>
+  <script type="module" src="ds-zeitung-test.js"></script>
+</body>
+</html>

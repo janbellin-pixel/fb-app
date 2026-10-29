@@ -1289,6 +1289,69 @@ async function run() {
   for (const k of Object.keys(config)) delete config[k];
   Object.assign(config, cfgBefore);
 
+  /* ---------------------------------------------------------------- Darstellung (E53) und Vorlesen (E54) */
+  section('Darstellung (E53) und Vorlesen (E54)');
+  const da = await import('../js/lib/darstellung.js');
+  localStorage.removeItem('fb.darstellung');
+  document.documentElement.removeAttribute('data-theme');
+  check(da.getDarstellung() === 'system', 'Standard: wie das System');
+  check(da.setDarstellung('dunkel') === true && document.documentElement.getAttribute('data-theme') === 'dunkel' && da.getDarstellung() === 'dunkel', 'Dunkel: data-theme am <html> gesetzt und gemerkt');
+  check(da.setDarstellung('hell') === false && !document.documentElement.hasAttribute('data-theme') && da.getDarstellung() === 'hell', 'Hell: Attribut entfernt');
+  check(da.istDunkel('dunkel') && !da.istDunkel('hell') && da.istDunkel('system') === matchMedia('(prefers-color-scheme: dark)').matches, 'istDunkel je Wahl – „System“ laut Gerät');
+  da.setDarstellung('unsinn');
+  check(da.getDarstellung() === 'system', 'unbekannter Wert → wie das System');
+  localStorage.removeItem('fb.darstellung');
+  document.documentElement.removeAttribute('data-theme');
+
+  const vl = await import('../js/lib/vorlesen.js');
+  const stuecke = [
+    { str: 'Der Bundes-', hasEOL: true, transform: [1, 0, 0, 1, 40, 700], width: 100 },
+    { str: 'bote erscheint', hasEOL: false, transform: [1, 0, 0, 1, 40, 680], width: 120 },
+    { str: ' zweimal', hasEOL: true, transform: [1, 0, 0, 1, 160, 680], width: 60 },
+    { str: 'im Jahr .', hasEOL: true, transform: [1, 0, 0, 1, 40, 660], width: 60 },
+    { str: '', hasEOL: true, transform: [1, 0, 0, 1, 40, 640], width: 0 },
+    { str: 'Rechts', hasEOL: true, transform: [1, 0, 0, 1, 500, 700], width: 50 },
+  ];
+  check(vl.seitenText(stuecke) === 'Der Bundesbote erscheint zweimal im Jahr. Rechts', 'Zeilen zusammengefügt, Trennstrich entfernt, Leerzeichen vor Satzzeichen weg', vl.seitenText(stuecke));
+  check(vl.seitenText(stuecke, { part: 'L', width: 800 }) === 'Der Bundesbote erscheint zweimal im Jahr.' && vl.seitenText(stuecke, { part: 'R', width: 800 }) === 'Rechts', 'Doppelseite: linke und rechte Hälfte getrennt');
+  check(vl.seitenText([]) === '' && vl.seitenText(null) === '', 'ohne Textebene (Scan): leer');
+  const teile = vl.stuecke(`Erster Satz. Zweiter Satz! Dritter Satz? ${'Lang, '.repeat(20)}Ende.`, 40);
+  check(teile[0] === 'Erster Satz. Zweiter Satz! Dritter Satz?' && teile[1].startsWith('Lang, Lang') && teile.length > 4 && teile.every((s) => s.length <= 40) && teile.at(-1).endsWith('Ende.')
+    && teile.join(' ').split('Lang').length === 21,
+    'ganze Sätze gebündelt (genau 40 Zeichen passen), überlanger Satz an Kommas geteilt, nichts verloren', JSON.stringify(teile));
+  check(vl.stuecke('').length === 0 && vl.stuecke('  ').length === 0 && vl.stuecke('Ohne Punkt am Ende').join('|') === 'Ohne Punkt am Ende', 'leer → nichts; ohne Satzzeichen → ein Stück');
+  // Vorleser mit nachgebauter Sprachausgabe (die echte spricht im Test nicht)
+  const synthAlt = Object.getOwnPropertyDescriptor(window, 'speechSynthesis');
+  const uttAlt = window.SpeechSynthesisUtterance;
+  const gesprochen = [];
+  let abgebrochen = 0;
+  Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: { speak: (u) => gesprochen.push(u), cancel: () => { abgebrochen++; }, getVoices: () => [{ lang: 'en-US', name: 'Eng' }, { lang: 'de-DE', name: 'Testine', localService: true }] } });
+  window.SpeechSynthesisUtterance = class { constructor(t) { this.text = t; } };
+  check(vl.vorlesenMoeglich() && vl.stimme()?.name === 'Testine', 'deutsche Stimme gewählt');
+  let ende = 0;
+  const v = vl.vorleser({ onEnde: () => { ende++; } });
+  const text = `${'Erster Satz mit einigen Wörtern. '.repeat(5)}${'Zweiter Satz mit anderen Wörtern. '.repeat(5)}${'Dritter Satz zum Schluss. '.repeat(5)}`;
+  v.start(text);
+  const n = v.stand.n;
+  check(v.laeuft && n >= 3 && gesprochen.length === 1 && gesprochen[0].lang === 'de-DE' && gesprochen[0].voice?.name === 'Testine', 'start: erstes Stück gesprochen (de-DE, gewählte Stimme)', JSON.stringify([n, gesprochen.length]));
+  gesprochen[0].onend();
+  check(gesprochen.length === 2 && v.stand.i === 1, 'nach dem Ende des ersten Stücks kommt das zweite');
+  v.pause();
+  const alt = gesprochen[1];
+  alt.onend(); // der Browser meldet das abgebrochene Stück noch als beendet
+  check(v.pausiert && v.laeuft && gesprochen.length === 2 && abgebrochen >= 1, 'Pause: abgebrochen, das verspätete Ende des alten Stücks zählt nicht');
+  v.weiter();
+  check(gesprochen.length === 3 && gesprochen[2].text === alt.text, 'Weiter: das unterbrochene Stück beginnt von vorn');
+  for (let k = 2; k < n + 1 && gesprochen.length <= n + 1; k++) gesprochen.at(-1).onend();
+  check(ende === 1 && !v.laeuft && gesprochen.length === n + 1, 'alle Stücke gesprochen, dann onEnde', JSON.stringify([ende, v.laeuft, gesprochen.length, n]));
+  v.start('Noch ein Text.');
+  v.stop();
+  const vorher = gesprochen.length;
+  gesprochen.at(-1).onend();
+  check(!v.laeuft && gesprochen.length === vorher && ende === 1, 'stop: nichts geht weiter, kein onEnde');
+  if (synthAlt) Object.defineProperty(window, 'speechSynthesis', synthAlt); else delete window.speechSynthesis;
+  window.SpeechSynthesisUtterance = uttAlt;
+
   /* ---------------------------------------------------------------- Gesamtbilanz */
   section('Gesamtbilanz');
   const ownWrites = fake.state.writes.filter((w) => w.own).length;

@@ -8,7 +8,9 @@ import * as hinweise from '../lib/hinweise.js';
 import * as push from '../lib/push.js';
 import * as auth from '../auth.js';
 import { schriftAuswahl, bindSchriftAuswahl } from '../lib/schrift.js';
+import { darstellungAuswahl, bindDarstellungAuswahl } from '../lib/darstellung.js';
 import { gesperrt, linkGesperrt } from '../lib/gruppen.js';
+import { papierpostFormular } from './papierpost.js';
 
 function menuItem(href, ic, label, sub = '', extra = '') {
   return html`<a class="menu-item" href="${href}" ${extra}>${icon(ic)}<span class="grow">${label}${sub ? html`<small>${sub}</small>` : ''}</span>${icon('chevronRight', 'icon-sm chev')}</a>`;
@@ -34,6 +36,8 @@ export default async function mehr(ctx) {
     <section class="card card-pad" style="margin-top:1rem" id="schrift-box">
       <div class="row between wrap" style="margin-bottom:.625rem"><h2 class="card-title">Schriftgröße</h2><span class="tiny muted">gilt für dieses Gerät</span></div>
       ${schriftAuswahl()}
+      <h2 class="card-title" style="margin:1rem 0 .625rem">Darstellung</h2>
+      ${darstellungAuswahl()}
     </section>
     <div class="grid-2" style="margin-top:1rem">
       <div class="card menu-list">
@@ -50,14 +54,14 @@ export default async function mehr(ctx) {
       <div class="card menu-list">
         ${menuItem('#/profil', 'user', 'Mein Profil', 'Angaben und Anschrift')}
         ${menuItem('#/datenschutz', 'shield', 'Datenschutz', 'Erklärung und Einwilligungen')}
-        ${menuItem('#/papierpost', 'mail', 'Papierpost abbestellen', 'Semesterprogramm, Bundesbote')}
         ${!isStandalone() ? menuItem('#/installieren', 'smartphone', 'App installieren', 'Auf den Startbildschirm legen') : ''}
-        ${menuItem('#/einstellungen', 'settings', 'Einstellungen', 'Konto, Daten auf diesem Gerät')}
+        ${menuItem('#/einstellungen', 'settings', 'Einstellungen', 'Darstellung, Mitteilungen, Papierpost, Konto')}
         ${admin ? menuItem('#/einrichtung', 'tool', 'Einrichtung (Admins)', 'Google-Anbindung, Kalender, Tabellen') : ''}
         <button class="menu-item" data-action="logout">${icon('logout')}<span class="grow">${app.mode === 'demo' ? 'Demo beenden' : 'Abmelden'}</span></button>
       </div>
     </div>`);
   bindSchriftAuswahl(el.querySelector('#schrift-box'));
+  bindDarstellungAuswahl(el.querySelector('#schrift-box'));
   hinweise.refreshBadges();
   el.addEventListener('click', async (e) => {
     if (!e.target.closest('[data-action=logout]')) return;
@@ -73,13 +77,18 @@ export async function settings(ctx) {
   const me = app.user;
   const scopes = auth.grantedScopes().map((s) => s.replace('https://www.googleapis.com/auth/', ''));
   setHtml(el, html`
-    ${hero('Einstellungen', 'Konto, Daten und Datenschutz')}
+    ${hero('Einstellungen', 'Darstellung, Mitteilungen, Papierpost, Konto')}
     <div class="grid-2">
       <div class="stack">
         <section class="card card-pad" id="schrift-box">
           <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Schriftgröße</h2>
-          <p class="small muted">Vergrößert Text, Knöpfe und Symbole in der ganzen App.</p>
+          <p class="small muted">Vergrößert Text, Knöpfe und Symbole in der ganzen App. Gilt nur für dieses Gerät.</p>
           ${schriftAuswahl()}
+        </section>
+        <section class="card card-pad" id="darstellung-box">
+          <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Darstellung</h2>
+          <p class="small muted">Hell oder dunkel – „Wie das System“ folgt der Einstellung deines Geräts. Gilt nur für dieses Gerät.</p>
+          ${darstellungAuswahl()}
         </section>
         <section class="card card-pad" id="notify-box">
           <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Benachrichtigungen</h2>
@@ -92,6 +101,11 @@ export async function settings(ctx) {
           <p class="small" style="margin:1rem 0 0"><strong>Chat-Nachrichten aufs Handy:</strong> die App „Google Chat“ installieren
             (<a href="${hinweise.GOOGLE_CHAT_APP.android}" target="_blank" rel="noopener">Android</a> · <a href="${hinweise.GOOGLE_CHAT_APP.ios}" target="_blank" rel="noopener">iPhone</a>)
             und mit dem Verbindungskonto anmelden.</p>
+        </section>
+        <section class="card card-pad" id="papierpost-box">
+          <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Papierpost</h2>
+          <div id="papierpost-form"></div>
+          ${app.isAdmin() ? html`<p class="small" style="margin:.75rem 0 0"><a href="#/papierpost">${icon('mail', 'icon-sm')} Abbestellungen ansehen (Admins)</a></p>` : ''}
         </section>
         <div class="card card-pad">
           <h2 style="margin:0 0 .75rem;font-weight:300;font-size:1.375rem">Konto</h2>
@@ -136,6 +150,8 @@ export async function settings(ctx) {
     </div>`);
 
   bindSchriftAuswahl(el.querySelector('#schrift-box'));
+  bindDarstellungAuswahl(el.querySelector('#darstellung-box'));
+  papierpostFormular(ctx, el.querySelector('#papierpost-form')).catch((e) => console.warn('Papierpost nicht geladen', e));
   const renderNotify = () => {
     const perm = hinweise.notificationPermission();
     if (!hinweise.notificationsWanted()) {

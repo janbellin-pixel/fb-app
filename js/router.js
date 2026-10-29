@@ -34,7 +34,7 @@ export const ROUTES = [
   { path: 'einstellungen', load: v('mehr', 'settings'), tab: 'mehr', nav: '', title: 'Einstellungen' },
   { path: 'datenschutz', load: v('datenschutz'), tab: 'mehr', nav: '', title: 'Datenschutz', public: true },
   { path: 'datenschutz/uebersicht', load: v('datenschutz', 'uebersicht'), tab: 'mehr', nav: '', title: 'Einwilligungen' },
-  { path: 'papierpost', load: v('papierpost'), tab: 'mehr', nav: '', title: 'Papierpost abbestellen' },
+  { path: 'papierpost', load: v('papierpost'), tab: 'mehr', nav: '', title: 'Papierpost' },
   { path: 'installieren', load: v('mehr', 'install'), tab: 'mehr', nav: '', title: 'App installieren', public: true },
   { path: 'einrichtung', load: v('einrichtung'), tab: 'mehr', nav: '', title: 'Einrichtung', public: true },
 ];

@@ -19,7 +19,7 @@ const ZEITUNG = {
     quelle: 'ds', route: 'ds-zeitung', key: 'dsIssues', titel: 'DS-Zeitung', untertitel: 'Zeitung der Deutschen Sängerschaft', icon: 'newspaper',
     ordner: () => config.dsZeitungOrdnerId,
     leer: 'Sobald die erste Ausgabe im Ordner liegt, erscheint sie hier.',
-    hinweis: 'Neue Ausgaben: PDF in den Ordner der DS-Zeitung legen, Dateiname wie „2026-2 DS-Zeitung.pdf“ (Jahr-Nummer).',
+    hinweis: 'Neue Ausgaben: PDF in den Ordner der DS-Zeitung legen, Dateiname wie „2026-2 DS-Zeitung.pdf“ (Jahr-Nummer) – oder das Skript apps-script/DsZeitung.gs holt sie täglich von der Website der Deutschen Sängerschaft (siehe EINRICHTUNG.md).',
   },
 };
 
@@ -134,6 +134,8 @@ async function leser(ctx, z) {
     openLabel: 'PDF öffnen',
     split: true,
     hardCover: true,
+    vorlesen: true, // E54
+
     async find() {
       // zuerst die zwischengespeicherte Liste (klappt auch offline), sonst frisch laden
       let list = null;

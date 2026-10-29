@@ -483,7 +483,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
         ("users", "Mitglieder", f"Wer die App nutzt, mit Foto und Profil ({b('„Alle Mitglieder“')}: alle Konten). Antippen › anrufen, E-Mail, Nachricht oder {b('Bierjunge')}. "
                                 f"{b('„Angebote für Jüngere“')}: Praktika, Mentoring & Co."),
         ("grid", "Mehr", f"{b('Bundesbote')} · {b('DS-Zeitung')} · {b('Liedermappe')} · {b('Galerie')} · {b('News')} · {b('Forum')} · {b('Adressverzeichnis')} · {b('Wiki')} · "
-                         f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Papierpost abbestellen')} · {b('Schriftgröße')} · Einstellungen"),
+                         f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Schriftgröße')} · {b('Darstellung')} · Einstellungen"),
     ]
     st = style(11.5, leading=16)
     for ic, title, text in rows:
@@ -502,7 +502,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
 
     # Gut zu wissen
     tips = [
-        ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße › „Groß“ oder „Sehr groß“."),
+        ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße. {b('Lieber dunkel?')} Mehr › Darstellung. {b('Vorlesen?')} Im Bundesboten oder in der DS-Zeitung oben auf den Lautsprecher tippen."),
         ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“ (News, Forum, Termine, Nachrichten aus der App). iPhone: vorher auf den Home-Bildschirm legen."),
         ("users", f"{b('Profil ausfüllen:')} Mehr › Mein Profil – dort auch Adressänderungen melden."),
         ("music", f"{b('Liedermappe:')} Liednummer eintippen und Enter – schon ist das Lied offen."),
@@ -605,7 +605,7 @@ def page_background(c, sample, crest, skyline):
     boxes = [
         ("tablet", "Auch auf dem Tablet", "Die App läuft genauso gut auf iPad und Android-Tablets – zum Schmökern im Bundesboten oder in der DS-Zeitung noch bequemer. Installieren wie auf dem Handy (Seite 1)."),
         ("users", "Hilfe beim Einrichten", "Die Aktiven unterstützen gern bei allem rund um die Einrichtung: Anmelden, neues Passwort, Installieren auf Handy oder Tablet. Einfach ansprechen."),
-        ("mail", "Papierpost abbestellen", "Mehr › Papierpost abbestellen: Semesterprogramm und Bundesbote einzeln abwählen – du bekommst alles über die App."),
+        ("mail", "Papierpost", "Mehr › Einstellungen › Papierpost: Sag uns, ob du Semesterprogramm oder Bundesbote noch auf Papier brauchst. Zurzeit verschicken wir noch alles an alle."),
         ("folder", "Eigene Fotos", "Galerie › „Fotos hochladen“ öffnet den Upload-Ordner. Ein Vorstandsmitglied sortiert die Fotos regelmäßig ein."),
     ]
     st = style(10.5, leading=14)
