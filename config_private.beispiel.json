@@ -25,11 +25,14 @@
   "gruppen": {
     "adressen": {
       "bundesbrueder": "bundesbrueder@example.org",
+      "chordamen": "chordamen@example.org",
+      "verkehrsgaeste": "verkehrsgaeste@example.org",
       "gaeste": "gaeste@example.org"
     },
     "ohne": {
-      "adressen": ["gaeste"],
-      "forum": ["gaeste"]
+      "adressen": ["chordamen", "verkehrsgaeste", "gaeste"],
+      "forum": ["gaeste"],
+      "galerie": ["chordamen", "gaeste"]
     }
   },
   "adressaenderung": "adressaenderung@example.org",

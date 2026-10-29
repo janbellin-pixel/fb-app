@@ -952,11 +952,12 @@ async function run() {
   const savedGruppen = config.gruppen;
   config.gruppen = {
     adressen: { bundesbrueder: 'bundesbrueder@beispiel.de', chordamen: 'chordamen@beispiel.de', gaeste: 'gaeste@beispiel.de' },
-    ohne: { adressen: ['chordamen', 'gaeste'], forum: ['gaeste'], galerie: ['gaeste'] },
+    ohne: { adressen: ['chordamen', 'gaeste'], forum: ['gaeste'], galerie: ['chordamen', 'gaeste'] },
   };
   const S = (...k) => new Set(k);
-  check(gr.gesperrt('adressen', S('gaeste')) && gr.gesperrt('forum', S('gaeste')) && gr.gesperrt('adressen', S('chordamen')) && !gr.gesperrt('forum', S('chordamen')),
-    'Gäste: kein Adressverzeichnis, kein Forum; Chordamen: nur kein Adressverzeichnis');
+  check(gr.gesperrt('adressen', S('gaeste')) && gr.gesperrt('forum', S('gaeste')) && gr.gesperrt('galerie', S('gaeste'))
+    && gr.gesperrt('adressen', S('chordamen')) && gr.gesperrt('galerie', S('chordamen')) && !gr.gesperrt('forum', S('chordamen')),
+    'Gäste: kein Adressverzeichnis, kein Forum, keine Galerie; Chordamen: kein Adressverzeichnis, keine Galerie (E52), aber Forum');
   check(!gr.gesperrt('adressen', S('gaeste', 'bundesbrueder')) && !gr.gesperrt('adressen', S()) && !gr.gesperrt('adressen', null) && !gr.gesperrt('termine', S('gaeste')),
     'wer zusätzlich Bundesbruder ist, sieht alles; ohne bekannte Gruppe ist nichts gesperrt');
   check(gr.linkGesperrt({ titel: 'Wiki', ohne: ['gaeste'] }, S('gaeste')) && !gr.linkGesperrt({ titel: 'Wiki', ohne: ['gaeste'] }, S('bundesbrueder')), 'Links wie das Wiki je Gruppe ausblendbar');
@@ -989,6 +990,14 @@ async function run() {
   check(js4.length === 1 && /bundesbrueder@beispiel\.de, gaeste@beispiel\.de/.test(js4[0]), 'Prüfung: Bundesbote – Gruppen ohne Freigabe werden genannt', JSON.stringify(js4));
   const js5 = js([{ type: 'user', role: 'reader', emailAddress: 'x@beispiel.de' }], 'zeitung');
   check(js5.length === 1 && /Keine Lesefreigabe/.test(js5[0]), 'Prüfung: weder Gruppe noch Domain – Hinweis wie bisher', JSON.stringify(js5));
+  const js6 = js([G('bundesbrueder@beispiel.de'), G('chordamen@beispiel.de')], 'galerie');
+  check(js6.length === 1 && /^chordamen@beispiel\.de kann die Daten lesen, sieht „Galerie“ in der App aber nicht/.test(js6[0]),
+    'Prüfung: Galerie noch für chordamen@ freigegeben, obwohl ausgeblendet (E52) – Warnung nennt genau diese Gruppe', JSON.stringify(js6));
+  // Einrichtung → Optionen → Gruppen (E52): Kästchen „ohne:<gruppe>:<bereich>“ → gruppen.ohne
+  const ohneAus = gr.gruppenOhneAus({ 'ohne:chordamen:galerie': true, 'ohne:chordamen:adressen': true, 'ohne:gaeste:galerie': true, 'ohne:gaeste:forum': false,
+    'ohne:gaeste:wetter': true, 'ohne:a:b:c': true, pushKonto: 'push@beispiel.de', dsFassung: '3' });
+  check(JSON.stringify(ohneAus) === JSON.stringify({ galerie: ['chordamen', 'gaeste'], adressen: ['chordamen'] }) && JSON.stringify(gr.gruppenOhneAus({})) === '{}',
+    'Einrichtung: nur angehakte Kästchen und bekannte Bereiche werden zu gruppen.ohne; nichts angehakt = leer', JSON.stringify(ohneAus));
   b.invalidate('gruppen');
   check((await b.myGroups()).length === 3, 'Admin besitzt alle Kennungen und sieht damit alles');
   // Sicht eines Mitglieds, das nur die Gäste-Kennung lesen kann (Kennungen gehören dem Vorstand)

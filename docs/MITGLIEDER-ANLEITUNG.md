@@ -54,7 +54,7 @@ Unten in der App gibt es fünf Bereiche:
 | **Mitglieder** | Alle, die die App nutzen und sichtbar sein möchten, mit Foto und Profil. Oben wählst du **„App-Nutzer“** oder **„Alle Mitglieder“** (auch die übrigen Konten der Verbindung). Antippen › anrufen, E-Mail oder private Nachricht schreiben – oder mit **„Bierjunge“** einen Bierjungen schicken. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
 | **Mehr** | **Bundesbote** und **DS-Zeitung** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos (Ansicht „Alben“ oder „Ordner“) · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Papierpost abbestellen** · **Schriftgröße** · Einstellungen |
 
-Je nach Gruppe (z. B. Chordamen, Verkehrsgäste, Gäste) blendet die App einzelne Bereiche aus, etwa das Adressverzeichnis.
+Je nach Gruppe (z. B. Chordamen, Verkehrsgäste, Gäste) blendet die App einzelne Bereiche aus, etwa das Adressverzeichnis oder die Galerie.
 
 ## Gut zu wissen
 

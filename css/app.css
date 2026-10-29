@@ -478,6 +478,9 @@ img.avatar { background: #e5e5e5; }
 .search .input { padding-left: 2.625rem; }
 .checkbox { display: flex; align-items: flex-start; gap: .625rem; font-size: .9375rem; cursor: pointer; }
 .checkbox input { width: 1.25rem; height: 1.25rem; margin: .0625rem 0 0; accent-color: var(--black); flex: none; }
+/* Einrichtung → Gruppen (E52): je Gruppe die Bereiche, die sie nicht sieht */
+.gruppen-feld { border: 0; padding: 0; margin: 0 0 .75rem; min-width: 0; }
+.gruppen-feld legend { padding: 0; margin-bottom: .375rem; font-size: .875rem; overflow-wrap: anywhere; }
 .form-grid { display: grid; gap: 0 1rem; }
 @media (min-width: 700px) { .form-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .form-actions { display: flex; gap: .625rem; flex-wrap: wrap; justify-content: flex-end; margin-top: .5rem; }

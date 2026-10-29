@@ -10,7 +10,7 @@ import { privateConfigStatus } from '../lib/konfiguration.js';
 import * as auth from '../auth.js';
 import { downloadFile } from '../lib/export.js';
 import { RESOURCES, missingResources, idFromUrl } from '../lib/setup.js';
-import { gruppenAdressen } from '../lib/gruppen.js';
+import { gruppenAdressen, gruppenOhneAus, BEREICHE } from '../lib/gruppen.js';
 import { GOOGLE_G } from '../icons.js';
 
 const CLOUD = 'https://console.cloud.google.com';
@@ -61,6 +61,27 @@ function createBox(google) {
     <p style="margin:.75rem 0 0"><button class="btn btn-primary" data-action="create" ${google ? '' : 'disabled'}>${icon('sparkle', 'icon-sm')}Fehlendes neu anlegen</button></p>
     ${google && missing.includes('kalender') && !auth.hasScope(auth.SCOPES.setup[0]) ? html`<p class="tiny muted">Für den neuen Kalender fragt Google einmal nach der zusätzlichen Berechtigung „Kalender verwalten“.</p>` : ''}
     ${gruppenBox}`;
+}
+
+/**
+ * Gruppen (E41/E52): je Gruppe Kästchen für die Bereiche, die sie in der App NICHT sieht (config.gruppen.ohne).
+ * Die Gruppen selbst (gruppen.adressen) stehen in der privaten Konfiguration – ohne Gruppen bleibt der Abschnitt weg.
+ */
+function gruppenBereiche() {
+  const adressen = gruppenAdressen();
+  const keys = Object.keys(adressen);
+  if (!keys.length) return '';
+  const ohne = config.gruppen?.ohne || {};
+  return html`
+    <h4 style="margin:1rem 0 .25rem">Gruppen</h4>
+    <p class="small muted" style="margin-top:0">Anhaken, was eine Gruppe in der App <strong>nicht</strong> sieht. Wer zusätzlich in einer anderen Gruppe ist, die den Bereich sieht, sieht ihn weiterhin; Admins sehen alles. Das Ausblenden betrifft nur die App – die Daten schützt die Freigabe in Google Drive („Verbindung prüfen“ nennt Freigaben, die dazu nicht passen).</p>
+    ${keys.map((k) => html`
+      <fieldset class="gruppen-feld">
+        <legend><strong>${adressen[k]}</strong> <span class="muted">sieht nicht:</span></legend>
+        <div class="row wrap" style="gap:.375rem .875rem">
+          ${Object.entries(BEREICHE).map(([bereich, label]) => html`<label class="checkbox small"><input type="checkbox" name="ohne:${k}:${bereich}" ${(ohne[bereich] || []).includes(k) ? 'checked' : ''}> ${label}</label>`)}
+        </div>
+      </fieldset>`)}`;
 }
 
 /** Stand der privaten Konfiguration (E43) – ohne Google-Abfrage */
@@ -190,6 +211,7 @@ export default async function einrichtung(ctx) {
             <div class="field"><label for="o-push-key">Öffentlicher Schlüssel</label>
               <input class="input" id="o-push-key" name="pushSchluessel" value="${config.push?.schluessel || ''}" placeholder="B… (87 Zeichen)" autocomplete="off" spellcheck="false"></div>
           </div>
+          ${gruppenBereiche()}
           <h4 style="margin:1rem 0 .25rem">Datenschutz</h4>
           <p class="small muted" style="margin-top:0">Erscheint in der Datenschutzerklärung, die jedes Mitglied beim ersten Öffnen sieht. Der Text ist ein Muster – bitte vom Vorstand prüfen lassen (<a href="#/datenschutz">ansehen</a>).</p>
           <div class="form-grid cols-2">
@@ -319,6 +341,9 @@ export default async function einrichtung(ctx) {
       toast('Der öffentliche Schlüssel für Push sieht nicht richtig aus (87 Zeichen, beginnt mit „B“).', { type: 'err' });
       return;
     }
+    // Gruppen (E41/E52): die Adressen bleiben, wie sie in der privaten Konfiguration stehen; nur „ohne“ kommt aus den Kästchen
+    const gruppen = Object.keys(gruppenAdressen()).length ? { adressen: { ...config.gruppen?.adressen }, ohne: gruppenOhneAus(d) } : null;
+    if (gruppen) clearOverrideKeys(['gruppen']); // merge() ließe abgehakte Bereiche im lokalen Stand sonst stehen
     saveOverride({
       workspaceDomain: d.workspaceDomain.toLowerCase().replace(/^@/, ''),
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
@@ -330,8 +355,9 @@ export default async function einrichtung(ctx) {
       vorstand,
       push: pushWerte,
       datenschutz,
+      ...(gruppen ? { gruppen } : {}),
     });
-    // leere Werte bewusst übernehmen
+    // leere Werte bewusst übernehmen (und abgehakte Bereiche: merge() ließe sie stehen)
     Object.assign(config, {
       workspaceDomain: d.workspaceDomain.toLowerCase().replace(/^@/, ''),
       mitgliederGruppe: d.mitgliederGruppe.toLowerCase(),
@@ -340,6 +366,7 @@ export default async function einrichtung(ctx) {
       vorstand,
       push: pushWerte,
       datenschutz,
+      ...(gruppen ? { gruppen } : {}),
     });
     showCfg();
     toast('Optionen gespeichert');

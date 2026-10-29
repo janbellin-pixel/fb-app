@@ -37,7 +37,7 @@ Mitglieder-App der Frankonia-Brunonia: eine PWA ohne Build-Schritt, die direkt g
 - Google-Zugriffe: `js/google/*.js`; Schreibschutz: `js/google/guard.js`
 - Benachrichtigungen (nur nach Einschalten, E34): `js/lib/hinweise.js`; Push-Mitteilungen (E50): `js/lib/push.js`, Service Worker `sw.js` (`push`), Absender `apps-script/Push.gs`, Test `tests/push-test.html`; Chat-Hinweise ohne Inhalt (E51): `chatHinweis()` in `js/backend/google-backend.js`, `chatSenden()` in `Push.gs`
 - Papierpost abbestellen (E44): `js/views/papierpost.js`; Vorstände kontaktieren und Bierjunge (E45): `js/views/chat.js`, `js/views/mitglieder.js`; Galerie mit Upload-Link und Ordneransicht (E46): `js/views/galerie.js`
-- Gruppen (Bereiche je Google-Gruppe ausblenden, E41): `js/lib/gruppen.js`, Kennungsdateien in `js/lib/setup.js`; Sichtbarkeit (E40): `js/backend/google-backend.js`
+- Gruppen (Bereiche je Google-Gruppe ausblenden, E41; Kästchen in der Einrichtung, E52): `js/lib/gruppen.js`, Kennungsdateien in `js/lib/setup.js`; Sichtbarkeit (E40): `js/backend/google-backend.js`
 - Datenmodelle: `js/backend/common.js`; Einwilligungen: `js/lib/datenschutz.js`, `js/lib/einwilligungsliste.js`; Adressabgleich: `js/lib/adressabgleich.js`
 - Einrichtung (verbindet Vorhandenes, legt nur Fehlendes neu an, prüft Freigaben nur lesend): `js/lib/setup.js`, `js/views/einrichtung.js`
 - Gestaltung: `css/app.css` (Tokens in `:root`, Navigation nur an einer Media-Query, siehe E17)

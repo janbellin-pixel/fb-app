@@ -58,3 +58,17 @@ export const gesperrt = (bereich, gruppen = meine) => gesperrtFuer(config.gruppe
 
 /** Ist ein Link aus config.links (mit links[].ohne) für mich ausgeblendet? */
 export const linkGesperrt = (link, gruppen = meine) => gesperrtFuer(link?.ohne, gruppen);
+
+/**
+ * Aus den Kästchen der Einrichtung (Feldname „ohne:<gruppe>:<bereich>“, Wert = angehakt) das Objekt für
+ * config.gruppen.ohne: { bereich: [Gruppen] } – nur angehakte und nur bekannte Bereiche (E52)
+ */
+export function gruppenOhneAus(felder) {
+  const ohne = {};
+  for (const [name, an] of Object.entries(felder || {})) {
+    const m = /^ohne:([^:]+):([^:]+)$/.exec(name);
+    if (!m || !an || !(m[2] in BEREICHE)) continue;
+    ohne[m[2]] = [...(ohne[m[2]] || []), m[1]];
+  }
+  return ohne;
+}
