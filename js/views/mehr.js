@@ -84,7 +84,7 @@ export async function settings(ctx) {
         <section class="card card-pad" id="notify-box">
           <h2 style="margin:0 0 .25rem;font-weight:300;font-size:1.375rem">Benachrichtigungen</h2>
           <h3 style="margin:.75rem 0 .25rem;font-size:1.0625rem">Push-Mitteilungen</h3>
-          <p class="small" style="margin-top:0">Auch wenn die App zu ist: bei neuen News, Forumsbeiträgen und Terminen. Gilt nur für dieses Gerät.</p>
+          <p class="small" style="margin-top:0">Auch wenn die App zu ist: bei neuen News, Forumsbeiträgen und Terminen und wenn dir jemand aus der Mitglieder-App schreibt. Gilt nur für dieses Gerät.</p>
           <div id="push-state"></div>
           <h3 style="margin:1.25rem 0 .25rem;font-size:1.0625rem">In der App</h3>
           <p class="small muted" style="margin-top:0">Zahlen und Markierungen für Neues, auch im Chat, und – solange die App offen ist – Mitteilungen. Gilt nur für dieses Gerät.</p>
@@ -173,13 +173,14 @@ export async function settings(ctx) {
     } else if (!themen.length) {
       setHtml(box, html`<p class="small muted">Für dich gibt es hier nichts zu melden.</p>`);
     } else {
-      const gewaehlt = stand.an ? stand.themen : themen.map((t) => t.id);
+      const gewaehlt = stand.an ? stand.themen : push.vorgewaehlteThemen(themen);
       const blockiert = Notification.permission === 'denied';
       const aktiv = stand.an && !stand.neu;
       setHtml(box, html`
         <div class="pick-list" id="push-themen">${themen.map((t) => html`
           <label class="pick-row"><input type="checkbox" name="${t.id}" ${gewaehlt.includes(t.id) ? 'checked' : ''} ${blockiert ? 'disabled' : ''}>
             <span class="grow"><span class="name">${t.label}</span><span class="sub">${t.sub}</span></span></label>`)}</div>
+        ${themen.some((t) => t.bereich === 'chat') ? html`<p class="small muted">Chat: Gemeldet wird nur, was jemand aus der Mitglieder-App schickt – ohne Inhalt und Absender. Was direkt in Google Chat geschrieben wird, meldet die App „Google Chat“.</p>` : ''}
         ${blockiert ? html`<p class="small">${icon('alert', 'icon-sm')} Mitteilungen sind im Browser blockiert. Erlaube sie in den Website-Einstellungen, dann hier einschalten.</p>` : ''}
         ${stand.an && stand.neu ? html`<p class="small">${icon('alert', 'icon-sm')} Bitte einmal neu einschalten – die Anmeldung dieses Geräts hat sich geändert.</p>` : ''}
         ${aktiv ? html`<p class="small">${icon('check', 'icon-sm')} <strong>Eingeschaltet.</strong>${stand.demo ? ' In der Demo gibt es nur eine Beispiel-Mitteilung.' : ''}</p>` : ''}

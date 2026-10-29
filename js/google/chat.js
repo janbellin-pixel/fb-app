@@ -8,6 +8,9 @@ export async function listSpaces() {
   return items;
 }
 
+/** Eine Unterhaltung (Art, Name) – für die Chat-Hinweise nach dem Senden (E51) */
+export const getSpace = (space) => api(`${BASE}/${space}`);
+
 /** Nachrichten eines Raums; space = 'spaces/AAAA…' */
 export async function listMessages(space, { pageSize = 60, since } = {}) {
   const r = await api(`${BASE}/${space}/messages`, {

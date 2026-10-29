@@ -421,6 +421,10 @@ export function createFakeGoogle({ me, workspace = true }) {
       write('Chat-Unterhaltung anlegen', space.name, true);
       return json(space);
     }
+    if ((m = path.match(/^(spaces\/[^/]+)$/)) && method === 'GET') {
+      const s = state.spaces.find((x) => x.name === m[1]);
+      return s ? json(s) : error(404, 'Space not found', 'NOT_FOUND');
+    }
     if ((m = path.match(/^(spaces\/[^/]+)\/members$/))) {
       const list = membersOf(m[1]);
       if (method === 'GET') return json({ memberships: list.map((u) => ({ name: `${m[1]}/members/${u}`, member: { name: `users/${u}`, type: 'HUMAN' } })) });

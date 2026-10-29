@@ -266,7 +266,8 @@ Object.assign(window, {
     list: ({ q, corpora }) => {
       const typ = /value='(\w+)'/.exec(q)[1];
       const ab = /createdTime > '([^']+)'/.exec(q)?.[1];
-      const files = welt.dateien.filter((f) => f.properties?.fbTyp === typ && !f.trashed && (!ab || f.createdTime > ab)
+      const mod = /modifiedTime > '([^']+)'/.exec(q)?.[1];
+      const files = welt.dateien.filter((f) => f.properties?.fbTyp === typ && !f.trashed && (!ab || f.createdTime > ab) && (!mod || f.modifiedTime > mod)
         && (corpora === 'domain' ? f.domain : f.owners[0].emailAddress === PUSH || (f.geteilt || []).includes(PUSH)));
       return { files: files.map((f) => ({ ...f })) };
     },
@@ -289,7 +290,8 @@ let nr = 0;
 const datei = (typ, besitzer, beschreibung, extra = {}) => {
   const f = { id: `d${++nr}x${Math.random().toString(36).slice(2, 8)}`, createdTime: iso(Date.now()), modifiedTime: iso(Date.now()), description: JSON.stringify(beschreibung),
     owners: [{ emailAddress: besitzer, displayName: besitzer.split('@')[0].replace(/^./, (c) => c.toUpperCase()) + ' Beispiel' }], properties: { fbTyp: typ, ...(extra.properties || {}) },
-    domain: typ !== 'push', geteilt: typ === 'push' ? [PUSH] : [], ...extra };
+    // Push-Anmeldungen und Chat-Hinweise sind nur mit dem Push-Konto geteilt, nicht für die Domain sichtbar
+    domain: !['push', 'chathinweis'].includes(typ), geteilt: ['push', 'chathinweis'].includes(typ) ? [PUSH] : [], ...extra };
   welt.dateien.push(f);
   return f;
 };
@@ -327,12 +329,13 @@ await step('Durchläufe', async () => {
   const oeffentlich = welt.props.vapidOeffentlich;
   check(/^B[A-Za-z0-9_-]{86}$/.test(oeffentlich || '') && /^[A-Za-z0-9_-]{43}$/.test(welt.props.vapidPrivat || ''), 'Schlüsselpaar angelegt (privat bleibt in den Skript-Eigenschaften)');
   check(b64u(punktBytes_(mul_(zahl_(vonB64u(welt.props.vapidPrivat)), G_))) === oeffentlich, 'öffentlicher Schlüssel passt zum privaten');
-  check(welt.ausloeser.length === 1 && welt.ausloeser[0].name === 'pushSenden' && welt.ausloeser[0].n === 10, 'ein Auslöser alle 10 Minuten');
+  check(welt.ausloeser.length === 2 && welt.ausloeser[0].name === 'pushSenden' && welt.ausloeser[0].n === 10 && welt.ausloeser[1].name === 'chatSenden' && welt.ausloeser[1].n === 1,
+    'zwei Auslöser: Neues alle 10 Minuten, Chat-Hinweise jede Minute', JSON.stringify(welt.ausloeser));
   check(welt.tabellenAbrufe.length > 0 && welt.tabellenAbrufe.every((a) => a.id === 'tab1' && a.range === "'News'!A1:AZ" && a.o?.valueRenderOption === 'FORMATTED_VALUE'),
     'News-Tabelle über den Sheets-Dienst gelesen (Anzeigewerte, Bereich wie in der App)', JSON.stringify(welt.tabellenAbrufe));
   einrichten();
-  check(welt.ausloeser.length === 1 && welt.props.vapidOeffentlich === oeffentlich, 'nochmal einrichten: kein zweiter Auslöser, Schlüssel bleibt');
-  check(welt.anfragen.length === 0 && !!welt.props.seit, 'erster Durchlauf verschickt nichts und merkt sich die Zeit');
+  check(welt.ausloeser.length === 2 && welt.props.vapidOeffentlich === oeffentlich, 'nochmal einrichten: keine doppelten Auslöser, Schlüssel bleibt');
+  check(welt.anfragen.length === 0 && !!welt.props.seit && !!welt.props.chatSeit, 'erster Durchlauf verschickt nichts und merkt sich die Zeit (auch für Chat-Hinweise)');
   welt.konfiguration.push.schluessel = oeffentlich;
 
   // 2. Geräte melden sich an – jedes neue bekommt eine Bestätigung
@@ -416,6 +419,57 @@ await step('Durchläufe', async () => {
   check(Object.values(welt.props).every((v) => String(v).length < 9000), 'jede Skript-Eigenschaft unter 9 KB');
   check(sammel_([{ thema: 'news' }, { thema: 'forum' }, { thema: 'forum' }, { thema: 'termine' }, { thema: 'termine' }]).body === '1 News, 2 Forumsbeiträge, 2 neue Termine', 'Sammeltext mit Mehrzahl');
   check(kurz_('a  b\n c', 10) === 'a b c' && kurz_('x'.repeat(20), 10) === `${'x'.repeat(9)}…`, 'Texte gekürzt, Leerraum zusammengefasst');
+});
+
+await step('Chat-Hinweise', async () => {
+  section('Chat-Hinweise (E51): Direktnachricht, Gruppennachricht, Bierjunge – ohne Inhalt und Absender');
+  const sek = () => Math.floor(Date.now() / 1000);
+  // Geräte: Gerd will alles, Hanna nur Direktnachrichten und Bierjunge, Ingo nur Gruppen und Räume; Anna (oben) nichts vom Chat
+  await anmelden('Gerd', 'gerd@beispiel.de', ['news', 'chat', 'chatgruppen'], 'https://fcm.googleapis.com/fcm/send/gerd');
+  await anmelden('Hanna', 'hanna@beispiel.de', ['chat'], 'https://web.push.apple.com/QHanna');
+  await anmelden('Ingo', 'ingo@beispiel.de', ['chatgruppen'], 'https://fcm.googleapis.com/fcm/send/ingo');
+  pushSenden(); // Bestätigungen für die neuen Geräte
+  let start = welt.anfragen.length;
+  // Bernd schreibt Gerd, Hanna und Ingo je eine Direktnachricht – Adressen der Domain nur mit dem Teil vor dem @;
+  // dazu Unsinn in der Datei: er selbst, ein kaputter Eintrag, eine unmögliche Adresse
+  const t1 = sek();
+  const bernd = datei('chathinweis', 'bernd@beispiel.de', { zeit: t1, an: { gerd: { direkt: t1 }, hanna: { direkt: t1 }, ingo: { direkt: t1 }, bernd: { direkt: t1 }, kaputt: 5, 'x y@z': { direkt: t1 } } });
+  chatSenden();
+  let m = await verschickt(start);
+  const an = (teil) => m.filter((x) => x.url.includes(teil)).map((x) => x.nachricht);
+  check(m.length === 2 && an('gerd').length === 1 && an('QHanna').length === 1 && !an('ingo').length && !an('anna1').length,
+    'Direktnachricht an Gerd und Hanna – nicht an Ingo (nur Gruppen), Anna (kein Chat-Thema) oder Bernd selbst', JSON.stringify(m.map((x) => [x.url, x.nachricht])));
+  check(an('gerd')[0]?.title === 'Direktnachricht' && an('gerd')[0].url === '#/chat' && an('gerd')[0].tag === 'chat:direkt' && an('gerd')[0].renotify === true && !/bernd/i.test(JSON.stringify(an('gerd'))),
+    'Mitteilung: „Direktnachricht“, Link zum Chat, ohne Absender und Inhalt', JSON.stringify(an('gerd')));
+  check(m.every((x) => !x.fehler && x.vapid.ok), 'entschlüsselbar und gültig unterschrieben');
+  const stand = JSON.parse(welt.props.chat);
+  check(Object.keys(stand).join() === bernd.id && stand[bernd.id] === t1 && !/gerd|hanna|bernd/.test(JSON.stringify(welt.props)),
+    'gemerkt wird je Datei nur der zuletzt gemeldete Zeitpunkt – keine Namen in den Skript-Eigenschaften', welt.props.chat);
+  start = welt.anfragen.length;
+  chatSenden();
+  check(welt.anfragen.length === start, 'nächste Minute ohne Neues: nichts verschickt');
+  // Datei geändert (z. B. aufgeräumt), aber kein neuer Zeitpunkt: nichts
+  bernd.modifiedTime = iso(Date.now());
+  chatSenden();
+  check(welt.anfragen.length === start, 'Datei geändert, aber nichts Neues: nichts verschickt');
+  // In derselben Minute: Bernd schreibt in eine Gruppe (Gerd, Hanna, Ingo), Carl schickt Gerd und Hanna einen Bierjungen
+  const t2 = t1 + 30;
+  bernd.description = JSON.stringify({ zeit: t2, an: { gerd: { direkt: t1, gruppe: t2 }, hanna: { direkt: t1, gruppe: t2 }, ingo: { direkt: t1, gruppe: t2 } } });
+  bernd.modifiedTime = iso(Date.now());
+  datei('chathinweis', 'carl@beispiel.de', { zeit: t2, an: { gerd: { bierjunge: t2 }, 'hanna@beispiel.de': { bierjunge: t2 } } });
+  // nicht mit dem Push-Konto geteilt: unsichtbar
+  datei('chathinweis', 'dora@beispiel.de', { zeit: t2, an: { gerd: { direkt: t2 }, ingo: { direkt: t2 } } }, { geteilt: [] });
+  start = welt.anfragen.length;
+  chatSenden();
+  m = await verschickt(start);
+  check(an('gerd').length === 1 && an('gerd')[0].title === 'Neues im Chat' && an('gerd')[0].body === '1 Gruppennachricht, 1 Bierjunge' && an('gerd')[0].tag === 'chat:sammel',
+    'Gerd: Gruppennachricht und Bierjunge als eine Mitteilung – die alte Direktnachricht nicht noch einmal', JSON.stringify(an('gerd')));
+  check(an('QHanna').length === 1 && an('QHanna')[0].title === 'Bierjunge!' && an('QHanna')[0].tag === 'chat:bierjunge' && /Prost/.test(an('QHanna')[0].body),
+    'Hanna: „Bierjunge!“ (volle Adresse in der Datei), die Gruppe nicht (abgewählt)', JSON.stringify(an('QHanna')));
+  check(an('ingo').length === 1 && an('ingo')[0].title === 'Gruppennachricht' && an('ingo')[0].tag === 'chat:gruppe' && m.length === 3,
+    'Ingo: „Gruppennachricht“; Doras nicht geteilte Datei bleibt unsichtbar', JSON.stringify(m.map((x) => [x.url, x.nachricht?.title])));
+  check(chatMitteilung_([{ art: 'direkt' }, { art: 'direkt' }, { art: 'bierjunge' }]).body === '2 Direktnachrichten, 1 Bierjunge', 'Sammeltext mit Mehrzahl');
+  check(Object.values(welt.props).every((v) => String(v).length < 9000), 'jede Skript-Eigenschaft unter 9 KB');
 });
 
 const failed = results.filter((r) => !r.ok);

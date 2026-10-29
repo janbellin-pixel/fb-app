@@ -6,7 +6,7 @@
 //   • die eigene Zu-/Absage – im eigenen Kalender (calendars/primary)
 //   • eigene Dateien, die die App im eigenen Google Drive angelegt hat (Profil, Forenbeiträge,
 //     Zusagen ohne Einladung, News der Redaktion samt Bildern, Datenschutz-Einwilligung, Sichtbarkeit,
-//     Papierpost-Wahl, Push-Anmeldung)
+//     Papierpost-Wahl, Push-Anmeldung, Chat-Hinweise für Push)
 //     und deren Lese-Freigaben (setzen und zurücknehmen, z. B. Profil bei „nicht sichtbar“, E40)
 //   • eigene Chat-Nachrichten (Google lässt ohnehin nur eigene zu), neue Unterhaltungen mit Personen
 //     (Direktnachricht, Gruppe, benannter Raum) und Personen zu Unterhaltungen hinzufügen

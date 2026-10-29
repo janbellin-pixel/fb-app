@@ -37,6 +37,7 @@
       { resourceName: 'people/222', names: [{ displayName: 'Anna Andere' }], emailAddresses: [{ value: 'anna@beispiel.de' }], photos: [] },
     ];
     fake.state.spaces = [{ name: 'spaces/AAA', displayName: 'Allgemein', spaceType: 'SPACE', lastActiveTime: new Date().toISOString() }];
+    fake.state.chatMembers['spaces/AAA'] = ['111', '222']; // ich und Anna – so bekommt Anna den Chat-Hinweis (E51)
     fake.state.messages['spaces/AAA'] = [{ name: 'spaces/AAA/messages/1', text: 'Willkommen im Testraum!', createTime: new Date(Date.now() - 120_000).toISOString(), sender: { name: 'users/222' } }];
     window.fetch = fake.fakeFetch;
     window.__fake = fake;

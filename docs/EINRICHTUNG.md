@@ -202,7 +202,7 @@ Die App ändert selbst keine Termine. Damit Termine aus dem Google Kalender trot
 
 Einrichtung: Die Anleitung steht oben in der Datei (5 Minuten, kein Programmieren). Ohne das Skript: Gruppe beim Anlegen des Termins selbst als Gast hinzufügen.
 
-**Push-Mitteilungen (optional, E50):** Damit die App auch bei geschlossener App meldet, wenn es neue News, Forumsbeiträge oder Termine gibt, schickt das Apps-Script `apps-script/Push.gs` alle 10 Minuten verschlüsselte Mitteilungen an die Geräte, die Push eingeschaltet haben. Es liest nur und ändert nichts.
+**Push-Mitteilungen (optional, E50/E51):** Damit die App auch bei geschlossener App meldet, wenn es neue News, Forumsbeiträge oder Termine gibt, schickt das Apps-Script `apps-script/Push.gs` alle 10 Minuten verschlüsselte Mitteilungen an die Geräte, die Push eingeschaltet haben. Jede Minute meldet es außerdem „Direktnachricht“, „Gruppennachricht“ oder „Bierjunge!“, wenn jemand **aus der Mitglieder-App** schreibt – ohne Inhalt und ohne Absender: Die App des Absenders legt dafür in dessen Drive nur ab, wem er zuletzt geschrieben hat (eine Stunde lang), lesbar allein für das Konto des Skripts. Es liest nur und ändert nichts.
 
 1. Im Konto, das die Mitteilungen verschicken soll (am besten ein Admin), auf https://script.google.com ein **eigenes, neues Projekt** anlegen und den Inhalt von `Push.gs` einfügen.
 2. Projekteinstellungen (Zahnrad) → „Manifestdatei „appsscript.json“ im Editor anzeigen“ anhaken. Im Editor `appsscript.json` öffnen und den Inhalt von `apps-script/Push.appsscript.json` einfügen: Das gibt dem Skript nur Lese-Rechte und schaltet Kalender-, Drive- und Sheets-Dienst ein.
@@ -210,7 +210,7 @@ Einrichtung: Die Anleitung steht oben in der Datei (5 Minuten, kein Programmiere
 4. Oben die Funktion **„einrichten“** wählen, ▶ Ausführen, Berechtigungen bestätigen. Im Ausführungsprotokoll stehen danach **Konto** und **öffentlicher Schlüssel**.
 5. In der App unter **Einrichtung → Optionen → Push-Mitteilungen** beides eintragen, „Optionen speichern“ und danach „Einstellungen in Google Drive speichern“.
 
-Danach kann jedes Mitglied Push unter **Mehr → Einstellungen** für sein Gerät einschalten und wählen: News, Forum, Termine. Beim nächsten Durchlauf bekommt das Gerät eine Bestätigung. Auf iPhone und iPad geht Push nur mit der App auf dem Home-Bildschirm (ab iOS 16.4). Den Ablauf zeigt das Ausführungsprotokoll des Skripts („3 Neuigkeit(en), 42 Gerät(e) …“). Abschalten: Funktion „abschalten“. Neuer Schlüssel: „schluesselErneuern“, dann den neuen Schlüssel in der App eintragen – die Geräte melden sich beim nächsten Öffnen der App von selbst neu an.
+Danach kann jedes Mitglied Push unter **Mehr → Einstellungen** für sein Gerät einschalten und wählen: News, Forum, Termine, „Direktnachrichten und Bierjunge“, „Gruppen und Räume“. Beim nächsten Durchlauf bekommt das Gerät eine Bestätigung. **Neue Fassung von `Push.gs`** (z. B. die Chat-Hinweise aus E51): Code im Projekt ersetzen und **„einrichten“ erneut ausführen** – das legt fehlende Auslöser an, der Schlüssel bleibt. Auf iPhone und iPad geht Push nur mit der App auf dem Home-Bildschirm (ab iOS 16.4). Den Ablauf zeigt das Ausführungsprotokoll des Skripts („3 Neuigkeit(en), 42 Gerät(e) …“). Abschalten: Funktion „abschalten“. Neuer Schlüssel: „schluesselErneuern“, dann den neuen Schlüssel in der App eintragen – die Geräte melden sich beim nächsten Öffnen der App von selbst neu an.
 
 ### B5. Verteilen an die Mitglieder
 
@@ -223,7 +223,7 @@ Danach kann jedes Mitglied Push unter **Mehr → Einstellungen** für sein Gerä
   Ergebnis: `docs/Anleitung-Mitglieder-App.pdf` und `docs/qr-code.png`. Die PDF per E-Mail oder im Chat verschicken bzw. ausdrucken.
 - In der App unter **Mehr → App installieren** gibt es den QR-Code ebenfalls, zum Zeigen auf dem Handy oder Teilen.
 - Erinnerung an alle: einmal anmelden, **Profil ausfüllen**, App auf den Startbildschirm legen.
-- **Benachrichtigungen:** Mitteilungen bei neuen News, Forumsbeiträgen und Terminen schaltet jedes Mitglied selbst ein (Mehr › Einstellungen › Push-Mitteilungen; dafür muss `Push.gs` eingerichtet sein, B4). Für Chat-Nachrichten bei geschlossener App gibt es die App **„Google Chat“**. Zahlen und Hinweise in der offenen App schaltet ebenfalls jedes Mitglied selbst ein; ohne Einschalten zeigt die App nichts an.
+- **Benachrichtigungen:** Mitteilungen bei neuen News, Forumsbeiträgen und Terminen sowie bei Nachrichten, die jemand aus der Mitglieder-App schickt, schaltet jedes Mitglied selbst ein (Mehr › Einstellungen › Push-Mitteilungen; dafür muss `Push.gs` eingerichtet sein, B4). Für Nachrichten, die direkt in Google Chat geschrieben werden, gibt es bei geschlossener App die App **„Google Chat“**. Zahlen und Hinweise in der offenen App schaltet ebenfalls jedes Mitglied selbst ein; ohne Einschalten zeigt die App nichts an.
 
 ---
 
@@ -343,7 +343,7 @@ Die App ist so gebaut, dass Mitglieder damit **nichts außer ihren eigenen Daten
 2. **Berechtigungen beim Anmelden:** Die App fragt für Google Drive nur „Dateien ansehen“ (`drive.readonly`) und „von dieser App angelegte Dateien“ (`drive.file`) an, für Google Tabellen gar keine Schreibberechtigung. Fremde Dateien kann sie damit technisch nicht ändern, auch nicht im Konto eines Admins.
 3. **Sperre im Code** (`js/google/guard.js`): Jede ändernde Anfrage wird vor dem Absenden geprüft. Erlaubt sind nur:
    - die eigene Antwort auf einen Termin, nur im eigenen Kalender und nur die Teilnehmerliste;
-   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung, Sichtbarkeit, Papierpost-Wahl, Push-Anmeldung), und deren Lese-Freigaben;
+   - eigene Dateien, die die App im eigenen Drive angelegt hat (Profil, Forumsbeiträge, Zusagen ohne Einladung, Einwilligung, Sichtbarkeit, Papierpost-Wahl, Push-Anmeldung, Chat-Hinweise für Push), und deren Lese-Freigaben;
    - eigene Chat-Nachrichten, neue Unterhaltungen nur mit Personen und das Hinzufügen von Personen;
    - für die Datenschutz-Verantwortlichen: die **eigene**, von der App angelegte Einwilligungsliste.
 

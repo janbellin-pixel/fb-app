@@ -15,6 +15,8 @@
 //                        (die Sammeltabelle schreibt nur deren eigenes Konto)
 //   Papierpost-Wahl    → eigene Datei im eigenen Drive, nur für die Admins lesbar
 //   Push-Anmeldung     → eigene Datei je Gerät im eigenen Drive, nur für das Konto des Push-Skripts lesbar (E50)
+//   Chat-Hinweise      → eigene Datei im eigenen Drive (wem man zuletzt aus der App geschrieben hat, ohne Inhalt),
+//                        nur für das Konto des Push-Skripts lesbar (E51)
 // Der Schreibschutz (google/guard.js) erzwingt das für jede einzelne Anfrage.
 import { config, isAdminEmail, isNewsAuthorEmail } from '../config.js';
 import * as cal from '../google/calendar.js';
@@ -52,6 +54,11 @@ const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
 const VISIBILITY_FILE = 'Sichtbarkeit (Mitglieder-App).json';
 const PAPIERPOST_FILE = 'Papierpost (Mitglieder-App).json';
 const PUSH_FILE = 'Push-Mitteilungen (Mitglieder-App).json';
+const PUSH_THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen'];
+const CHAT_HINWEIS_FILE = 'Chat-Hinweise (Mitglieder-App).json';
+const CHAT_HINWEIS_ARTEN = ['direkt', 'gruppe', 'bierjunge'];
+const CHAT_HINWEIS_FRIST = 3600; // Sekunden: ältere Einträge fallen beim nächsten Schreiben weg
+const CHAT_HINWEIS_MAX = 300; // Empfänger je Datei (die Beschreibung einer Drive-Datei ist begrenzt)
 // Diese Typen tragen fbTyp auch als öffentliche Eigenschaft – daran findet das Push-Skript neue Beiträge (E50)
 const OEFFENTLICHE_TYPEN = ['forum', 'news'];
 /** Wahl aus einer Sichtbarkeits-Datei (E40): true = in der Mitgliederliste zeigen */
@@ -100,6 +107,30 @@ function parseJson(s) {
   } catch {
     return {};
   }
+}
+
+/**
+ * Chat-Hinweise fortschreiben (E51): je Empfänger und Art nur der Zeitpunkt der letzten Nachricht (Sekunden) – kein
+ * Verlauf. Die Zeit steigt innerhalb der Datei immer an (auch wenn die Uhr eines zweiten Geräts nachgeht, so erkennt
+ * das Skript Neues zuverlässig); Einträge älter als eine Stunde fallen weg. Rein, damit es sich prüfen lässt.
+ */
+export function chatHinweiseMischen(alt, empfaenger, art, jetzt = Math.floor(Date.now() / 1000)) {
+  const an = alt?.an && typeof alt.an === 'object' ? alt.an : {};
+  const zeit = Math.max(jetzt, (Number(alt?.zeit) || 0) + 1);
+  const raus = {};
+  for (const [wer, arten] of Object.entries(an)) {
+    const frisch = Object.fromEntries(Object.entries(arten && typeof arten === 'object' ? arten : {})
+      .filter(([a, t]) => CHAT_HINWEIS_ARTEN.includes(a) && Number(t) > zeit - CHAT_HINWEIS_FRIST));
+    if (Object.keys(frisch).length) raus[wer] = frisch;
+  }
+  for (const e of empfaenger) raus[e] = { ...(raus[e] || {}), [art]: zeit };
+  // zu viele Empfänger: die ältesten vergessen
+  const keys = Object.keys(raus);
+  if (keys.length > CHAT_HINWEIS_MAX) {
+    const juengste = (k) => Math.max(...Object.values(raus[k]).map(Number));
+    for (const k of keys.sort((a, b) => juengste(b) - juengste(a)).slice(CHAT_HINWEIS_MAX)) delete raus[k];
+  }
+  return { zeit, an: raus };
 }
 
 export class GoogleBackend {
@@ -580,7 +611,7 @@ export class GoogleBackend {
       endpoint: String(endpoint),
       p256dh: String(p256dh),
       auth: String(auth),
-      themen: (themen || []).filter((t) => ['news', 'forum', 'termine'].includes(t)),
+      themen: (themen || []).filter((t) => PUSH_THEMEN.includes(t)),
       geraet: clip(name, 80),
       geaendert: nowIso(),
     };
@@ -610,8 +641,82 @@ export class GoogleBackend {
     }
   }
 
+  /* ---------------------------------------------------------------- Chat-Hinweise (E51) */
+
   /**
-   * Eigene Datei NUR für diese Konten lesbar machen (Einwilligung, Papierpost-Wahl, Push-Anmeldung).
+   * Eigene Hinweis-Datei (eine je Mitglied, ID für diese Sitzung gemerkt): wem ich zuletzt aus der App geschrieben habe –
+   * je Empfänger und Art nur der Zeitpunkt, kein Inhalt, kein Raum. Lesen kann sie nur das Konto des Push-Skripts.
+   */
+  async chatHinweisDatei() {
+    if (this.chatHinweisId !== undefined) return this.chatHinweisId;
+    const files = await drive.listFiles(
+      "appProperties has { key='fbTyp' and value='chathinweis' } and 'me' in owners and trashed = false",
+      { fields: OWN_FIELDS, orderBy: 'modifiedTime desc' },
+    );
+    const own = files.filter((f) => f.ownedByMe).sort((a, b) => String(b.modifiedTime).localeCompare(String(a.modifiedTime)));
+    for (const f of own) registerOwnFile(f.id);
+    this.chatHinweisId = own[0]?.id || '';
+    return this.chatHinweisId;
+  }
+
+  /**
+   * Nach einer eigenen Chat-Nachricht aus der App (E51): Empfänger (ohne mich) mit Art und Zeitpunkt in die eigene
+   * Hinweis-Datei schreiben, damit das Push-Skript ihnen „Direktnachricht“, „Gruppennachricht“ oder „Bierjunge!“ melden
+   * kann – ohne Inhalt und ohne Absender. Nur, wenn Push eingerichtet ist. Geht hier etwas schief, ist die Nachricht
+   * trotzdem verschickt; nur die Mitteilung bleibt aus (der Aufrufer fängt den Fehler).
+   */
+  async chatHinweis(spaceId, art = '') {
+    const konto = String(config.push?.konto || '').trim().toLowerCase();
+    if (!konto) return null;
+    const [space, personen, myId] = await Promise.all([
+      chat.getSpace(spaceId).catch(() => null), this.spaceMembers(spaceId).catch(() => []), this.myId().catch(() => ''),
+    ]);
+    // Art: wie Google die Unterhaltung nennt; ist sie nicht abrufbar, zählt eine Unterhaltung zu zweit als Direktnachricht
+    const direkt = space ? space.spaceType === 'DIRECT_MESSAGE' : personen.length > 0 && personen.length <= 2;
+    const typ = CHAT_HINWEIS_ARTEN.includes(art) ? art : direkt ? 'direkt' : 'gruppe';
+    let an = personen.filter((p) => p.email && p.email !== this.myEmail && p.id !== myId).map((p) => p.email.toLowerCase());
+    // Direktnachricht ohne Recht, die Mitglieder zu lesen: die andere Person kennt das Gerät (rememberChatName)
+    if (!an.length && typ !== 'gruppe') {
+      const hint = local.get(CHAT_NAMES, {})[spaceId];
+      if (hint?.email && hint.email !== this.myEmail) an = [String(hint.email).toLowerCase()];
+    }
+    an = [...new Set(an)].slice(0, CHAT_HINWEIS_MAX);
+    if (!an.length) return null;
+    // Adressen der eigenen Domain nur mit dem Teil vor dem @ (kurze Datei) – das Skript ergänzt seine Domain
+    const domain = konto.split('@')[1];
+    const kurz = (e) => (e.endsWith(`@${domain}`) ? e.slice(0, -domain.length - 1) : e);
+    let id = await this.chatHinweisDatei();
+    const vorher = id ? await drive.getFile(id, 'id,description,appProperties') : null;
+    const data = chatHinweiseMischen(parseJson(vorher?.description), an.map(kurz), typ);
+    if (id) {
+      await drive.updateFile(id, { description: JSON.stringify(data), properties: { fbTyp: 'chathinweis' } });
+    } else {
+      const folder = await this.appFolder();
+      const f = await drive.createFile({ name: CHAT_HINWEIS_FILE, mimeType: 'application/json', parents: [folder], appProperties: { fbTyp: 'chathinweis' }, properties: { fbTyp: 'chathinweis' }, description: JSON.stringify(data) }, 'id');
+      registerOwnFile(f.id);
+      id = f.id;
+      this.chatHinweisId = id;
+    }
+    await this.ensureReaders(id, this.pushEmpfaenger(), vorher?.appProperties?.fbEmpf);
+    return data;
+  }
+
+  /** Beim Start: Einträge älter als eine Stunde aus der eigenen Hinweis-Datei entfernen – nach einer ruhigen Stunde ist sie leer */
+  async chatHinweiseAufraeumen() {
+    if (!String(config.push?.konto || '').trim()) return false;
+    const id = await this.chatHinweisDatei();
+    if (!id) return false;
+    const d = parseJson((await drive.getFile(id, 'id,description')).description);
+    const grenze = Math.floor(Date.now() / 1000) - CHAT_HINWEIS_FRIST;
+    const alt = Object.values(d.an && typeof d.an === 'object' ? d.an : {})
+      .some((arten) => Object.values(arten && typeof arten === 'object' ? arten : {}).some((t) => !(Number(t) > grenze)));
+    if (!alt) return false;
+    await drive.updateFile(id, { description: JSON.stringify(chatHinweiseMischen(d, [], 'direkt')) });
+    return true;
+  }
+
+  /**
+   * Eigene Datei NUR für diese Konten lesbar machen (Einwilligung, Papierpost-Wahl, Push-Anmeldung, Chat-Hinweise).
    * Frühere Empfänger und alle anderen Freigaben (Gruppe, Domain, Link) werden entfernt.
    * currentKey: gespeicherte Prüfsumme der Empfänger – stimmt sie, ist nichts zu tun.
    */
@@ -1489,10 +1594,17 @@ export class GoogleBackend {
     return m ? this.mapMessage(m, dir, myId) : null;
   }
 
-  async sendMessage(spaceId, text) {
+  /**
+   * Eigene Nachricht senden; opts.art = 'bierjunge' beim Bierjungen (E45). Danach – ohne das Senden aufzuhalten – den
+   * Chat-Hinweis für Push ablegen (E51); `hinweis` an der Nachricht ist dieses Versprechen (für Tests). Mehrere Nachrichten
+   * kurz nacheinander schreiben die Datei der Reihe nach, damit kein Empfänger verloren geht.
+   */
+  async sendMessage(spaceId, text, { art = '' } = {}) {
     const [m, dir, myId] = await Promise.all([chat.createMessage(spaceId, text), this.dirMap(), this.myId()]);
     const msg = this.mapMessage(m, dir, myId);
     msg.mine = true;
+    this.hinweisKette = (this.hinweisKette || Promise.resolve()).then(() => this.chatHinweis(spaceId, art)).catch((e) => console.warn('Chat-Hinweis nicht abgelegt', e));
+    Object.defineProperty(msg, 'hinweis', { value: this.hinweisKette, enumerable: false });
     return msg;
   }
 

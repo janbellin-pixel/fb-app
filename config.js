@@ -35,6 +35,6 @@ window.FB_CONFIG = {
     dachverband: 'Deutsche Sängerschaft (DS)',
     dachverbandKurz: 'DS',
     fassung: '3',      // erhöhen, wenn sich die Einwilligungstexte ändern – dann werden alle erneut gefragt
-    stand: '28.10.2026'
+    stand: '29.10.2026'
   }
 };

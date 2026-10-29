@@ -231,7 +231,7 @@ export async function detail(ctx) {
     btn.disabled = true;
     try {
       const space = await b.openDirectChat(m.email, m.name);
-      await b.sendMessage(space.id, BIERJUNGE);
+      await b.sendMessage(space.id, BIERJUNGE, { art: 'bierjunge' }); // Art für den Chat-Hinweis (E51)
       app.forget('chat-spaces').catch(() => {});
       prost(btn);
       toast(`Bierjunge an ${firstName(m.name) || m.name} geschickt`);

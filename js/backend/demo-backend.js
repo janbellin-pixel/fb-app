@@ -146,6 +146,9 @@ export class DemoBackend {
     this.save();
   }
 
+  /** Chat-Hinweise (E51) gibt es nur mit echtem Push-Skript – in der Demo nichts zu tun */
+  async chatHinweiseAufraeumen() {}
+
   /** Erfundene Abbestellungen der Demo-Mitglieder (plus die eigene) */
   async listPapierpost() {
     await wait();
@@ -593,7 +596,8 @@ export class DemoBackend {
     return { id: m.id, text: m.text, created: m.created, sender: { name: p.name, photo: p.photo, email: m.senderEmail }, mine: m.senderEmail === DEMO_ME_EMAIL };
   }
 
-  async sendMessage(spaceId, text) {
+  /** opts.art ('bierjunge') braucht nur das Google-Backend für den Chat-Hinweis (E51) */
+  async sendMessage(spaceId, text, opts = {}) { // eslint-disable-line no-unused-vars
     await wait(200);
     const c = this.chatState();
     const list = (c.messages[spaceId] = c.messages[spaceId] || []);

@@ -2,7 +2,9 @@
 // Dann kommt auch bei geschlossener App eine Mitteilung bei neuen News, Forumsbeiträgen und Terminen.
 // Verschickt werden sie von apps-script/Push.gs im Konto config.push.konto. Die App meldet dafür das Gerät an:
 // Push-Adresse des Browsers mit Schlüsseln und Themen als eigene Datei im eigenen Drive (fbTyp=push), lesbar nur
-// für dieses Konto. Chat-Nachrichten meldet weiter die App „Google Chat“ (E33).
+// für dieses Konto. Chat: Nachrichten, die jemand aus der App schickt, meldet das Skript über die Chat-Hinweise des
+// Absenders (E51, google-backend.js) – ohne Inhalt und Absender; was in Google Chat selbst geschrieben wird, meldet
+// weiter die App „Google Chat“ (E33).
 // Ein/aus und Themen merkt sich das Gerät je Konto (localStorage); maßgeblich für das Skript ist die Datei.
 import { config } from '../config.js';
 import { local } from './store.js';
@@ -14,7 +16,12 @@ export const THEMEN = [
   { id: 'news', label: 'News', sub: 'Neue Beiträge der Redaktion', bereich: 'news' },
   { id: 'forum', label: 'Forum', sub: 'Neue Themen und Antworten', bereich: 'forum' },
   { id: 'termine', label: 'Termine', sub: 'Neu eingetragene Termine', bereich: 'termine' },
+  // Chat (E51): nur, was jemand aus der Mitglieder-App schickt – die Mitteilung nennt weder Inhalt noch Absender
+  { id: 'chat', label: 'Direktnachrichten und Bierjunge', sub: 'Aus der Mitglieder-App an dich geschickt', bereich: 'chat' },
+  { id: 'chatgruppen', label: 'Gruppen und Räume', sub: 'Aus der Mitglieder-App in deine Gruppen und Räume geschickt', bereich: 'chat', vorgewaehlt: false },
 ];
+/** Vorwahl beim Einschalten: alles außer Gruppen und Räumen (die können laut werden) */
+export const vorgewaehlteThemen = (themen) => themen.filter((t) => t.vorgewaehlt !== false).map((t) => t.id);
 
 const KEY = (email) => `fb.push.${String(email || '').toLowerCase()}`;
 
@@ -29,9 +36,10 @@ export const pushUnterstuetzt = () => 'serviceWorker' in navigator && 'PushManag
 /** iPhone und iPad: Push gibt es nur für die App auf dem Home-Bildschirm (ab iOS 16.4) */
 export const pushNurInstalliert = () => isIos() && !isStandalone();
 
-/** Themen, die das Mitglied in der App überhaupt sieht (Gruppen, E41; Forum aus; kein Kalender) */
+/** Themen, die das Mitglied in der App überhaupt sieht (Gruppen, E41; Forum oder Chat aus; kein Kalender) */
 export const moeglicheThemen = () => THEMEN.filter((t) => !gesperrt(t.bereich)
-  && (t.id !== 'forum' || config.forum?.aktiv !== false) && (t.id !== 'termine' || !!config.kalenderId));
+  && (t.id !== 'forum' || config.forum?.aktiv !== false) && (t.id !== 'termine' || !!config.kalenderId)
+  && (t.bereich !== 'chat' || config.chat?.aktiv !== false));
 
 /** Kommt dieses Thema auf diesem Gerät schon per Push? (Dann zeigt die App dieselbe Mitteilung nicht noch einmal) */
 export const pushThemaAn = (email, thema) => {

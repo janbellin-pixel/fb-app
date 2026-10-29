@@ -50,7 +50,7 @@ Unten in der App gibt es fünf Bereiche:
 |---|---|
 | **Start** | Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos. |
 | **Termine** | Alle Veranstaltungen als Liste oder Monat. Termin antippen › **Zusagen, Vielleicht oder Absagen**, Gäste und Kommentar angeben, sehen wer kommt. „Kalender abonnieren“ holt alle Termine in den eigenen Kalender. |
-| **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Mit **„Aktivenvorstand kontaktieren“** bzw. **„Altherrenvorstand kontaktieren“** schreibst du direkt dem Vorstand. Zu den WhatsApp-Gruppen lädt dich jedes Vorstandsmitglied ein. Benachrichtigungen: Mehr › Einstellungen oder App „Google Chat“. |
+| **Chat** | Private Nachrichten und Gruppen: „Neue Nachricht“, „Neue Gruppe“ oder im Profil auf „Nachricht“. Mit **„Aktivenvorstand kontaktieren“** bzw. **„Altherrenvorstand kontaktieren“** schreibst du direkt dem Vorstand. Zu den WhatsApp-Gruppen lädt dich jedes Vorstandsmitglied ein. Benachrichtigungen: Mehr › Einstellungen (Push, auch wenn dir jemand aus der App schreibt) oder App „Google Chat“. |
 | **Mitglieder** | Alle, die die App nutzen und sichtbar sein möchten, mit Foto und Profil. Oben wählst du **„App-Nutzer“** oder **„Alle Mitglieder“** (auch die übrigen Konten der Verbindung). Antippen › anrufen, E-Mail oder private Nachricht schreiben – oder mit **„Bierjunge“** einen Bierjungen schicken. Unter **„Angebote für Jüngere“** steht, wer Praktika, Mentoring & Co. anbietet. |
 | **Mehr** | **Bundesbote** und **DS-Zeitung** zum Durchblättern · **Liedermappe** mit allen Noten · **Galerie** mit Fotos (Ansicht „Alben“ oder „Ordner“) · **Wiki** · **News** · **Forum** · **Adressverzeichnis** · **Mein Profil** · **Datenschutz** · **Papierpost abbestellen** · **Schriftgröße** · Einstellungen |
 
@@ -59,7 +59,7 @@ Je nach Gruppe (z. B. Chordamen, Verkehrsgäste, Gäste) blendet die App einzeln
 ## Gut zu wissen
 
 - **Schrift zu klein?** Mehr › Schriftgröße › „Groß“ oder „Sehr groß“.
-- **Mitteilungen bei Neuem:** Mehr › Einstellungen › „Push einschalten“ – dann meldet sich die App auch, wenn sie zu ist, sobald es neue News, Forumsbeiträge oder Termine gibt. Was du bekommen willst, wählst du dort aus. Auf dem iPhone geht das nur mit der App auf dem Home-Bildschirm. Chat-Nachrichten meldet die App „Google Chat“.
+- **Mitteilungen bei Neuem:** Mehr › Einstellungen › „Push einschalten“ – dann meldet sich die App auch, wenn sie zu ist, sobald es neue News, Forumsbeiträge oder Termine gibt oder dir jemand aus der App schreibt („Direktnachricht“, „Gruppennachricht“, „Bierjunge!“ – ohne Inhalt). Was du bekommen willst, wählst du dort aus. Auf dem iPhone geht das nur mit der App auf dem Home-Bildschirm. Was direkt in Google Chat geschrieben wird, meldet die App „Google Chat“.
 - **Abmelden oder Konto wechseln:** Mehr › oben **„Abmelden“**. Beim nächsten „Mit Google anmelden“ fragt Google, welches Konto du nehmen willst.
 - **Bitte dein Profil ausfüllen und deine Anschrift prüfen:** Mehr › Mein Profil (Kneipname, Tätigkeit, was du Jüngeren anbieten kannst …). Adressänderungen schickst du dort mit dem Knopf „Adressänderung per E-Mail mitteilen“ an den Schriftwart. Dein Foto änderst du in deinem Google-Konto.
 - **Keine Papierpost mehr?** Mehr › Papierpost abbestellen: Semesterprogramm und Bundesbote einzeln abwählen – du bekommst alles über die App. Ganz verhindern lässt sich Post beim Versand nicht immer.

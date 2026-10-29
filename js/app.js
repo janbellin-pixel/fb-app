@@ -267,6 +267,10 @@ async function boot() {
   if (app.user) import('./lib/hinweise.js').then((m) => m.startHinweise(app)).catch((e) => console.warn('Hinweise nicht gestartet', e));
   // Push-Mitteilungen (E50): Anmeldung dieses Geräts aktuell halten (neue Push-Adresse, neuer Schlüssel …)
   if (app.user && app.mode === 'google') import('./lib/push.js').then((m) => m.pushAbgleichen(app)).catch((e) => console.warn('Push nicht abgeglichen', e));
+  // Chat-Hinweise (E51): Einträge älter als eine Stunde aus der eigenen Hinweis-Datei entfernen
+  if (app.user && app.mode === 'google' && app.backend?.chatHinweiseAufraeumen) {
+    setTimeout(() => app.backend.chatHinweiseAufraeumen().catch((e) => console.warn('Chat-Hinweise nicht aufgeräumt', e)), 6000);
+  }
   // Verantwortliche: Einwilligungs-Sammeltabelle im Hintergrund abgleichen
   if (app.user && app.backend?.autoSyncConsents) {
     setTimeout(() => app.backend.autoSyncConsents().catch((e) => console.warn('Einwilligungsliste nicht abgeglichen', e)), 4000);

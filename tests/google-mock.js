@@ -738,8 +738,8 @@ async function run() {
   const pPerms = fake.state.permissions.filter((p) => p.file === pf?.id);
   check(pPerms.length === 1 && pPerms[0].type === 'user' && pPerms[0].emailAddress === 'push@beispiel.de' && pPerms[0].role === 'reader',
     'nur für das Konto des Push-Skripts lesbar – nicht für Gruppe, Domain oder Admins', JSON.stringify(pPerms));
-  await step('saveMyPush (Themen geändert)', () => b.saveMyPush({ ...abo, themen: ['termine', 'chat'] }));
-  check(pushFiles().length === 1 && pushDaten(pushFiles()[0]).themen.join() === 'termine', 'Änderung in derselben Datei; unbekannte Themen fallen weg');
+  await step('saveMyPush (Themen geändert)', () => b.saveMyPush({ ...abo, themen: ['termine', 'chat', 'wetter'] }));
+  check(pushFiles().length === 1 && pushDaten(pushFiles()[0]).themen.join() === 'termine,chat', 'Änderung in derselben Datei; Chat-Thema (E51) gilt, unbekannte Themen fallen weg');
   await step('saveMyPush (Gerätespeicher gelöscht: neue Kennung, gleiche Push-Adresse)', () => b.saveMyPush({ ...abo, geraet: 'geraet1neu' }));
   check(pushFiles().length === 1, 'gleiche Push-Adresse: keine zweite Datei');
   const apple = { ...abo, geraet: 'tablet', endpoint: 'https://web.push.apple.com/QXYZ' };
@@ -773,6 +773,62 @@ async function run() {
     'Forumsbeiträge: Typ, Rolle und Thema auch als öffentliche Eigenschaft', JSON.stringify(ownTyp('forum').map((f) => f.properties)));
   check(ownTyp('news').length > 0 && ownTyp('news').every((f) => f.properties?.fbTyp === 'news'), 'News: Typ auch als öffentliche Eigenschaft');
   check(ownTyp('profil').length > 0 && ownTyp('profil').every((f) => !f.properties?.fbTyp), 'Profil: keine öffentliche Eigenschaft (nur, was das Skript braucht)');
+
+  section('Chat-Hinweise für Push (E51)');
+  const hinweisFiles = () => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'chathinweis' && f.ownerEmail === me.email && !f.trashed);
+  const hinweisDaten = () => JSON.parse(hinweisFiles()[0]?.description || '{}');
+  const jetztSek = () => Math.floor(Date.now() / 1000);
+  const h1 = await step('sendMessage (Direktnachricht) → Chat-Hinweis', async () => { const m = await b.sendMessage(dm.id, 'Hallo Anna, bist du da?'); await m.hinweis; return hinweisDaten(); });
+  const hf = hinweisFiles()[0];
+  check(hinweisFiles().length === 1 && hf?.name === 'Chat-Hinweise (Mitglieder-App).json' && hf.parents.includes(folder.id) && hf.properties?.fbTyp === 'chathinweis',
+    'eine eigene Hinweis-Datei im eigenen App-Ordner, für das Skript auffindbar (öffentliche Eigenschaft fbTyp)', JSON.stringify(hf?.properties));
+  check(h1?.an?.anna?.direkt === h1?.zeit && Math.abs(h1.zeit - jetztSek()) < 5 && Object.keys(h1.an).join() === 'anna' && JSON.stringify(h1).length < 60,
+    'nur Empfängerin (ohne Domain), Art und Zeitpunkt – kein Text, kein Raum', JSON.stringify(h1));
+  const hPerms = fake.state.permissions.filter((p) => p.file === hf?.id);
+  check(hPerms.length === 1 && hPerms[0].type === 'user' && hPerms[0].emailAddress === 'push@beispiel.de' && hPerms[0].role === 'reader', 'nur für das Konto des Push-Skripts lesbar', JSON.stringify(hPerms));
+  const h2 = await step('Bierjunge → Art „bierjunge“', async () => { const m = await b.sendMessage(dm.id, 'Bierjunge!', { art: 'bierjunge' }); await m.hinweis; return hinweisDaten(); });
+  check(hinweisFiles().length === 1 && h2?.an?.anna?.bierjunge === h2?.zeit && h2.an.anna.direkt === h1.zeit && h2.zeit > h1.zeit, 'dieselbe Datei: Bierjunge neben der Direktnachricht, Zeit steigt', JSON.stringify(h2));
+  const h3 = await step('Gruppennachricht → alle anderen Personen der Gruppe', async () => { const m = await b.sendMessage(grp.id, 'Wer bringt Kohle mit?'); await m.hinweis; return hinweisDaten(); });
+  check(h3?.an?.anna?.gruppe === h3?.zeit && h3.an.karl?.gruppe === h3.zeit && !h3.an.tester && !h3.an[me.email] && Object.keys(h3.an).length === 2, 'Gruppe: Anna und Karl, nicht ich', JSON.stringify(h3));
+  const [, m5] = await Promise.all([b.sendMessage(dm.id, 'eins'), b.sendMessage(grp.id, 'zwei')]);
+  await m5.hinweis;
+  const h5 = hinweisDaten();
+  check(h5.an.anna.direkt > h3.zeit && h5.an.anna.gruppe > h5.an.anna.direkt && h5.an.karl.gruppe === h5.zeit, 'Nachrichten kurz nacheinander: der Reihe nach, nichts geht verloren', JSON.stringify(h5));
+  // alte Einträge und eine vorgehende Uhr (anderes Gerät): Älteres als eine Stunde fällt weg, die Zeit springt nie zurück
+  hf.description = JSON.stringify({ zeit: h5.zeit + 500, an: { alt: { direkt: h5.zeit - 7200 }, anna: { direkt: h5.zeit - 7200, bierjunge: h5.zeit + 500 } } });
+  const h6 = await step('sendMessage nach Uhrensprung', async () => { const m = await b.sendMessage(dm.id, 'drei'); await m.hinweis; return hinweisDaten(); });
+  check(h6?.zeit === h5.zeit + 501 && h6.an.anna.direkt === h6.zeit && h6.an.anna.bierjunge === h5.zeit + 500 && !h6.an.alt && Object.keys(h6.an).join() === 'anna',
+    'Einträge älter als eine Stunde fallen weg; die Zeit steigt immer weiter', JSON.stringify(h6));
+  const writesVorher = fake.state.writes.length;
+  check((await b.chatHinweiseAufraeumen()) === false && fake.state.writes.length === writesVorher, 'Aufräumen beim Start: frische Einträge bleiben, nichts geschrieben');
+  hf.description = JSON.stringify({ zeit: h6.zeit, an: { anna: { direkt: h6.zeit - 5000 }, karl: { gruppe: h6.zeit - 4200 } } });
+  const aufgeraeumt = await step('chatHinweiseAufraeumen (nur alte Einträge)', () => b.chatHinweiseAufraeumen());
+  check(aufgeraeumt === true && Object.keys(hinweisDaten().an || { x: 1 }).length === 0 && hinweisFiles().length === 1, 'nur alte Einträge: Datei danach leer (kein Verlauf)', JSON.stringify(hinweisDaten()));
+  // Direktnachricht ohne Recht, die Mitglieder zu lesen: die andere Person steht im Gerätespeicher (rememberChatName)
+  const tokenVorher = localStorage.getItem('fb.token');
+  localStorage.setItem('fb.token', JSON.stringify({ access_token: 'test-token', expires_at: Date.now() + 3600_000, scope: ALL_SCOPES.filter((s) => !/chat\.(memberships|spaces\.create)$/.test(s)).join(' ') }));
+  const h7 = await step('sendMessage ohne Mitglieder-Recht', async () => { const m = await new GoogleBackend(me).sendMessage(dm.id, 'vier'); await m.hinweis; return hinweisDaten(); });
+  localStorage.setItem('fb.token', tokenVorher);
+  check(h7?.an?.anna?.direkt === h7?.zeit && Object.keys(h7.an).join() === 'anna', 'ohne Mitglieder-Recht: Empfängerin der Direktnachricht aus dem Gerätespeicher', JSON.stringify(h7));
+  // fremde Hinweis-Datei: bleibt unberührt und gesperrt
+  const annaHinweis = fake.addFile({ name: 'Chat-Hinweise (Mitglieder-App).json', appProperties: { fbTyp: 'chathinweis' }, properties: { fbTyp: 'chathinweis' }, description: JSON.stringify({ zeit: 1, an: { tester: { direkt: 1 } } }), ownerEmail: ANNA, ownerName: 'Anna Andere' });
+  const h8 = await step('sendMessage (fremde Hinweis-Datei vorhanden)', async () => { const m = await b.sendMessage(dm.id, 'fünf'); await m.hinweis; return hinweisDaten(); });
+  check(JSON.parse(annaHinweis.description).zeit === 1 && hinweisFiles().length === 1 && h8?.an?.anna?.direkt === h8?.zeit && !fake.state.permissions.some((p) => p.file === annaHinweis.id), 'fremde Hinweis-Datei bleibt unberührt, eigene weiter benutzt');
+  await blocked('fremde Chat-Hinweise ändern', fake, () => drive.updateFile(annaHinweis.id, { description: '{}' }));
+  await blocked('fremde Chat-Hinweise freigeben', fake, () => drive.addPermission(annaHinweis.id, { type: 'user', role: 'reader', emailAddress: me.email }));
+  await blocked('fremde Chat-Hinweise löschen', fake, () => drive.trashFile(annaHinweis.id));
+  // Push nicht eingerichtet: kein Hinweis
+  config.push = { konto: '', schluessel: '' };
+  const beschreibungVorher = hf.description;
+  const schreibzugriffe = () => fake.state.writes.filter((w) => w.kind !== 'Chat-Nachricht').length;
+  const writesOhne = schreibzugriffe();
+  await (await b.sendMessage(dm.id, 'sechs')).hinweis;
+  check(hf.description === beschreibungVorher && schreibzugriffe() === writesOhne, 'Push nicht eingerichtet: kein Hinweis, keine Datei geändert');
+  const { chatHinweiseMischen } = await import('../js/backend/google-backend.js');
+  const viele = chatHinweiseMischen({ zeit: 100, an: {} }, Array.from({ length: 350 }, (_, i) => `m${i}`), 'gruppe', 100);
+  check(Object.keys(viele.an).length === 300 && viele.zeit === 101, 'höchstens 300 Empfänger je Datei');
+  const krumm = chatHinweiseMischen({ zeit: 'x', an: { a: { direkt: 'alt', quatsch: 5, gruppe: 99 }, b: 7 } }, ['c'], 'direkt', 100);
+  check(JSON.stringify(krumm) === JSON.stringify({ zeit: 100, an: { a: { gruppe: 99 }, c: { direkt: 100 } } }), 'kaputte Einträge und unbekannte Arten fallen weg', JSON.stringify(krumm));
   config.push = pushBefore;
 
   section('Datenschutz: vertrauliche Sammeltabelle');

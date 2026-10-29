@@ -78,7 +78,7 @@ export default async function chat(ctx) {
     </section>` : ''}
     <div id="c">${status.available ? skeletonList(4, 'sk-card') : unavailable(status)}</div>
     <div class="notice" style="margin-top:1.125rem">${icon('smartphone')}<div><h3>Tipp: Benachrichtigungen aufs Handy</h3>
-      <p>Installier die App „Google Chat“ und melde dich mit dem Verbindungskonto an. Dort kommen alle Nachrichten an, auch wenn diese App zu ist.</p>
+      <p>Installier die App „Google Chat“ und melde dich mit dem Verbindungskonto an. Dort kommen alle Nachrichten an, auch wenn diese App zu ist. Oder schalte unter Mehr › Einstellungen Push-Mitteilungen ein: Dann meldet sich diese App, wenn dir jemand aus der Mitglieder-App schreibt.</p>
       <p class="row wrap" style="margin-top:.5rem;gap:.375rem 1rem"><a href="${GOOGLE_CHAT_APP.android}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Android</a><a href="${GOOGLE_CHAT_APP.ios}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}iPhone</a><a href="${CHAT_HOME}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}Google Chat im Browser</a></p>
       <div id="notify-here" style="margin-top:.625rem">${status.available && !notificationsWanted() ? html`<button class="btn btn-sm" data-action="notify-on">${icon('chat', 'icon-sm')}Benachrichtigungen in dieser App einschalten</button>` : ''}</div></div></div>`);
   const c = el.querySelector('#c');

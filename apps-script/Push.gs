@@ -7,13 +7,17 @@
  *   aufs Gerät, sobald es Neues gibt – auch wenn die App zu ist:
  *     • neue News (Tabelle „News“ und in der App geschriebene News der Redaktion),
  *     • neue Themen und Antworten im Forum,
- *     • neue Termine im Verbindungskalender.
- *   Chat-Nachrichten meldet weiter die App „Google Chat“.
+ *     • neue Termine im Verbindungskalender,
+ *     • Chat (E51): „Direktnachricht“, „Gruppennachricht“ oder „Bierjunge!“, wenn jemand aus der Mitglieder-App
+ *       schreibt – ohne Inhalt und ohne Absender. Die App des Absenders legt dafür in seinem Drive eine Hinweis-Datei
+ *       ab (je Empfänger und Art nur der Zeitpunkt der letzten Nachricht, eine Stunde lang), lesbar nur für dieses
+ *       Konto. Was direkt in Google Chat geschrieben wird, meldet weiter die App „Google Chat“.
  *
  *   Das Skript LIEST nur: die private Konfiguration der App, den Kalender, die News-Tabelle, Forum- und
- *   News-Dateien und die Push-Anmeldungen, die Mitglieder mit diesem Konto geteilt haben. Es ändert nichts
- *   in Drive, im Kalender oder in Tabellen (mit Push.appsscript.json sind ihm nur Lese-Rechte erteilt).
+ *   News-Dateien, die Push-Anmeldungen und die Chat-Hinweise, die Mitglieder mit diesem Konto geteilt haben. Es
+ *   ändert nichts in Drive, im Kalender oder in Tabellen (mit Push.appsscript.json sind ihm nur Lese-Rechte erteilt).
  *   Merken muss es sich nur, was schon gemeldet ist, und den eigenen Schlüssel – in den Skript-Eigenschaften.
+ *   Ins Protokoll schreibt es nur Anzahlen, nie wer wem geschrieben hat.
  *   Die Mitteilungen gehen verschlüsselt (RFC 8291) an die Push-Dienste der Browser-Hersteller
  *   (Apple, Google, Mozilla, Microsoft); die können sie nicht lesen.
  *
@@ -28,8 +32,10 @@
  *   4. Oben die Funktion „einrichten“ auswählen und ▶ Ausführen klicken, Berechtigungen bestätigen.
  *      Im Ausführungsprotokoll stehen danach das Konto und der öffentliche Schlüssel.
  *   5. In der App unter Einrichtung › Optionen › Push-Mitteilungen beides eintragen und speichern.
- *   Danach schaut das Skript alle 10 Minuten nach Neuem. Wer Push einschaltet, bekommt beim nächsten
- *   Durchlauf eine Bestätigung.
+ *   Danach schaut das Skript alle 10 Minuten nach Neuem und jede Minute nach Chat-Hinweisen. Wer Push einschaltet,
+ *   bekommt beim nächsten Durchlauf eine Bestätigung.
+ *   Nach einer neuen Fassung dieses Codes „einrichten“ noch einmal ausführen: Das legt fehlende Auslöser an, der
+ *   Schlüssel bleibt.
  *
  * Abschalten: Funktion „abschalten“ ausführen. Neuer Schlüssel (falls der alte bekannt geworden ist):
  * „schluesselErneuern“ ausführen und den neuen Schlüssel in der App eintragen – die Geräte melden sich
@@ -39,11 +45,20 @@
 const EINSTELLUNGEN = {
   // Drive-ID der privaten Konfiguration (config_private.json) – steht in config.js der App unter privateConfigId
   konfigurationId: 'HIER_ID_DER_PRIVATEN_KONFIGURATION',
-  // alle wie viele Minuten nachsehen (1, 5, 10, 15 oder 30)
+  // alle wie viele Minuten nach News, Forum und Terminen sehen (1, 5, 10, 15 oder 30)
   minuten: 10,
+  // alle wie viele Minuten nach Chat-Hinweisen sehen (1, 5, 10, 15 oder 30) – jede Minute ist eine kleine Drive-Abfrage
+  chatMinuten: 1,
 };
 
-const THEMEN = ['news', 'forum', 'termine'];
+const THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen'];
+// Chat-Hinweise (E51): Arten, wie die App sie in die Hinweis-Datei schreibt, und die Mitteilungen dazu (ohne Absender)
+const CHAT_ARTEN = ['direkt', 'gruppe', 'bierjunge'];
+const CHAT_TEXTE = {
+  direkt: { title: 'Direktnachricht', body: 'Jemand hat dir aus der Mitglieder-App geschrieben.', einzahl: 'Direktnachricht', mehrzahl: 'Direktnachrichten', thema: 'chat' },
+  gruppe: { title: 'Gruppennachricht', body: 'Neue Nachricht in einer deiner Gruppen oder Räume.', einzahl: 'Gruppennachricht', mehrzahl: 'Gruppennachrichten', thema: 'chatgruppen' },
+  bierjunge: { title: 'Bierjunge!', body: 'Dir wurde ein Bierjunge geschickt. Prost!', einzahl: 'Bierjunge', mehrzahl: 'Bierjungen', thema: 'chat' },
+};
 // Anmeldungen nur bei diesen Push-Diensten annehmen (Apple, Google, Mozilla, Microsoft)
 const PUSH_DIENSTE = [/^fcm\.googleapis\.com$/, /(^|\.)push\.apple\.com$/, /^updates\.push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/];
 const UEBERLAPPUNG = 5 * 60000; // Zeitfenster überlappen, Doppeltes fällt über „gesendet“ heraus
@@ -59,7 +74,9 @@ function einrichten() {
   konfiguration_(); // prüft die ID der Konfiguration schon jetzt
   abschalten();
   ScriptApp.newTrigger('pushSenden').timeBased().everyMinutes(EINSTELLUNGEN.minuten).create();
+  ScriptApp.newTrigger('chatSenden').timeBased().everyMinutes(EINSTELLUNGEN.chatMinuten).create();
   pushSenden();
+  chatSenden();
   console.log('Fertig. In der App unter Einrichtung › Optionen › Push-Mitteilungen eintragen:\n'
     + '  Konto: ' + Session.getEffectiveUser().getEmail() + '\n  Öffentlicher Schlüssel: ' + schluessel.oeffentlich);
 }
@@ -131,10 +148,54 @@ function pushSenden() {
   }
 }
 
+/**
+ * Chat-Hinweise (E51) – vom eigenen Auslöser jede Minute aufgerufen. Liest die Hinweis-Dateien, die seit dem letzten
+ * Durchlauf geändert wurden, und meldet den Empfängern nur „Direktnachricht“, „Gruppennachricht“ oder „Bierjunge!“
+ * (mehrere auf einmal als eine Mitteilung). Je Datei merkt es sich nur den zuletzt gemeldeten Zeitpunkt.
+ */
+function chatSenden() {
+  const sperre = LockService.getScriptLock();
+  if (!sperre.tryLock(10000)) return; // pushSenden läuft gerade – die nächste Minute kommt bald
+  try {
+    const speicher = PropertiesService.getScriptProperties();
+    const schluessel = vapidSchluessel_(speicher, false);
+    if (!schluessel) throw new Error('Noch kein Schlüssel – bitte zuerst „einrichten“ ausführen.');
+    const stand = ladeStand_(speicher);
+    const jetzt = new Date();
+    const erster = !stand.chatSeit;
+    const seit = new Date(Math.max(new Date(stand.chatSeit || jetzt).getTime() - UEBERLAPPUNG, jetzt.getTime() - 2 * 3600000));
+    // beim ersten Durchlauf nur merken, was schon da ist
+    const hinweise = chatHinweise_(seit, stand).filter(function () { return !erster; });
+    let ergebnis = { ok: 0, abgemeldet: 0, fehler: 0 };
+    let geraete = 0;
+    if (hinweise.length) {
+      const auftraege = [];
+      abos_().forEach(function (abo) {
+        const h = kennung_(abo.endpoint);
+        if (stand.tot[h]) return;
+        const meine = hinweise.filter(function (x) { return x.empfaenger === abo.email && abo.themen.indexOf(x.thema) >= 0; });
+        if (!meine.length) return;
+        geraete++;
+        auftraege.push({ abo: abo, h: h, nachricht: chatMitteilung_(meine) });
+      });
+      ergebnis = verschicken_(auftraege, schluessel, stand);
+    }
+    stand.chatSeit = jetzt.toISOString();
+    speichereStand_(speicher, stand);
+    if (hinweise.length || erster) {
+      console.log(hinweise.length + ' Chat-Hinweis(e), ' + geraete + ' Gerät(e), ' + ergebnis.ok + ' Mitteilung(en) verschickt'
+        + (ergebnis.abgemeldet ? ', ' + ergebnis.abgemeldet + ' Gerät(e) nicht mehr erreichbar' : '')
+        + (ergebnis.fehler ? ', ' + ergebnis.fehler + ' Fehler' : '') + (erster ? ' (erster Durchlauf: ab jetzt wird gemeldet)' : '') + '.');
+    }
+  } finally {
+    sperre.releaseLock();
+  }
+}
+
 /** Auslöser entfernen (die Geräte bleiben angemeldet, bekommen aber nichts mehr) */
 function abschalten() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'pushSenden') ScriptApp.deleteTrigger(t);
+    if (t.getHandlerFunction() === 'pushSenden' || t.getHandlerFunction() === 'chatSenden') ScriptApp.deleteTrigger(t);
   });
 }
 
@@ -188,15 +249,16 @@ function ladeStand_(speicher) {
   const json = function (k, leer) {
     try { return p[k] ? JSON.parse(p[k]) : leer; } catch (e) { return leer; }
   };
-  return { seit: p.seit || '', gesendet: json('gesendet', {}), news: json('newsBekannt', []), abos: json('abos', {}), tot: json('tot', {}) };
+  return { seit: p.seit || '', gesendet: json('gesendet', {}), news: json('newsBekannt', []), abos: json('abos', {}), tot: json('tot', {}),
+    chatSeit: p.chatSeit || '', chat: json('chat', {}) };
 }
 
 function speichereStand_(speicher, stand) {
   const jetzt = minuten_();
-  // nur Junges behalten (Zeitstempel in Minuten) – jede Eigenschaft darf höchstens 9 KB groß sein
-  const jungeEintraege = function (obj, tage, max) {
+  // nur Junges behalten (Zeitstempel in Minuten, bei `sekunden` in Sekunden) – jede Eigenschaft darf höchstens 9 KB groß sein
+  const jungeEintraege = function (obj, tage, max, sekunden) {
     const paare = Object.keys(obj).map(function (k) { return [k, obj[k]]; })
-      .filter(function (e) { return jetzt - e[1] < tage * 1440; })
+      .filter(function (e) { return (sekunden ? jetzt * 60 - e[1] < tage * 86400 : jetzt - e[1] < tage * 1440); })
       .sort(function (a, b) { return b[1] - a[1]; }).slice(0, max);
     const raus = {};
     paare.forEach(function (e) { raus[e[0]] = e[1]; });
@@ -208,6 +270,9 @@ function speichereStand_(speicher, stand) {
     newsBekannt: JSON.stringify(stand.news.slice(-400)),
     abos: JSON.stringify(jungeEintraege(stand.abos, 60, 300)),
     tot: JSON.stringify(jungeEintraege(stand.tot, 30, 200)),
+    chatSeit: stand.chatSeit,
+    // je Hinweis-Datei der zuletzt gemeldete Zeitpunkt (Sekunden); ältere Einträge löscht die App ohnehin nach einer Stunde
+    chat: JSON.stringify(jungeEintraege(stand.chat, 1, 300, true)),
   });
 }
 
@@ -357,6 +422,51 @@ function gueltigesAbo_(d) {
   } catch (e) {
     return false;
   }
+}
+
+/**
+ * Chat-Hinweise (E51) aus den Hinweis-Dateien, die seit „seit“ geändert wurden – je Datei (= ein Absender) zählt, was
+ * jünger ist als der zuletzt gemeldete Zeitpunkt dieser Datei (stand.chat). Die App schreibt die Zeit innerhalb einer
+ * Datei immer aufsteigend, darum reicht dieser eine Zeitpunkt. Ergebnis ohne Absender: { empfaenger, art, thema }.
+ */
+function chatHinweise_(seit, stand) {
+  const domain = String(Session.getEffectiveUser().getEmail() || '').toLowerCase().split('@')[1] || '';
+  const raus = [];
+  const q = "properties has { key='fbTyp' and value='chathinweis' } and modifiedTime > '" + seit.toISOString() + "' and trashed = false";
+  dateien_(q, ['user']).forEach(function (f) {
+    const wer = inhaber_(f).email; // Absender = Inhaber laut Google, steht nie in der Mitteilung
+    const d = json_(f.description);
+    const an = d.an && typeof d.an === 'object' ? d.an : {};
+    const marke = Number(stand.chat[f.id]) || 0;
+    let neu = marke;
+    Object.keys(an).forEach(function (k) {
+      // Adressen der eigenen Domain stehen nur mit dem Teil vor dem @ in der Datei
+      const email = (k.indexOf('@') >= 0 ? k : k + '@' + domain).toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email === wer) return;
+      const arten = an[k] && typeof an[k] === 'object' ? an[k] : {};
+      CHAT_ARTEN.forEach(function (art) {
+        const t = Number(arten[art]);
+        if (!(t > marke)) return;
+        raus.push({ empfaenger: email, art: art, thema: CHAT_TEXTE[art].thema });
+        if (t > neu) neu = t;
+      });
+    });
+    if (neu > marke) stand.chat[f.id] = neu;
+  });
+  return raus;
+}
+
+/** Eine Mitteilung für alle Chat-Hinweise eines Geräts in diesem Durchlauf – ohne Inhalt, ohne Absender */
+function chatMitteilung_(liste) {
+  if (liste.length === 1) {
+    const t = CHAT_TEXTE[liste[0].art];
+    return { title: t.title, body: t.body, url: '#/chat', tag: 'chat:' + liste[0].art, renotify: true };
+  }
+  const teile = CHAT_ARTEN.map(function (art) {
+    const n = liste.filter(function (x) { return x.art === art; }).length;
+    return n ? n + ' ' + (n === 1 ? CHAT_TEXTE[art].einzahl : CHAT_TEXTE[art].mehrzahl) : '';
+  }).filter(Boolean);
+  return { title: 'Neues im Chat', body: teile.join(', '), url: '#/chat', tag: 'chat:sammel', renotify: true };
 }
 
 function sammel_(liste) {

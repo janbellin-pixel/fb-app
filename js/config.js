@@ -60,7 +60,7 @@ const DEFAULTS = {
     dachverband: 'Deutsche Sängerschaft (DS)',
     dachverbandKurz: 'DS',
     fassung: '3', // erhöhen, wenn sich die Einwilligungstexte ändern – dann werden alle erneut gefragt (3: Sichtbarkeit, E40)
-    stand: '28.10.2026',
+    stand: '29.10.2026',
     empfaenger: [], // wer die Einwilligungen einsehen darf; leer = die Admins
   },
   // Nur für den Prototyp ohne Workspace: diese Konten werden zu Terminen eingeladen

@@ -503,7 +503,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
     # Gut zu wissen
     tips = [
         ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße › „Groß“ oder „Sehr groß“."),
-        ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“ (News, Forum, Termine). iPhone: vorher auf den Home-Bildschirm legen."),
+        ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“ (News, Forum, Termine, Nachrichten aus der App). iPhone: vorher auf den Home-Bildschirm legen."),
         ("users", f"{b('Profil ausfüllen:')} Mehr › Mein Profil – dort auch Adressänderungen melden."),
         ("music", f"{b('Liedermappe:')} Liednummer eintippen und Enter – schon ist das Lied offen."),
         ("shield", f"{b('Keine Sorge:')} Kaputt machen kann man nichts, Gemeinsames zeigt die App nur an."),

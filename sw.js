@@ -112,6 +112,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(text(d.title, 120) || 'Mitglieder-App', {
     body: text(d.body, 300) || 'Es gibt Neues in der App.',
     tag: text(d.tag, 120) || undefined,
+    // Chat-Hinweise (E51) ersetzen die vorige Mitteilung gleicher Art, sollen aber wieder auffallen
+    renotify: d.renotify === true && !!text(d.tag, 120),
     icon: 'assets/icons/icon-192.png',
     data: { url: new URL(hash, self.registration.scope).href },
   }));
