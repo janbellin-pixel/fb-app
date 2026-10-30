@@ -31,7 +31,7 @@ python tools/serve.py            # lokaler Server auf http://localhost:8080 (ohn
   ```
   Meldet seitlich überstehende Inhalte, eine abgeschnittene obere Navigation und die Spaltenzahl. Typische Größen: 375×812 und 430×932 (Handy), 932×430 (Handy quer), 744×1133 und 820×1180 (iPad hochkant), 1024×768 und 1180×820 (iPad quer), 800×1280 (Android-Tablet), 1366×1024 (iPad Pro bzw. PC).
 - **Umblättern** (E49), in der Demo bei Handygröße, ebenfalls in der Konsole: `await m.flip()`. Öffnet die neueste DS-Zeitung, blättert die Titelseite um und meldet, wenn eine Seite oder ein Schatten dabei senkrecht springt. Das Fenster muss sichtbar sein; verdeckte Tabs halten die Animation an.
-- **Push-Skript** (E50): http://localhost:8080/tests/push-test.html prüft `apps-script/Push.gs` – Verschlüsselung und Unterschrift mit den Prüfwerten der RFCs und gegen Web Crypto, dazu ganze Durchläufe mit nachgebauten Google-Diensten. Muss „… Prüfungen bestanden“ zeigen.
+- **Push-Skript** (E50): http://localhost:8080/tests/push-test.html prüft `apps-script/Push.gs` – Verschlüsselung und Unterschrift mit den Prüfwerten der RFCs und gegen Web Crypto, dazu ganze Durchläufe mit nachgebauten Google-Diensten und `diagnose()` (nur Protokoll). Muss „… Prüfungen bestanden“ zeigen.
 - **Service Worker:** Nach dem Hinzufügen oder Entfernen von Dateien `python tools/update_sw.py` ausführen.
 
 ## 3. Projektstruktur

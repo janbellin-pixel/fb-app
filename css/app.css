@@ -788,10 +788,17 @@ img.avatar { background: #e5e5e5; }
 }
 .chat-head { display: flex; align-items: center; gap: .625rem; padding: .625rem .75rem; border-bottom: 1px solid var(--line); }
 .chat-head h2 { margin: 0; font-size: 1.125rem; font-weight: 650; }
+/* Direktnachricht: Foto und Name im Kopf führen zum Profil */
+.chat-head .room-person { color: inherit; text-decoration: none; display: inline-flex; align-items: center; }
+.chat-head h2 .room-person:hover { text-decoration: underline; }
 .chat-scroll { flex: 1; overflow-y: auto; padding: .875rem .75rem; display: flex; flex-direction: column; gap: .25rem; background: var(--surface-2); overscroll-behavior: contain; }
 .msg { display: flex; gap: .5rem; align-items: flex-end; max-width: 86%; }
 .msg .bubble { background: var(--surface); border: 1px solid var(--line); padding: .5rem .75rem; border-radius: 16px 16px 16px 4px; font-size: .9688rem; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
-.msg .who { font-size: .7812rem; font-weight: 700; color: var(--green-ink); margin-bottom: .125rem; }
+.msg .who { display: block; font-size: .7812rem; font-weight: 700; color: var(--green-ink); margin-bottom: .125rem; text-decoration: none; }
+.msg a.who:hover { text-decoration: underline; }
+/* Foto des Absenders als Link zum Profil */
+.msg .avatar-link { display: flex; flex: none; border-radius: 50%; }
+.msg.cont .avatar-link { visibility: hidden; }
 .msg time { display: block; font-size: .7188rem; color: var(--ink-3); margin-top: .1875rem; }
 .msg.me { align-self: flex-end; flex-direction: row-reverse; }
 .msg.me .bubble { background: var(--black); color: #fff; border-color: var(--black); border-radius: 16px 16px 4px 16px; }

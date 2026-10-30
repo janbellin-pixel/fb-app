@@ -197,6 +197,7 @@ export async function settings(ctx) {
           <label class="pick-row"><input type="checkbox" name="${t.id}" ${gewaehlt.includes(t.id) ? 'checked' : ''} ${blockiert ? 'disabled' : ''}>
             <span class="grow"><span class="name">${t.label}</span><span class="sub">${t.sub}</span></span></label>`)}</div>
         ${themen.some((t) => t.bereich === 'chat') ? html`<p class="small muted">Chat: Gemeldet wird nur, was jemand aus der Mitglieder-App schickt – ohne Inhalt und Absender. Was direkt in Google Chat geschrieben wird, meldet die App „Google Chat“.</p>` : ''}
+        <p class="small muted">Ein/aus und Themen gelten für dieses Gerät.</p>
         ${blockiert ? html`<p class="small">${icon('alert', 'icon-sm')} Mitteilungen sind im Browser blockiert. Erlaube sie in den Website-Einstellungen, dann hier einschalten.</p>` : ''}
         ${stand.an && stand.neu ? html`<p class="small">${icon('alert', 'icon-sm')} Bitte einmal neu einschalten – die Anmeldung dieses Geräts hat sich geändert.</p>` : ''}
         ${aktiv ? html`<p class="small">${icon('check', 'icon-sm')} <strong>Eingeschaltet.</strong>${stand.demo ? ' In der Demo gibt es nur eine Beispiel-Mitteilung.' : ''}</p>` : ''}
@@ -209,7 +210,9 @@ export async function settings(ctx) {
   renderPush();
   el.querySelector('#push-state').addEventListener('change', async (e) => {
     const stand = push.pushStand(me.email);
-    if (!e.target.closest('#push-themen') || !stand.an || stand.neu) return;
+    if (!e.target.closest('#push-themen')) return;
+    // Push aus: Die Kästchen zählen erst mit „Push einschalten“ – das sagt die App, statt die Wahl still zu übergehen
+    if (!stand.an) { toast('Zum Speichern unten „Push einschalten“ antippen.'); return; }
     try {
       if (!pushThemen().length) {
         await push.pushAusschalten(app);
@@ -217,8 +220,10 @@ export async function settings(ctx) {
         renderPush();
         return;
       }
-      await push.pushThemenSetzen(app, pushThemen());
+      // Anmeldung des Geräts hat sich geändert (stand.neu): Der Tipp aufs Kästchen erlaubt dem Browser das Neu-Anmelden gleich mit
+      await (stand.neu ? push.pushEinschalten(app, pushThemen()) : push.pushThemenSetzen(app, pushThemen()));
       toast('Gespeichert');
+      if (stand.neu) renderPush();
     } catch (err) {
       showError(err);
       renderPush();

@@ -38,6 +38,8 @@
  *   Nach einer neuen Fassung dieses Codes „einrichten“ noch einmal ausführen: Das legt fehlende Auslöser an, der
  *   Schlüssel bleibt.
  *
+ * Bleiben Mitteilungen aus: „diagnose“ ausführen – schreibt nur ins Protokoll (Auslöser, Geräte je Mitglied mit
+ * Themen, Chat-Hinweise der letzten Stunde, Empfänger ohne angemeldetes Gerät), am besten direkt nach einer Testnachricht.
  * Abschalten: Funktion „abschalten“ ausführen. Neuer Schlüssel (falls der alte bekannt geworden ist):
  * „schluesselErneuern“ ausführen und den neuen Schlüssel in der App eintragen – die Geräte melden sich
  * beim nächsten Öffnen der App von selbst neu an.
@@ -219,6 +221,68 @@ function schluesselErneuern() {
   speicher.deleteProperty('tot');
   const schluessel = vapidSchluessel_(speicher, true);
   console.log('Neuer öffentlicher Schlüssel (in der App eintragen): ' + schluessel.oeffentlich);
+}
+
+/**
+ * Zum Nachsehen, wenn Mitteilungen ausbleiben – schreibt nur ins Protokoll, verschickt nichts: Konto und Auslöser,
+ * Geräte je Mitglied mit Themen (so, wie das Skript sie sieht), Chat-Hinweise der letzten Stunde und Empfänger, für die
+ * kein Gerät angemeldet ist (nur die Empfänger, nicht wer ihnen geschrieben hat). Am besten direkt nach einer
+ * Testnachricht aus der App ausführen – die Hinweise verfallen nach einer Stunde.
+ */
+function diagnose() {
+  const speicher = PropertiesService.getScriptProperties();
+  const schluessel = vapidSchluessel_(speicher, false);
+  const ich = String(Session.getEffectiveUser().getEmail() || '').toLowerCase();
+  const zeilen = ['Skript läuft als ' + ich + (schluessel ? '' : ' – noch kein Schlüssel: „einrichten“ ausführen')];
+  const ausloeser = ScriptApp.getProjectTriggers().map(function (t) { return t.getHandlerFunction(); });
+  zeilen.push('Auslöser: ' + (ausloeser.length ? ausloeser.join(', ') : 'keine')
+    + (ausloeser.indexOf('chatSenden') < 0 ? ' – chatSenden FEHLT, darum keine Chat-Mitteilungen: „einrichten“ ausführen' : '')
+    + (ausloeser.indexOf('pushSenden') < 0 ? ' – pushSenden FEHLT: „einrichten“ ausführen' : ''));
+  try {
+    const cfg = konfiguration_();
+    if (cfg.konto !== ich) zeilen.push('ACHTUNG: In der App steht als Push-Konto „' + (cfg.konto || '–') + '“ – Geräte und Chat-Hinweise sind mit jenem Konto geteilt, nicht mit diesem.');
+    if (schluessel && cfg.schluessel !== schluessel.oeffentlich) zeilen.push('ACHTUNG: Der Schlüssel in der App passt nicht zu diesem Skript („schluesselZeigen“ ausführen, in der App eintragen).');
+  } catch (e) {
+    zeilen.push('Konfiguration nicht lesbar: ' + e);
+  }
+  const stand = ladeStand_(speicher);
+  const abos = abos_();
+  const jeMitglied = {};
+  abos.forEach(function (a) { (jeMitglied[a.email] = jeMitglied[a.email] || []).push(a); });
+  zeilen.push(abos.length + ' Gerät(e) von ' + Object.keys(jeMitglied).length + ' Mitglied(ern)'
+    + (abos.length ? ':' : ' – noch niemand hat Push eingeschaltet, oder die Dateien sind nicht mit diesem Konto geteilt.'));
+  Object.keys(jeMitglied).sort().forEach(function (email) {
+    jeMitglied[email].forEach(function (a) {
+      const h = kennung_(a.endpoint);
+      zeilen.push('  ' + email + ': ' + (a.themen.length ? a.themen.join(', ') : 'keine Themen') + ' · Datei vom ' + String(a.zeit).slice(0, 16).replace('T', ' ')
+        + (stand.tot[h] ? ' · NICHT ERREICHBAR – der Push-Dienst kennt das Gerät nicht mehr; in der App Push aus- und wieder einschalten'
+          : stand.abos[h] ? '' : ' · noch nicht beliefert (Bestätigung kommt beim nächsten Durchlauf)'));
+    });
+  });
+  const domain = ich.split('@')[1] || '';
+  const grenze = Math.floor(Date.now() / 1000) - 3600;
+  const ohneGeraet = {};
+  let eintraege = 0;
+  const dateien = dateien_("properties has { key='fbTyp' and value='chathinweis' } and trashed = false", ['user']);
+  dateien.forEach(function (f) {
+    const an = json_(f.description).an;
+    Object.keys(an && typeof an === 'object' ? an : {}).forEach(function (k) {
+      const arten = an[k] && typeof an[k] === 'object' ? an[k] : {};
+      const email = (k.indexOf('@') >= 0 ? k : k + '@' + domain).toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !CHAT_ARTEN.some(function (art) { return Number(arten[art]) > grenze; })) return;
+      eintraege++;
+      if (!jeMitglied[email]) ohneGeraet[email] = true;
+    });
+  });
+  zeilen.push(dateien.length + ' Chat-Hinweis-Datei(en) lesbar, ' + eintraege + ' Empfänger-Eintrag/-Einträge aus der letzten Stunde'
+    + (stand.chatSeit ? ', chatSenden lief zuletzt ' + stand.chatSeit.slice(0, 16).replace('T', ' ') + ' (UTC)' : ', chatSenden lief noch nie'));
+  const fehlend = Object.keys(ohneGeraet).sort();
+  if (fehlend.length) {
+    zeilen.push('  Empfänger ohne angemeldetes Gerät (bekommen nichts): ' + fehlend.join(', ')
+      + ' – ist dort Push eingeschaltet? Stimmt die Adresse mit dem Google-Konto überein (kein Alias)?');
+  }
+  console.log(zeilen.join('\n'));
+  return zeilen;
 }
 
 /* ======================================================================= Konfiguration und Stand */

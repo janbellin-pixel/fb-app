@@ -471,6 +471,15 @@ await step('Chat-Hinweise', async () => {
     'Ingo: „Gruppennachricht“; Doras nicht geteilte Datei bleibt unsichtbar', JSON.stringify(m.map((x) => [x.url, x.nachricht?.title])));
   check(chatMitteilung_([{ art: 'direkt' }, { art: 'direkt' }, { art: 'bierjunge' }]).body === '2 Direktnachrichten, 1 Bierjunge', 'Sammeltext mit Mehrzahl');
   check(Object.values(welt.props).every((v) => String(v).length < 9000), 'jede Skript-Eigenschaft unter 9 KB');
+  // diagnose(): nur Protokoll, nichts verschickt – Auslöser, Geräte je Mitglied mit Themen, frische Empfänger ohne Gerät, keine Absender
+  const t3 = sek();
+  datei('chathinweis', 'emil@beispiel.de', { zeit: t3, an: { gerd: { direkt: t3 }, 'niemand@beispiel.de': { bierjunge: t3 }, vorbei: { direkt: t3 - 7200 }, 'x y@z': { direkt: t3 } } });
+  start = welt.anfragen.length;
+  const d = diagnose().join('\n');
+  check(welt.anfragen.length === start && /Auslöser: pushSenden, chatSenden/.test(d) && /gerd@beispiel\.de: news, chat, chatgruppen/.test(d) && /ingo@beispiel\.de: chatgruppen/.test(d),
+    'diagnose: nichts verschickt; Auslöser und Themen je Gerät im Protokoll', d);
+  check(/Empfänger ohne angemeldetes Gerät \(bekommen nichts\): niemand@beispiel\.de –/.test(d) && !/vorbei|emil|x y@z/.test(d),
+    'diagnose: nur frische Empfänger ohne Gerät, ohne Absender und Unsinn', d);
 });
 
 const failed = results.filter((r) => !r.ok);

@@ -382,8 +382,11 @@ export async function room(ctx) {
     el.querySelector('#room-name').textContent = s.name;
     if (s.url) el.querySelector('#open-ext').href = s.url;
     if (s.type === 'DIRECT_MESSAGE') {
-      const ic = el.querySelector('#room-icon');
-      ic.outerHTML = avatar({ name: s.name, photo: s.photo || '' }, 36).toString();
+      // Foto und Name im Kopf führen zum Profil der anderen Person
+      const profil = s.with ? `#/mitglied/${encodeURIComponent(s.with)}` : '';
+      const bild = avatar({ name: s.name, photo: s.photo || '' }, 36);
+      el.querySelector('#room-icon').outerHTML = (profil ? html`<a class="room-person" href="${profil}" aria-label="Profil von ${s.name}">${bild}</a>` : bild).toString();
+      if (profil) setHtml(el.querySelector('#room-name'), html`<a class="room-person" href="${profil}">${s.name}</a>`);
     } else {
       // Gruppen und Räume: Personen hinzufügen (ob man darf, entscheidet Google)
       const add = el.querySelector('#add-people');
@@ -404,9 +407,11 @@ export async function room(ctx) {
       const d = toDate(m.created);
       if (!prev || !isSameDay(toDate(prev.created), d)) parts.push(html`<div class="day-sep">${dayLabel(d)}</div>`);
       const cont = prev && prev.sender.name === m.sender.name && isSameDay(toDate(prev.created), d) && d - toDate(prev.created) < 10 * 60_000;
+      // Name und Foto des Absenders führen zum Profil (wenn die Person im Verzeichnis steht)
+      const profil = m.sender.email ? `#/mitglied/${encodeURIComponent(m.sender.email)}` : '';
       parts.push(html`<div class="msg ${m.mine ? 'me' : ''} ${cont ? 'cont' : ''}">
-        ${m.mine ? '' : avatar(m.sender, 30)}
-        <div class="bubble">${m.mine ? '' : html`<div class="who">${m.sender.name}</div>`}${linkify(m.text)}<time datetime="${m.created}">${fTime(d)}</time></div>
+        ${m.mine ? '' : profil ? html`<a class="avatar-link" href="${profil}" aria-label="Profil von ${m.sender.name}">${avatar(m.sender, 30)}</a>` : avatar(m.sender, 30)}
+        <div class="bubble">${m.mine ? '' : profil ? html`<a class="who" href="${profil}">${m.sender.name}</a>` : html`<div class="who">${m.sender.name}</div>`}${linkify(m.text)}<time datetime="${m.created}">${fTime(d)}</time></div>
       </div>`);
       prev = m;
     }
