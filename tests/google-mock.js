@@ -706,25 +706,33 @@ async function run() {
   const adminsBefore = config.admins;
   config.admins = [me.email, 'vorstand@beispiel.de'];
   check((await b.getMyPapierpost()) === null, 'noch nichts gewählt');
-  await step('saveMyPapierpost (erstmals)', () => b.saveMyPapierpost({ semesterprogramm: true, bundesbote: false }));
+  await step('saveMyPapierpost (erstmals)', () => b.saveMyPapierpost({ bundesbote: false }));
   const ppFiles = () => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'papierpost' && f.ownerEmail === me.email);
   const ppf = ppFiles()[0];
   check(ppFiles().length === 1 && ppf.parents.includes(folder.id), 'eigene Datei im eigenen App-Ordner');
   const ppPerms = fake.state.permissions.filter((p) => p.file === ppf?.id);
   check(ppPerms.length === 1 && ppPerms[0].type === 'user' && ppPerms[0].emailAddress === 'vorstand@beispiel.de' && ppPerms[0].role === 'reader',
     'nur für die Admins lesbar – nicht für Gruppe oder Domain', JSON.stringify(ppPerms));
-  await step('saveMyPapierpost (geändert)', () => b.saveMyPapierpost({ semesterprogramm: true, bundesbote: true }));
+  await step('saveMyPapierpost (geändert)', () => b.saveMyPapierpost({ bundesbote: true }));
   const pp2 = await step('getMyPapierpost', () => b.getMyPapierpost());
-  check(ppFiles().length === 1 && pp2?.semesterprogramm === true && pp2.bundesbote === true, 'Änderung in derselben Datei', JSON.stringify(pp2));
-  const annaPp = fake.addFile({ name: 'Papierpost (Mitglieder-App).json', appProperties: { fbTyp: 'papierpost' }, description: JSON.stringify({ semesterprogramm: false, bundesbote: true }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-10-02T10:00:00.000Z' });
+  check(ppFiles().length === 1 && pp2?.bundesbote === true && !('semesterprogramm' in pp2) && ppf.appProperties.fbBb === 'ab', 'Änderung in derselben Datei – nur noch der Bundesbote', JSON.stringify(pp2));
+  // Altbestand (bis 2026-10-30 war das Semesterprogramm abwählbar): die Eigenschaft fbSp verschwindet beim nächsten Speichern
+  ppf.appProperties.fbSp = 'ab';
+  await step('saveMyPapierpost (Altbestand)', () => b.saveMyPapierpost({ bundesbote: true }));
+  check(ppFiles().length === 1 && !('fbSp' in ppf.appProperties) && !/semesterprogramm/.test(ppf.description), 'alte Angabe zum Semesterprogramm wird beim Speichern entfernt', JSON.stringify(ppf.appProperties) + ' ' + ppf.description);
+  const annaPp = fake.addFile({ name: 'Papierpost (Mitglieder-App).json', appProperties: { fbTyp: 'papierpost' }, description: JSON.stringify({ semesterprogramm: true, bundesbote: true }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-10-02T10:00:00.000Z' });
   // Fälschungsversuch: Anna legt eine Datei an, die angeblich Theos Wahl ist
-  fake.addFile({ name: 'y.json', appProperties: { fbTyp: 'papierpost' }, description: JSON.stringify({ konto: me.email, semesterprogramm: false, bundesbote: false }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-01-01T00:00:00.000Z' });
+  fake.addFile({ name: 'y.json', appProperties: { fbTyp: 'papierpost' }, description: JSON.stringify({ konto: me.email, bundesbote: false }), ownerEmail: ANNA, ownerName: 'Anna Andere', modifiedTime: '2026-01-01T00:00:00.000Z' });
+  // Carl hatte nur das Semesterprogramm abbestellt (alte Datei) – das zählt nicht mehr
+  fake.addFile({ name: 'Papierpost (Mitglieder-App).json', appProperties: { fbTyp: 'papierpost', fbSp: 'ab', fbBb: 'papier' }, description: JSON.stringify({ semesterprogramm: true, bundesbote: false }), ownerEmail: 'carl@beispiel.de', ownerName: 'Carl Clausen', modifiedTime: '2026-10-03T10:00:00.000Z' });
   b.invalidate('papierpost');
   const ppList = await step('listPapierpost', () => b.listPapierpost());
   const annaRow = ppList?.find((r) => r.email === ANNA);
   const theoRow = ppList?.find((r) => r.email === me.email);
-  check(annaRow?.bundesbote === true && annaRow.semesterprogramm === false && annaRow.name === 'Anna Andere', 'Admins sehen die Abbestellungen der anderen', JSON.stringify(annaRow));
-  check(theoRow?.semesterprogramm === true && theoRow.bundesbote === true, 'je Mitglied die neueste eigene Datei (Inhaber laut Google)', JSON.stringify(theoRow));
+  const carlRow = ppList?.find((r) => r.email === 'carl@beispiel.de');
+  check(annaRow?.bundesbote === true && !('semesterprogramm' in annaRow) && annaRow.name === 'Anna Andere', 'Admins sehen die Abbestellungen der anderen (nur noch Bundesbote)', JSON.stringify(annaRow));
+  check(theoRow?.bundesbote === true, 'je Mitglied die neueste eigene Datei (Inhaber laut Google)', JSON.stringify(theoRow));
+  check(carlRow?.bundesbote === false && !('semesterprogramm' in carlRow), 'alte Datei nur mit Semesterprogramm ist keine Abbestellung mehr', JSON.stringify(carlRow));
   await blocked('fremde Papierpost-Wahl ändern', fake, () => drive.updateFile(annaPp.id, { description: '{}' }));
   await blocked('fremde Papierpost-Wahl freigeben', fake, () => drive.addPermission(annaPp.id, { type: 'domain', role: 'reader', domain: 'beispiel.de' }));
   config.admins = [me.email, 'schriftwart@beispiel.de'];

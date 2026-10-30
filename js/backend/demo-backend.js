@@ -123,12 +123,13 @@ export class DemoBackend {
   /* ---------------------------------------------------------- Papierpost abbestellen (E44) */
   async getMyPapierpost() {
     await wait(40);
-    return this.state.papierpost || null;
+    const p = this.state.papierpost; // gespeicherte Demo-Stände von vor 2026-10-30 können noch `semesterprogramm` tragen
+    return p ? { bundesbote: !!p.bundesbote, geaendert: p.geaendert } : null;
   }
 
-  async saveMyPapierpost({ semesterprogramm, bundesbote }) {
+  async saveMyPapierpost({ bundesbote }) {
     await wait(200);
-    this.state.papierpost = { semesterprogramm: !!semesterprogramm, bundesbote: !!bundesbote, geaendert: new Date().toISOString() };
+    this.state.papierpost = { bundesbote: !!bundesbote, geaendert: new Date().toISOString() };
     this.save();
     return this.state.papierpost;
   }
@@ -154,9 +155,9 @@ export class DemoBackend {
   async listPapierpost() {
     await wait();
     const out = this.members().filter((m, i) => m.email !== DEMO_ME_EMAIL && i % 4 === 1)
-      .map((m, i) => ({ email: m.email, name: m.name, semesterprogramm: i % 2 === 0, bundesbote: true, geaendert: new Date(Date.now() - i * 5 * 86400_000).toISOString() }));
+      .map((m, i) => ({ email: m.email, name: m.name, bundesbote: true, geaendert: new Date(Date.now() - i * 5 * 86400_000).toISOString() }));
     const mine = this.state.papierpost;
-    if (mine && (mine.semesterprogramm || mine.bundesbote)) out.push({ email: DEMO_ME_EMAIL, name: this.me.name, ...mine });
+    if (mine?.bundesbote) out.push({ email: DEMO_ME_EMAIL, name: this.me.name, bundesbote: true, geaendert: mine.geaendert });
     return out.sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }
 

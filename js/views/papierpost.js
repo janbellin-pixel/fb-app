@@ -1,4 +1,5 @@
-// Papierpost (E44): Semesterprogramm und Bundesbote – wer braucht sie nicht mehr auf Papier?
+// Papierpost (E44): Bundesbote – wer braucht ihn nicht mehr auf Papier? (Bis 2026-10-30 war auch das
+// Semesterprogramm abwählbar; ARTEN bleibt eine Liste, damit eine weitere Schrift mit einer Zeile dazukommt.)
 // Die Wahl liegt als eigene Datei im eigenen Drive und ist nur für die Admins lesbar.
 // Das Formular steht unter Mehr › Einstellungen (papierpostFormular); die Seite #/papierpost zeigt es
 // den Admins zusammen mit der Liste der Abbestellungen.
@@ -6,12 +7,11 @@ import { html, setHtml, icon, hero, toast, showError, setBusy, loading, errorBox
 import { fDateShort, toDate, isValid } from '../lib/dates.js';
 
 const ARTEN = [
-  { id: 'semesterprogramm', titel: 'Semesterprogramm', app: 'Die Termine stehen unter „Termine“.' },
   { id: 'bundesbote', titel: 'Bundesbote', app: 'Jede Ausgabe steht unter „Bundesbote“.' },
 ];
 
 /** Hinweis, warum vorerst trotzdem alles verschickt wird (Stand der Verbindung, 2026) */
-export const PAPIERPOST_HINWEIS = 'Zurzeit verschicken wir aus logistischen Gründen ohnehin noch alles an alle. Mit deiner Angabe wollen wir erst einmal sehen, wer das künftig nicht mehr gedruckt braucht.';
+export const PAPIERPOST_HINWEIS = 'Zurzeit verschicken wir den Bundesboten aus logistischen Gründen ohnehin noch an alle. Mit deiner Angabe wollen wir erst einmal sehen, wer ihn künftig nicht mehr gedruckt braucht.';
 
 const datum = (iso) => {
   const d = toDate(iso);
@@ -28,7 +28,7 @@ export async function papierpostFormular(ctx, mount, opts = {}) {
 
   setHtml(mount, html`
     <form class="pp-form" novalidate>
-      <p style="margin-top:0">Semesterprogramm und Bundesbote gibt es auch in der App. Sag uns hier, was du nicht mehr auf Papier brauchst.</p>
+      <p style="margin-top:0">Den Bundesboten gibt es auch in der App, jede Ausgabe zum Durchblättern. Sag uns hier, wenn du ihn nicht mehr auf Papier brauchst.</p>
       <div class="pick-list pp-items">${loading()}</div>
       <p class="small muted">${icon('info', 'icon-sm')} ${PAPIERPOST_HINWEIS}</p>
       <div class="form-actions" style="justify-content:flex-start">
@@ -100,7 +100,7 @@ export default async function papierpost(ctx) {
   const b = app.backend;
 
   setHtml(el, html`
-    ${hero('Papierpost', 'Semesterprogramm und Bundesbote')}
+    ${hero('Papierpost', 'Bundesbote auf Papier – wer braucht ihn noch?')}
     <div class="card card-pad" id="pp-form-box"></div>
     ${app.isAdmin() ? html`<section class="card card-pad" style="margin-top:1rem">
       <h2 class="card-title">Abbestellungen</h2>
@@ -114,18 +114,23 @@ export default async function papierpost(ctx) {
     if (!box) return;
     let rows;
     try {
-      rows = (await b.listPapierpost()).filter((r) => r.semesterprogramm || r.bundesbote);
+      rows = (await b.listPapierpost()).filter((r) => ARTEN.some((a) => r[a.id]));
     } catch (err) {
       setHtml(box, errorBox(err, { retry: false }));
       return;
     }
     if (!ctx.alive()) return;
-    const n = (id) => rows.filter((r) => r[id]).length;
-    const text = rows.map((r) => `${r.name} – ${ARTEN.filter((a) => r[a.id]).map((a) => a.titel).join(', ')}`).join('\n');
+    // Bei einer einzigen Schrift zählt nur die Zahl; bei mehreren steht je Zeile, was abbestellt ist
+    const mehrere = ARTEN.length > 1;
+    const was = (r) => (mehrere ? ARTEN.filter((a) => r[a.id]).map((a) => a.titel).join(', ') : '');
+    const summe = mehrere
+      ? ARTEN.map((a) => `${a.titel}: ${rows.filter((r) => r[a.id]).length}`).join(' · ')
+      : `${rows.length} ${rows.length === 1 ? 'Mitglied braucht' : 'Mitglieder brauchen'} den ${ARTEN[0].titel}n nicht mehr auf Papier.`;
+    const text = rows.map((r) => (was(r) ? `${r.name} – ${was(r)}` : r.name)).join('\n');
     setHtml(box, rows.length ? html`
-      <p class="small">${ARTEN.map((a) => `${a.titel}: ${n(a.id)}`).join(' · ')}</p>
+      <p class="small">${summe}</p>
       <ul class="pp-list">${rows.map((r) => html`<li><strong>${r.name}</strong>
-        <span class="small muted">${ARTEN.filter((a) => r[a.id]).map((a) => a.titel).join(', ')}${r.geaendert ? ` · ${datum(r.geaendert)}` : ''}</span></li>`)}</ul>
+        <span class="small muted">${[was(r), r.geaendert ? datum(r.geaendert) : ''].filter(Boolean).join(' · ')}</span></li>`)}</ul>
       <button class="btn btn-sm" type="button" data-action="copy">${icon('copy', 'icon-sm')}Liste kopieren</button>`
       : emptyState('mail', 'Noch keine Abbestellungen'));
     box.querySelector('[data-action=copy]')?.addEventListener('click', () => copyText(text));

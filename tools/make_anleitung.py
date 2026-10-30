@@ -604,7 +604,7 @@ def page_background(c, sample, crest, skyline):
     boxes = [
         ("tablet", "Auch auf dem Tablet", "Die App läuft genauso gut auf iPad und Android-Tablets – zum Schmökern im Bundesboten oder in der DS-Zeitung noch bequemer. Installieren wie auf dem Handy (Seite 1)."),
         ("users", "Hilfe beim Einrichten", "Die Aktiven unterstützen gern bei allem rund um die Einrichtung: Anmelden, neues Passwort, Installieren auf Handy oder Tablet. Einfach ansprechen."),
-        ("mail", "Papierpost", "Mehr › Einstellungen › Papierpost: Sag uns, ob du Semesterprogramm oder Bundesbote noch auf Papier brauchst. Zurzeit verschicken wir noch alles an alle."),
+        ("mail", "Papierpost", "Mehr › Einstellungen › Papierpost: Sag uns, ob du den Bundesboten noch auf Papier brauchst. Zurzeit verschicken wir ihn noch an alle."),
         ("folder", "Eigene Fotos", "Galerie › „Fotos hochladen“ öffnet den Upload-Ordner. Ein Vorstandsmitglied sortiert die Fotos regelmäßig ein."),
     ]
     st = style(10.5, leading=14)

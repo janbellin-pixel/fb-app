@@ -373,7 +373,10 @@ export function createFakeGoogle({ me, workspace = true }) {
         if (patch.description !== undefined) f.description = patch.description;
         if (patch.name !== undefined) f.name = patch.name;
         if (patch.trashed !== undefined) f.trashed = patch.trashed;
-        if (patch.appProperties) f.appProperties = { ...f.appProperties, ...patch.appProperties };
+        if (patch.appProperties) { // wie Drive: null löscht eine Eigenschaft
+          f.appProperties = { ...f.appProperties, ...patch.appProperties };
+          for (const k of Object.keys(f.appProperties)) if (f.appProperties[k] === null) delete f.appProperties[k];
+        }
         if (patch.properties) f.properties = { ...f.properties, ...patch.properties };
         if (content !== undefined) f.content = content;
         f.modifiedTime = new Date().toISOString();

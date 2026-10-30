@@ -536,23 +536,26 @@ export class GoogleBackend {
     return own;
   }
 
-  /** Eigene Wahl: true = „nicht mehr per Post“; null = noch nie gewählt. Neue Admins bekommen dabei Lesezugriff. */
+  /** Eigene Wahl: true = „nicht mehr per Post“; null = noch nie gewählt. Neue Admins bekommen dabei Lesezugriff.
+   *  Ältere Dateien (bis 2026-10-30) nennen auch `semesterprogramm` – das zählt nicht mehr und fällt beim nächsten Speichern weg. */
   async getMyPapierpost() {
     const f = await this.papierpostFile();
     if (!f) return null;
     this.ensureReaders(f.id, this.papierpostEmpfaenger(), f.appProperties?.fbEmpf).catch((e) => console.warn('Freigabe der Papierpost-Wahl nicht angepasst', e));
     const d = parseJson(f.description);
-    return { semesterprogramm: d.semesterprogramm === true, bundesbote: d.bundesbote === true, geaendert: d.geaendert || f.modifiedTime };
+    return { bundesbote: d.bundesbote === true, geaendert: d.geaendert || f.modifiedTime };
   }
 
   /** Eigene Wahl als kleine Datei im eigenen Drive – lesbar nur für die Admins (nicht für alle Mitglieder) */
-  async saveMyPapierpost({ semesterprogramm, bundesbote }) {
-    const data = { semesterprogramm: !!semesterprogramm, bundesbote: !!bundesbote, geaendert: nowIso() };
-    const props = { fbTyp: 'papierpost', fbSp: data.semesterprogramm ? 'ab' : 'papier', fbBb: data.bundesbote ? 'ab' : 'papier' };
+  async saveMyPapierpost({ bundesbote }) {
+    const data = { bundesbote: !!bundesbote, geaendert: nowIso() };
+    const props = { fbTyp: 'papierpost', fbBb: data.bundesbote ? 'ab' : 'papier' };
     const own = await this.papierpostFile();
     let id = own?.id;
     if (own) {
-      await drive.updateFile(own.id, { description: JSON.stringify(data), appProperties: props });
+      // fbSp (Semesterprogramm, bis 2026-10-30) aus älteren Dateien entfernen – null löscht eine Eigenschaft in Drive
+      const alt = own.appProperties?.fbSp !== undefined ? { fbSp: null } : {};
+      await drive.updateFile(own.id, { description: JSON.stringify(data), appProperties: { ...props, ...alt } });
     } else {
       const folder = await this.appFolder();
       const f = await drive.createFile({ name: PAPIERPOST_FILE, mimeType: 'application/json', parents: [folder], appProperties: props, description: JSON.stringify(data) }, 'id,modifiedTime');
@@ -578,7 +581,7 @@ export class GoogleBackend {
     return [...newest.values()].map(({ f, owner }) => {
       const d = parseJson(f.description);
       const name = people.find((p) => p.email === owner.email)?.name || owner.name || owner.email;
-      return { email: owner.email, name, semesterprogramm: d.semesterprogramm === true, bundesbote: d.bundesbote === true, geaendert: d.geaendert || f.modifiedTime };
+      return { email: owner.email, name, bundesbote: d.bundesbote === true, geaendert: d.geaendert || f.modifiedTime };
     }).sort((a, b) => a.name.localeCompare(b.name, 'de'));
   }
 
