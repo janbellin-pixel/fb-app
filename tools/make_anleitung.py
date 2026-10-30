@@ -385,7 +385,7 @@ def page_install(c, url, sample, domain, crest):
 
     # 2 · Anmelden
     y = step(2, "Anmelden – nur einmal", y)
-    konto = f"dein Google-Konto der Verbindung ({b('…@' + domain)})" if domain else "dein Google-Konto der Verbindung"
+    konto = f"dein Google-Konto der Verbindung ({b('vorname.nachname@' + domain)})" if domain else "dein Google-Konto der Verbindung"
     y -= para(c, f"Auf {b('„Mit Google anmelden“')} tippen und {konto} wählen – die App merkt sich die Anmeldung. "
                  f"{b('Beim allerersten Anmelden')} verlangt Google ein neues, eigenes Passwort.", body, M + 30, y, tw - 30)
     y -= 3.5 * mm

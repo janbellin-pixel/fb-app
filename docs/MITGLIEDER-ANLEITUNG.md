@@ -12,7 +12,7 @@ Die Kamera des Handys auf den QR-Code richten und auf den Link tippen – oder d
 
 ## 2. Anmelden – nur einmal
 
-Auf **„Mit Google anmelden“** tippen und das **Google-Konto der Verbindung** wählen. Ein eigenes Passwort für die App gibt es nicht. Die App merkt sich die Anmeldung.
+Auf **„Mit Google anmelden“** tippen und das **Google-Konto der Verbindung** wählen – es heißt **vorname.nachname@frankonia-brunonia.de**. Ein eigenes Passwort für die App gibt es nicht. Die App merkt sich die Anmeldung.
 
 **Zum ersten Mal mit dem FrBr-Konto angemeldet?** Dann verlangt Google ein **neues, eigenes Passwort**. Das Startpasswort hast du von uns bekommen; danach gilt nur noch dein neues.
 
