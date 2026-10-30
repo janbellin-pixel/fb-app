@@ -83,7 +83,7 @@ python tools/serve.py            # lokaler Server auf http://localhost:8080 (ohn
 
 ### Routen (`js/router.js`)
 
-`''` Start · `termine` · `termin/:id` · `mitglieder` · `mitglied/:email` · `einladen/:adresse` (Person aus dem Adressverzeichnis ohne Konto einladen, E58) · `profil` · `chat` · `chat/:space` · `chat-neu` (`?gruppe=1`, `?raum=<ID>`) · `adressen` · `zeitung` · `zeitung/:id` · `lieder` (`?q=`, `?rubrik=`) · `lieder/:id` · `galerie` · `galerie/:album` · `news` · `news/:id` · `news-neu` · `news-bearbeiten/:id` · `forum` · `forum-neu` · `forum/:id` · `mehr` · `einstellungen` · `datenschutz` (öffentlich) · `datenschutz/uebersicht` · `papierpost` (E44) · `installieren` (öffentlich) · `einrichtung` (öffentlich)
+`''` Start · `termine` · `termin/:id` · `mitglieder` · `mitglied/:email` · `einladen/:adresse` (Person aus dem Adressverzeichnis ohne Konto einladen, `?von=adressen` für den Rücksprung ins Verzeichnis, E58) · `profil` · `chat` · `chat/:space` · `chat-neu` (`?gruppe=1`, `?raum=<ID>`) · `adressen` · `zeitung` · `zeitung/:id` · `lieder` (`?q=`, `?rubrik=`) · `lieder/:id` · `galerie` · `galerie/:album` · `news` · `news/:id` · `news-neu` · `news-bearbeiten/:id` · `forum` · `forum-neu` · `forum/:id` · `mehr` · `einstellungen` · `datenschutz` (öffentlich) · `datenschutz/uebersicht` · `papierpost` (E44) · `installieren` (öffentlich) · `einrichtung` (öffentlich)
 
 Öffentliche Routen funktionieren ohne Anmeldung, alle anderen zeigen sonst die Anmeldeseite. Deren Knopf verlangt bei Google immer die Kontoauswahl (`selectAccount` → `prompt=select_account`); nur die stille Erneuerung nutzt `login_hint`. Abmelden: `app.logout()` (Knöpfe in `views/mehr.js`: Kontokarte oben und Menü unten, sowie Einstellungen).
 

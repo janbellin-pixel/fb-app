@@ -287,14 +287,16 @@ export async function detail(ctx) {
 }
 
 /**
- * Person aus dem Adressverzeichnis ohne App-Konto (von den Geburtstagen aus, E58): Einladung in die App –
- * per vorbereiteter E-Mail, sonst telefonisch, sonst nur der Hinweis. Hat die Person doch ein Konto
- * (z. B. weil die Mitglieder beim ersten Aufruf noch nicht geladen waren), geht es gleich zum Profil.
+ * Person aus dem Adressverzeichnis ohne App-Konto (von den Geburtstagen oder dem Adressverzeichnis aus, E58):
+ * Einladung in die App – per vorbereiteter E-Mail, sonst telefonisch, sonst nur der Hinweis. Hat die Person doch
+ * ein Konto (z. B. weil die Mitglieder beim ersten Aufruf noch nicht geladen waren), geht es gleich zum Profil.
+ * ?von=adressen: zurück geht es ins Adressverzeichnis statt zur Startseite.
  */
 export async function einladen(ctx) {
-  const { el, app, params } = ctx;
+  const { el, app, params, query } = ctx;
   const b = app.backend;
-  setHtml(el, html`${backLink('#/', 'Start')}<div id="c">${loading()}</div>`);
+  const vonAdressen = query.von === 'adressen';
+  setHtml(el, html`${vonAdressen ? backLink('#/adressen', 'Adressverzeichnis') : backLink('#/', 'Start')}<div id="c">${loading()}</div>`);
   const c = el.querySelector('#c');
   let data = null;
   try {
@@ -316,6 +318,19 @@ export async function einladen(ctx) {
     app.navigate(`#/mitglied/${encodeURIComponent(m.email)}`, { replace: true });
     return;
   }
+  const suche = html`<a class="btn btn-sm" href="#/adressen?q=${encodeURIComponent(a.nachname || a.name)}">${icon('book', 'icon-sm')}Im Adressverzeichnis</a>`;
+  // Ohne Google-Verzeichnis (Berechtigung fehlt oder Fehler) weiß die App nicht, wer ein Konto hat –
+  // dann lieber kein „noch nicht registriert“, sondern der Hinweis wie unter „Mitglieder“
+  const info = b.directoryInfo;
+  if (app.mode === 'google' && info && !info.ok && info.reason !== 'no-workspace') {
+    setHtml(c, html`<div style="margin-top:1rem">${notice('gold', `Ob ${a.name} schon ein App-Konto hat, lässt sich gerade nicht prüfen`,
+      info.reason === 'scope' ? 'Der App fehlt deine Erlaubnis für das Google-Verzeichnis. Ein Klick genügt – bei Google bitte alle Häkchen setzen.' : `Das Google-Verzeichnis ist nicht erreichbar. Google meldet: „${info.error}“.`,
+      html`<p class="row wrap" style="margin:.5rem 0 0;gap:.5rem">${info.reason === 'scope' ? html`<button class="btn btn-sm btn-primary" data-action="grant-directory">${icon('key', 'icon-sm')}Berechtigung erteilen</button>` : ''}${suche}</p>`)}</div>`);
+    c.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action=grant-directory]')) auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash });
+    });
+    return;
+  }
   const ruf = rufname(a);
   const mail = einladungsMail(a, app.user);
   const telefon = a.mobil || a.telefon;
@@ -334,7 +349,7 @@ export async function einladen(ctx) {
         <div class="row wrap" style="margin-top:.75rem;gap:.5rem">
           ${mail.href ? html`<a class="btn btn-primary" href="${mail.href}">${icon('mail', 'icon-sm')}${a.email}</a>`
             : telefon ? html`<a class="btn btn-primary" href="tel:${telefon.replace(/[^\d+]/g, '')}">${icon('phone', 'icon-sm')}${telefon}</a>` : ''}
-          <a class="btn" href="#/adressen?q=${encodeURIComponent(a.nachname || a.name)}">${icon('book', 'icon-sm')}Im Adressverzeichnis</a>
+          ${vonAdressen ? '' : suche}
         </div>
         <p class="small muted" style="margin:.75rem 0 0">${mail.href ? html`Die E-Mail erklärt auch den Weg zur Registrierung: ${weg}` : weg}</p>
       </div>

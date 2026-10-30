@@ -32,6 +32,9 @@ export default async function adressen(ctx) {
       && matchesQuery([a.name, a.kneipname, a.status, a.strasse, a.plz, a.ort, a.telefon, a.mobil, a.email, a.beruf].join(' '), q));
   }
 
+  /** Ohne Google-Verzeichnis (Berechtigung fehlt, Fehler) ist die Mitgliederliste unvollständig – dann lieber kein „Einladen“ */
+  const verzeichnisFehlt = () => app.mode === 'google' && !!b.directoryInfo && !b.directoryInfo.ok && b.directoryInfo.reason !== 'no-workspace';
+
   /** member: Mitglied mit App-Konto zu diesem Eintrag (über E-Mail-Adresse oder Namen, E58) oder null */
   function detailHtml(a, member) {
     const bday = a.geburtstag ? toDate(a.geburtstag) : null;
@@ -54,7 +57,8 @@ export default async function adressen(ctx) {
         ${a.email ? html`<a class="btn btn-sm" href="mailto:${a.email}">${icon('mail', 'icon-sm')}E-Mail</a>` : ''}
         ${addr.length ? html`<a class="btn btn-sm" href="${mapsUrl(addr.join(', '))}" target="_blank" rel="noopener">${icon('pin', 'icon-sm')}Karte</a>` : ''}
         <button class="btn btn-sm" data-vcf="${a.id}">${icon('download', 'icon-sm')}In Kontakte</button>
-        ${member ? html`<a class="btn btn-sm btn-ghost" href="#/mitglied/${encodeURIComponent(member.email)}">${icon('user', 'icon-sm')}Profil</a>` : ''}
+        ${member ? html`<a class="btn btn-sm btn-ghost" href="#/mitglied/${encodeURIComponent(member.email)}">${icon('user', 'icon-sm')}Profil</a>`
+          : members.size && !verzeichnisFehlt() ? html`<a class="btn btn-sm btn-ghost" href="#/einladen/${encodeURIComponent(a.id)}?von=adressen" title="${a.name} ist noch nicht in der App">${icon('smartphone', 'icon-sm')}In die App einladen</a>` : ''}
       </div>
     </div>`;
   }
