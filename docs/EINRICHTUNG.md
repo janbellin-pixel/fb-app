@@ -135,7 +135,7 @@ Die App bleibt dieselbe, nur die Google-Seite wird „richtig“ eingerichtet. A
 
 In der App unter **Einrichtung** (als Admin angemeldet):
 
-1. **Optionen:** Workspace-Domain (z. B. `frankonia-brunonia.de`), Mitglieder-Gruppe (`mitglieder@…`, falls vorhanden), **Admins** (nur sie sehen die Einrichtung und die Liste „Papierpost abbestellen“), **Aktiven- und Altherrenvorstand** (E-Mail-Adressen für die Knöpfe „… kontaktieren“ im Chat, E45) und die Angaben zum **Datenschutz** eintragen → „Optionen speichern“.
+1. **Optionen:** Workspace-Domain (z. B. `frankonia-brunonia.de`), Mitglieder-Gruppe (`mitglieder@…`, falls vorhanden), **Admins** (nur sie sehen die Einrichtung und die Liste „Papierpost abbestellen“), **Aktiven- und Altherrenvorstand** (E-Mail-Adressen für die Knöpfe „… kontaktieren“ im Chat, E45), die **E-Mail für Zugangsdaten** (steht in der vorbereiteten Einladung in die App, E58) und die Angaben zum **Datenschutz** eintragen → „Optionen speichern“.
 2. **„1. Vorhandenes verbinden“:** die Links zu dem eintragen, was es schon gibt – Kalender, Mitgliederliste, Ordner mit dem Bundesboten, mit der DS-Zeitung, mit der Liedermappe, mit den Fotos und (freiwillig) der **Ordner für Foto-Uploads** (E46) → „Übernehmen“. Den Upload-Ordner in Drive für die Mitglieder als **Mitbearbeiter** freigeben und nicht in den Galerie-Ordner legen. Es genügen die Links aus der Adresszeile bzw. „Link kopieren“; beim Kalender auch der Link aus den Kalendereinstellungen („Kalender-ID“, „Öffentliche Adresse“ oder der Link zum Hinzufügen des Kalenders). Hat die Mitgliederliste mehrere Tabellenblätter, das richtige unter „Tabellenblatt“ angeben – andere Blätter liest die App nicht.
 3. **„Verbindung prüfen (nur lesend)“** und die Hinweise abarbeiten (siehe unten). Die Prüfung ändert nichts.
 4. **„2. Fehlendes neu anlegen“:** legt nur noch an, was nicht verbunden ist – typischerweise die **News-Tabelle** und die **Einwilligungsliste**. Was verbunden ist, wird dabei weder verändert noch neu freigegeben; Beispieldaten sind hier nicht vorausgewählt.
@@ -408,6 +408,7 @@ Neben den Werten aus der Einrichtung kann die private Konfiguration (`config_pri
 ```js
 datenschutz: { empfaenger: ['vorstand@…'] },   // wer die Einwilligungen sieht (Name, Anschrift, Fassung: im öffentlichen config.js)
 adressaenderung: 'adressaenderung@frankonia-brunonia.de', // Empfänger für Adressänderungen aus „Mein Profil“
+zugangsdaten: 'ahv@frankonia-brunonia.de',   // Postfach für Zugangsdaten – steht in der vorbereiteten Einladung in die App (Startseite › Geburtstage › Person ohne Konto, E58)
 vorstand: { aktive: ['senior@…'], altherren: ['ahv@…'] }, // Knöpfe „… kontaktieren“ im Chat (E45); leer = kein Knopf
 galerieUploadOrdnerId: '1AbC…',                  // Ordner für „Fotos hochladen“ (E46); für die Mitglieder bearbeitbar freigeben
 push: { konto: 'vorstand@…', schluessel: 'B…' }, // Push-Mitteilungen (E50): Konto, in dem Push.gs läuft, und dessen öffentlicher Schlüssel

@@ -56,6 +56,7 @@ const RULES = {
     && (v.ohne === undefined || (isObj(v.ohne) && Object.values(v.ohne).every(texts))),
   '{ "adressen": { "schlüssel": "gruppe@…" }, "ohne": { "bereich": [Gruppen] } }'],
   adressaenderung: [orEmpty(isEmail), 'eine E-Mail-Adresse oder ""'],
+  zugangsdaten: [orEmpty(isEmail), 'eine E-Mail-Adresse oder ""'],
   vorstand: [(v) => isObj(v) && Object.entries(v).every(([k, x]) => ['aktive', 'altherren'].includes(k) && emails(x)),
     '{ "aktive": [E-Mail-Adressen], "altherren": [E-Mail-Adressen] }'],
   push: [(v) => isObj(v) && (v.konto === undefined || v.konto === '' || isEmail(v.konto))
@@ -73,7 +74,7 @@ const RULES = {
 };
 
 const lower = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim().toLowerCase()) : String(v).trim().toLowerCase());
-const EMAIL_KEYS = ['mitgliederGruppe', 'admins', 'redaktion', 'adressaenderung', 'testMitglieder', 'ausgeblendeteKonten'];
+const EMAIL_KEYS = ['mitgliederGruppe', 'admins', 'redaktion', 'adressaenderung', 'zugangsdaten', 'testMitglieder', 'ausgeblendeteKonten'];
 
 /**
  * Private Konfiguration prüfen. Fehler = Datei wird nicht verwendet; Hinweise = Einträge werden ignoriert.

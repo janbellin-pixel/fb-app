@@ -10,6 +10,8 @@ export const ROUTES = [
   { path: 'termin/:id', load: v('termin'), tab: 'termine', nav: 'termine', title: 'Termin', bereich: 'termine' },
   { path: 'mitglieder', load: v('mitglieder'), tab: 'mitglieder', nav: 'mitglieder', title: 'Mitglieder', bereich: 'mitglieder' },
   { path: 'mitglied/:email', load: v('mitglieder', 'detail'), tab: 'mitglieder', nav: 'mitglieder', title: 'Mitglied', bereich: 'mitglieder' },
+  // Person aus dem Adressverzeichnis ohne App-Konto (von den Geburtstagen aus): zur App einladen (E58)
+  { path: 'einladen/:adresse', load: v('mitglieder', 'einladen'), tab: 'mitglieder', nav: 'mitglieder', title: 'Einladen', bereich: 'adressen' },
   { path: 'profil', load: v('profil'), tab: 'mehr', nav: 'mitglieder', title: 'Mein Profil' },
   { path: 'chat', load: v('chat'), tab: 'chat', nav: 'chat', title: 'Chat', bereich: 'chat' },
   { path: 'chat/:space', load: v('chat', 'room'), tab: 'chat', nav: 'chat', title: 'Chat', bereich: 'chat' },

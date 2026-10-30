@@ -476,7 +476,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
     y -= bar_h + 5.5 * mm
 
     rows = [
-        ("home", "Start", "Begrüßung, die nächsten Termine (direkt zu- oder absagen), die nächsten drei Geburtstage, Neuigkeiten, der neueste Bundesbote und neue Fotos."),
+        ("home", "Start", f"Begrüßung, nächste Termine (direkt zu- oder absagen), nächste Geburtstage (› Profil oder {b('Einladung')} per E-Mail), Neuigkeiten, Bundesbote, neue Fotos."),
         ("calendar", "Termine", f"Alle Veranstaltungen als Liste oder Monat. Termin antippen › {b('Zusagen, Vielleicht oder Absagen')}, Gäste und Kommentar angeben, sehen wer kommt. "
                                 f"„Kalender abonnieren“ holt alle Termine in deinen eigenen Kalender."),
         ("chat", "Chat", f"Nachrichten und Gruppen. Direkt an den {b('Aktiven-')} oder {b('Altherrenvorstand')} schreiben – jedes Vorstandsmitglied lädt dich auch in die WhatsApp-Gruppen ein."),

@@ -1,11 +1,12 @@
-// Mitgliederverzeichnis und Profilansicht
+// Mitgliederverzeichnis, Profilansicht und Einladung in die App für Personen ohne Konto (E58)
 import { html, setHtml, icon, hero, backLink, avatar, skeletonList, emptyState, errorBox, loading, toast, showError, notice, confirmDialog } from '../ui.js';
 import { matchesQuery, linkify, firstName } from '../lib/text.js';
 import { config, statusGroup } from '../config.js';
 import { local } from '../lib/store.js';
 import * as auth from '../auth.js';
 import { gesperrt } from '../lib/gruppen.js';
-import { sendRefusal } from './parts.js';
+import { sendRefusal, memberMap } from './parts.js';
+import { memberForAddress, einladungsMail, rufname, zugangsdatenEmail } from '../lib/einladung.js';
 
 const BIERJUNGE = 'Bierjunge!';
 
@@ -283,4 +284,59 @@ export async function detail(ctx) {
       if (!absage(err)) showError(err);
     }
   });
+}
+
+/**
+ * Person aus dem Adressverzeichnis ohne App-Konto (von den Geburtstagen aus, E58): Einladung in die App –
+ * per vorbereiteter E-Mail, sonst telefonisch, sonst nur der Hinweis. Hat die Person doch ein Konto
+ * (z. B. weil die Mitglieder beim ersten Aufruf noch nicht geladen waren), geht es gleich zum Profil.
+ */
+export async function einladen(ctx) {
+  const { el, app, params } = ctx;
+  const b = app.backend;
+  setHtml(el, html`${backLink('#/', 'Start')}<div id="c">${loading()}</div>`);
+  const c = el.querySelector('#c');
+  let data = null;
+  try {
+    data = await app.load('addresses', () => b.listAddresses(), (d) => { data = d; }, { maxAge: 60 * 60_000 });
+  } catch (err) {
+    if (!data) { setHtml(c, errorBox(err)); return; }
+  }
+  if (!ctx.alive()) return;
+  const a = data?.items.find((x) => x.id === params.adresse);
+  if (!a) {
+    setHtml(c, html`<div class="card">${emptyState('book', 'Eintrag nicht gefunden', 'Diesen Eintrag gibt es im Adressverzeichnis nicht mehr.',
+      html`<p><a class="btn btn-sm" href="#/adressen">${icon('book', 'icon-sm')}Zum Adressverzeichnis</a></p>`)}</div>`);
+    return;
+  }
+  const members = memberMap(await app.load('members', () => b.listMembers(), () => {}, { maxAge: 10 * 60_000 }).catch(() => []));
+  if (!ctx.alive()) return;
+  const m = memberForAddress(a, members);
+  if (m) {
+    app.navigate(`#/mitglied/${encodeURIComponent(m.email)}`, { replace: true });
+    return;
+  }
+  const ruf = rufname(a);
+  const mail = einladungsMail(a, app.user);
+  const telefon = a.mobil || a.telefon;
+  const zugang = zugangsdatenEmail();
+  const weg = zugang ? html`Zugangsdaten gibt es per E-Mail an <strong>${zugang}</strong>.` : 'Zugangsdaten gibt es bei den Admins der App.';
+  setHtml(c, html`
+    <div class="card profile-head einladung" style="margin-top:1rem">
+      ${avatar({ name: a.name, email: a.email }, 148)}
+      <div style="min-width:0">
+        <h1>${a.name}</h1>
+        ${a.kneipname ? html`<div class="vulgo">v/o ${a.kneipname}</div>` : ''}
+        ${a.status ? html`<div class="row wrap" style="margin-top:.625rem;gap:.375rem">${statusBadge(a.status)}</div>` : ''}
+        <p style="margin:1rem 0 0"><strong>${a.name}</strong> ist noch nicht in der App registriert. ${mail.href
+          ? html`Lade ${ruf} doch ein – die E-Mail ist schon vorbereitet:`
+          : telefon ? html`Lade ${ruf} doch ein, zum Beispiel telefonisch:` : html`Lade ${ruf} doch in die App ein.`}</p>
+        <div class="row wrap" style="margin-top:.75rem;gap:.5rem">
+          ${mail.href ? html`<a class="btn btn-primary" href="${mail.href}">${icon('mail', 'icon-sm')}${a.email}</a>`
+            : telefon ? html`<a class="btn btn-primary" href="tel:${telefon.replace(/[^\d+]/g, '')}">${icon('phone', 'icon-sm')}${telefon}</a>` : ''}
+          <a class="btn" href="#/adressen?q=${encodeURIComponent(a.nachname || a.name)}">${icon('book', 'icon-sm')}Im Adressverzeichnis</a>
+        </div>
+        <p class="small muted" style="margin:.75rem 0 0">${mail.href ? html`Die E-Mail erklärt auch den Weg zur Registrierung: ${weg}` : weg}</p>
+      </div>
+    </div>`);
 }

@@ -8,6 +8,7 @@ import { ICON_NAMES } from '../icons.js';
 import { albumInfo } from './galerie.js';
 import { isNewNews } from '../lib/hinweise.js';
 import { gesperrt, linkGesperrt } from '../lib/gruppen.js';
+import { memberForAddress } from '../lib/einladung.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -112,10 +113,11 @@ export default async function home(ctx) {
     setHtml(q('#h-birthdays'), html`
       ${sectionTitle('Nächste Geburtstage', { href: '#/adressen', label: 'Adressverzeichnis' })}
       <div class="card">${next.map(({ a, nb }) => {
-        const m = members.get(a.email) || { name: a.name, email: a.email };
+        // Mit App-Konto (über E-Mail-Adresse oder Namen) zum Profil, sonst zur Einladung in die App (E58)
+        const m = memberForAddress(a, members);
         const when = nb.days === 0 ? 'heute' : relDay(nb.date);
-        return html`<a class="birthday ${nb.days === 0 ? 'today' : ''}" href="${m.email ? `#/mitglied/${encodeURIComponent(m.email)}` : '#/adressen'}">
-          ${avatar(m, 44)}
+        return html`<a class="birthday ${nb.days === 0 ? 'today' : ''}" href="${m ? `#/mitglied/${encodeURIComponent(m.email)}` : `#/einladen/${encodeURIComponent(a.id)}`}">
+          ${avatar(m || { name: a.name, email: a.email }, 44)}
           <div class="grow" style="min-width:0">
             <div class="name ellipsis">${adrName(a)}</div>
             <div class="small muted ellipsis">${a.kneipname ? `v/o ${a.kneipname}` : a.status}</div>

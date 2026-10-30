@@ -30,6 +30,7 @@ const CORE = [
   './js/lib/darstellung.js',
   './js/lib/datenschutz.js',
   './js/lib/dates.js',
+  './js/lib/einladung.js',
   './js/lib/einwilligungsliste.js',
   './js/lib/export.js',
   './js/lib/gruppen.js',

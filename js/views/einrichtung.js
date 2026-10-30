@@ -191,9 +191,14 @@ export default async function einrichtung(ctx) {
           <div class="field"><label for="o-url">Adresse der App</label>
             <input class="input" id="o-url" name="appUrl" value="${config.appUrl || currentBaseUrl()}">
             <span class="hint">Wird in jeden Kalendertermin als Link eingetragen. Nach dem Veröffentlichen hier die GitHub-Pages-Adresse eintragen.</span></div>
-          <div class="field"><label for="o-adr">E-Mail für Adressänderungen</label>
-            <input class="input" id="o-adr" name="adressaenderung" type="email" value="${config.adressaenderung}" placeholder="z. B. adressaenderung@frankonia-brunonia.de">
-            <span class="hint">Weichen die Angaben in „Mein Profil“ vom Adressverzeichnis ab, bereitet die App eine E-Mail an diese Adresse vor. Ohne Umlaute.</span></div>
+          <div class="form-grid cols-2">
+            <div class="field"><label for="o-adr">E-Mail für Adressänderungen</label>
+              <input class="input" id="o-adr" name="adressaenderung" type="email" value="${config.adressaenderung}" placeholder="z. B. adressaenderung@frankonia-brunonia.de">
+              <span class="hint">Weichen die Angaben in „Mein Profil“ vom Adressverzeichnis ab, bereitet die App eine E-Mail an diese Adresse vor. Ohne Umlaute.</span></div>
+            <div class="field"><label for="o-zug">E-Mail für Zugangsdaten</label>
+              <input class="input" id="o-zug" name="zugangsdaten" type="email" value="${config.zugangsdaten || ''}" placeholder="z. B. ahv@frankonia-brunonia.de">
+              <span class="hint">Steht in der vorbereiteten Einladung in die App (Startseite › Geburtstage › Person ohne Konto): Dorthin schreiben Eingeladene für ihre Zugangsdaten.</span></div>
+          </div>
           <div class="form-grid cols-2">
             <div class="field"><label for="o-vs-a">Aktivenvorstand</label>
               <input class="input" id="o-vs-a" name="vorstandAktive" placeholder="senior@…, consenior@…" value="${(config.vorstand?.aktive || []).join(', ')}">
@@ -352,6 +357,7 @@ export default async function einrichtung(ctx) {
       redaktion: list(d.redaktion),
       appUrl: d.appUrl,
       adressaenderung: d.adressaenderung.trim().toLowerCase(),
+      zugangsdaten: String(d.zugangsdaten || '').trim().toLowerCase(),
       vorstand,
       push: pushWerte,
       datenschutz,

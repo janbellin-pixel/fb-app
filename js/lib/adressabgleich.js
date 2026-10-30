@@ -135,7 +135,8 @@ export function mailAscii(s) {
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC');
 }
 
-const mailEnc = (s) => encodeURIComponent(mailAscii(s)).replace(/%0A/g, '%0D%0A');
+/** Text für den mailto-Link (ASCII, Zeilenumbrüche als CRLF) – auch für die Einladung in die App (einladung.js, E58) */
+export const mailEnc = (s) => encodeURIComponent(mailAscii(s)).replace(/%0A/g, '%0D%0A');
 
 /**
  * Leere Vorlage für eine Adressänderung (Knopf oben im Profil): Betreff mit Namen, Felder zum Ausfüllen.

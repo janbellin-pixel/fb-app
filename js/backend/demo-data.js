@@ -198,6 +198,17 @@ export function buildAddressRows(today = new Date()) {
       studium,
     ]);
   });
+  // Zwei Alte Herren ohne App-Konto, nur im Adressverzeichnis – so zeigt die Startseite die Einladung in die App (E58):
+  // Gerd (in 5 Tagen, private E-Mail) steht unter den nächsten drei Geburtstagen, Walter (nur Telefon) erst später.
+  // Die Einrichtung nimmt nur die ersten 15 Zeilen als Beispiel-Adressen, diese beiden also nicht.
+  const bald = (tage, jahr) => {
+    const d = addDays(startOfDay(today), tage);
+    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${jahr}`;
+  };
+  rows.push(
+    ['Hoffmann', 'Gerd', 'Cicero', 'Alter Herr', 'Beispielufer 12', '10115', 'Berlin', 'Deutschland', '+49 30 0000321', '', 'gerd.hoffmann@example.org', bald(5, 1958), 'WiSe 1978/79', 'Lehrer i. R.'],
+    ['Richter', 'Walter', 'Seneca', 'Alter Herr', 'Musterring 7', '50667', 'Köln', 'Deutschland', '+49 221 0000654', '+49 171 0000987', '', bald(40, 1949), 'SoSe 1970', 'Kaufmann i. R.'],
+  );
   return rows;
 }
 

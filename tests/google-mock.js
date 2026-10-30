@@ -434,6 +434,35 @@ async function run() {
   ab.mailEntwurf({ user: { name: me.name, email: me.email }, eingabe: eing, diffs, gefunden: false });
   check(fake.state.writes.length === writesNow, 'Abgleich und E-Mail-Entwurf schreiben nichts in Google');
 
+  /* ---------------------------------------------------------------- Einladung in die App (E58) */
+  section('Einladung in die App (E58)');
+  const ein = await import('../js/lib/einladung.js');
+  const { memberMap } = await import('../js/views/parts.js');
+  const mm = memberMap(await b.listMembers());
+  check(ein.memberForAddress({ name: 'Theo Tester', vorname: 'Theo', nachname: 'Tester', email: me.email }, mm)?.email === me.email, 'Eintrag mit der Konto-Adresse → Mitglied');
+  check(ein.memberForAddress({ name: 'Dr. Anna Andere', vorname: 'Anna', nachname: 'Andere', email: 'anna.privat@example.org' }, mm)?.email === ANNA, 'private E-Mail-Adresse im Verzeichnis: über den Namen, Titel zählt nicht');
+  check(ein.memberForAddress({ name: 'Fritz Fremd', vorname: 'Fritz', nachname: 'Fremd', email: 'fritz@example.org' }, mm) === null, 'ohne Konto: kein Mitglied');
+  const doppelt = memberMap([{ email: 'a@beispiel.de', name: 'Max Lang' }, { email: 'b@beispiel.de', name: 'Max Lang' }]);
+  check(ein.memberForAddress({ name: 'Max Lang', vorname: 'Max', nachname: 'Lang', email: '' }, doppelt) === null, 'zwei Konten mit demselben Namen: lieber keins als das falsche');
+  const gerd = { name: 'Dr. Gerd Hoffmann', vorname: 'Gerd', nachname: 'Hoffmann', email: 'gerd.hoffmann@example.org', mobil: '' };
+  const inv = ein.einladungsMail(gerd, { name: 'Jörg Müßig', email: me.email });
+  const invBody = decodeURIComponent(inv.href.split('body=')[1]);
+  const invSubject = decodeURIComponent(inv.href.split('subject=')[1].split('&')[0]);
+  check(inv.href.startsWith('mailto:gerd.hoffmann@example.org?subject=') && invSubject === 'Einladung in die Mitglieder-App der Frankonia-Brunonia', 'E-Mail an die Adresse aus dem Verzeichnis, mit Betreff', inv.href.slice(0, 100));
+  check(config.zugangsdaten === 'ahv@frankonia-brunonia.de' && invBody.startsWith('Hallo Gerd,') && invBody.includes('Bitte um Zugangsdaten an ahv@frankonia-brunonia.de') && invBody.includes(cfgMod.appBaseUrl()) && invBody.trim().endsWith('Joerg Muessig'),
+    'Text: Anrede mit Vornamen, Postfach für Zugangsdaten, Adresse der App, Absender', invBody);
+  check(/^[\x21-\x7e]+$/.test(inv.href) && inv.body.includes('Jörg Müßig') && inv.body.includes('Viele Grüße'), 'im Link nur ASCII, der Text selbst mit Umlauten', inv.href.slice(0, 120));
+  const zSaved = config.zugangsdaten;
+  config.zugangsdaten = '';
+  check(ein.einladungsMail(gerd, { name: 'X' }).body.includes('antworte einfach auf diese E-Mail'), 'ohne Postfach: Zugangsdaten über den Absender');
+  config.zugangsdaten = zSaved;
+  check(ein.einladungsMail({ name: 'Walter Richter', vorname: 'Walter', nachname: 'Richter', email: '' }, { name: 'X' }).href === '' && ein.rufname({ name: 'Prof. Dr. Wolfgang Wert' }) === 'Wolfgang', 'ohne E-Mail-Adresse kein Link; Rufname ohne Titel');
+  const kfE = await import('../js/lib/konfiguration.js');
+  const vz = kfE.validatePrivateConfig({ admins: [me.email], zugangsdaten: 'AHV@Beispiel.de' }, { owner: me.email });
+  const vzBad = kfE.validatePrivateConfig({ admins: [me.email], zugangsdaten: 'keine-adresse' }, { owner: me.email });
+  check(!vz.errors.length && vz.values.zugangsdaten === 'ahv@beispiel.de' && vzBad.errors.some((e) => /zugangsdaten/.test(e)), 'private Konfiguration: „zugangsdaten“ geprüft und klein geschrieben', JSON.stringify([vz.errors, vz.values.zugangsdaten, vzBad.errors]));
+  check(fake.state.writes.length === writesNow, 'Einladung schreibt nichts in Google');
+
   /* ---------------------------------------------------------------- Zeitung & Galerie */
   section('Zeitung & Galerie (nur lesen)');
   const issues = await step('listIssues', () => b.listIssues());

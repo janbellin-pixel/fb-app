@@ -36,6 +36,7 @@
     }
   },
   "adressaenderung": "adressaenderung@example.org",
+  "zugangsdaten": "ahv@example.org",
   "vorstand": {
     "aktive": ["senior@example.org", "consenior@example.org"],
     "altherren": ["ahv-vorsitz@example.org"]

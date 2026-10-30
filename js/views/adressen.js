@@ -5,6 +5,7 @@ import { toDate, nextBirthday, fDateShort } from '../lib/dates.js';
 import { toVcard, downloadFile, mapsUrl } from '../lib/export.js';
 import { config } from '../config.js';
 import { memberMap, adrName } from './parts.js';
+import { memberFinder } from '../lib/einladung.js';
 
 const tel = (s) => String(s || '').replace(/[^\d+]/g, '');
 
@@ -31,11 +32,11 @@ export default async function adressen(ctx) {
       && matchesQuery([a.name, a.kneipname, a.status, a.strasse, a.plz, a.ort, a.telefon, a.mobil, a.email, a.beruf].join(' '), q));
   }
 
-  function detailHtml(a) {
+  /** member: Mitglied mit App-Konto zu diesem Eintrag (über E-Mail-Adresse oder Namen, E58) oder null */
+  function detailHtml(a, member) {
     const bday = a.geburtstag ? toDate(a.geburtstag) : null;
     const nb = nextBirthday(bday);
     const addr = [a.strasse, [a.plz, a.ort].filter(Boolean).join(' '), a.land && a.land !== 'Deutschland' ? a.land : ''].filter(Boolean);
-    const member = a.email ? members.get(a.email) : null;
     return html`<div class="addr-detail">
       <dl class="facts">
         ${addr.length ? html`<div><dt>Adresse</dt><dd>${addr.map((l, i) => html`${i ? html`<br>` : ''}${l}`)}</dd></div>` : ''}
@@ -71,13 +72,14 @@ export default async function adressen(ctx) {
     }
     let letter = '';
     const parts = [];
+    const find = memberFinder(members);
     for (const a of list) {
       const l = norm(a.nachname || a.name).charAt(0).toUpperCase();
       if (l !== letter) {
         letter = l;
         parts.push(html`<h3 class="alpha-head">${l}</h3>`);
       }
-      const m = a.email ? members.get(a.email) : null;
+      const m = find(a);
       const person = m || { name: a.name, email: a.email };
       const isOpen = open === a.id;
       parts.push(html`<div class="card" style="margin-bottom:.5rem">
@@ -89,7 +91,7 @@ export default async function adressen(ctx) {
           </div>
           ${icon(isOpen ? 'chevronDown' : 'chevronRight', 'icon-sm')}
         </div>
-        ${isOpen ? detailHtml(a) : ''}
+        ${isOpen ? detailHtml(a, m) : ''}
       </div>`);
     }
     setHtml(listEl, html`<p class="small muted" style="margin:0 0 .375rem">${list.length} ${list.length === 1 ? 'Eintrag' : 'Einträge'}</p>${parts}`);

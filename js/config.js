@@ -47,6 +47,9 @@ const DEFAULTS = {
   // Postfach für Adressänderungen: „Mein Profil“ bereitet bei Abweichungen vom Adressverzeichnis eine E-Mail vor.
   // (Umlaute sind in E-Mail-Adressen bei Google Workspace nicht möglich – daher „ae“.)
   adressaenderung: 'adressaenderung@frankonia-brunonia.de',
+  // Postfach für Zugangsdaten: Die vorbereitete Einladung in die App (Geburtstage → Person ohne Konto, E58) nennt es
+  // als Weg zur Registrierung; leer = „antworte einfach auf diese E-Mail“ (Zugangsdaten über den Absender)
+  zugangsdaten: 'ahv@frankonia-brunonia.de',
   // Vorstände für „… kontaktieren“ im Chat (E45): E-Mail-Adressen; leer = Knopf ausgeblendet
   vorstand: { aktive: [], altherren: [] },
   // Push-Mitteilungen (E50): Konto, in dem apps-script/Push.gs läuft, und dessen öffentlicher Schlüssel; leer = aus
@@ -254,7 +257,7 @@ window.FB_CONFIG = ${JSON.stringify(obj, null, 2)};
 /** Schlüssel, die die Einrichtung in die private Konfiguration schreibt (dazu bleiben eigene Zusatzeinstellungen erhalten) */
 export const PRIVATE_WRITE_KEYS = ['mitgliederGruppe', 'admins', 'redaktion', 'appUrl', 'kalenderId', 'tabellen', 'adressenBlatt',
   'zeitungOrdnerId', 'liedermappeOrdnerId', 'dsZeitungOrdnerId', 'galerieOrdnerId', 'galerieUploadOrdnerId', 'chat', 'forum', 'profilBearbeiten', 'links',
-  'gruppen', 'adressaenderung', 'vorstand', 'push', 'testMitglieder', 'ausgeblendeteKonten'];
+  'gruppen', 'adressaenderung', 'zugangsdaten', 'vorstand', 'push', 'testMitglieder', 'ausgeblendeteKonten'];
 
 /** Private Konfiguration als Objekt: aktuelle Werte, ohne öffentliche Schlüssel (E43) */
 export function privateConfigObject(values = {}) {
