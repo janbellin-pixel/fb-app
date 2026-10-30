@@ -439,11 +439,31 @@ async function run() {
   const ein = await import('../js/lib/einladung.js');
   const { memberMap } = await import('../js/views/parts.js');
   const mm = memberMap(await b.listMembers());
-  check(ein.memberForAddress({ name: 'Theo Tester', vorname: 'Theo', nachname: 'Tester', email: me.email }, mm)?.email === me.email, 'Eintrag mit der Konto-Adresse → Mitglied');
-  check(ein.memberForAddress({ name: 'Dr. Anna Andere', vorname: 'Anna', nachname: 'Andere', email: 'anna.privat@example.org' }, mm)?.email === ANNA, 'private E-Mail-Adresse im Verzeichnis: über den Namen, Titel zählt nicht');
-  check(ein.memberForAddress({ name: 'Fritz Fremd', vorname: 'Fritz', nachname: 'Fremd', email: 'fritz@example.org' }, mm) === null, 'ohne Konto: kein Mitglied');
-  const doppelt = memberMap([{ email: 'a@beispiel.de', name: 'Max Lang' }, { email: 'b@beispiel.de', name: 'Max Lang' }]);
-  check(ein.memberForAddress({ name: 'Max Lang', vorname: 'Max', nachname: 'Lang', email: '' }, doppelt) === null, 'zwei Konten mit demselben Namen: lieber keins als das falsche');
+  check(ein.memberForAddress({ name: 'Theo Tester', vorname: 'Theo', nachname: 'Tester', email: me.email }, mm)?.email === me.email, 'Eintrag mit der eigenen Konto-Adresse → Mitglied (man selbst nutzt die App)');
+  check(mm.get(ANNA) && !mm.get(ANNA).appNutzer && ein.memberForAddress({ name: 'Anna Andere', vorname: 'Anna', nachname: 'Andere', email: ANNA }, mm) === null,
+    'Konto im Google-Verzeichnis, App aber noch nicht genutzt: kein Treffer → Einladung', JSON.stringify(mm.get(ANNA)));
+  const konten = memberMap([
+    { email: ANNA, name: 'Anna Andere', appNutzer: true },
+    { email: 'karl@beispiel.de', name: 'Karl Kein', appNutzer: false },
+    { email: 'alt@beispiel.de', name: 'Max Lang', appNutzer: false },
+    { email: 'neu@beispiel.de', name: 'Max Lang', appNutzer: true },
+    { email: 'hp@beispiel.de', name: 'Hans Peter Müller v/o Igor', appNutzer: true },
+    { email: 'h@beispiel.de', name: 'Dr. Hans Müller', appNutzer: true },
+    { email: 'i@beispiel.de', name: 'I. Igel', appNutzer: true },
+  ]);
+  const find = ein.memberFinder(konten);
+  check(find({ name: 'Dr. Anna Andere', vorname: 'Anna', nachname: 'Andere', email: 'anna.privat@example.org' })?.email === ANNA, 'private E-Mail-Adresse im Verzeichnis: über den Namen, Titel zählt nicht');
+  check(find({ name: 'Karl Kein', vorname: 'Karl', nachname: 'Kein', email: 'karl@beispiel.de' }) === null && find({ name: 'Fritz Fremd', vorname: 'Fritz', nachname: 'Fremd', email: 'fritz@example.org' }) === null,
+    'es zählen nur App-Nutzer: Konto ohne App-Nutzung (auch mit gleicher E-Mail-Adresse) und Unbekannte → kein Mitglied');
+  check(find({ name: 'Max Lang', vorname: 'Max', nachname: 'Lang', email: 'alt@beispiel.de' })?.email === 'neu@beispiel.de',
+    'zwei Konten gleichen Namens (altes und neues): das, das die App nutzt – auch wenn im Verzeichnis die alte Adresse steht');
+  check(ein.memberForAddress({ name: 'Max Lang', vorname: 'Max', nachname: 'Lang', email: '' }, memberMap([{ email: 'a@beispiel.de', name: 'Max Lang', appNutzer: true }, { email: 'b@beispiel.de', name: 'Max Lang', appNutzer: true }])) === null,
+    'nutzen beide die App: lieber keins als das falsche');
+  check(find({ name: 'Müller, Peter', vorname: 'Peter', nachname: 'Müller', email: '' })?.email === 'hp@beispiel.de' && find({ name: 'Hans Müller', vorname: 'Hans', nachname: 'Müller', email: '' })?.email === 'h@beispiel.de',
+    'Vor- und Nachname reichen: Reihenfolge und zweiter Vorname egal; der genaue Name hat Vorrang');
+  check(find({ name: 'Igor Igel', vorname: 'Igor', nachname: 'Igel', email: '' }) === null && find({ name: 'Igor Müller', vorname: 'Igor', nachname: 'Müller', email: '' }) === null
+    && find({ name: 'Hans Müller-Lüdenscheidt', vorname: 'Hans', nachname: 'Müller-Lüdenscheidt', email: '' }) === null,
+    'Initialen, Kneipname („v/o …“) und ein anderer Doppelname passen nicht');
   const gerd = { name: 'Dr. Gerd Hoffmann', vorname: 'Gerd', nachname: 'Hoffmann', email: 'gerd.hoffmann@example.org', mobil: '' };
   const inv = ein.einladungsMail(gerd, { name: 'Jörg Müßig', email: me.email });
   const invBody = decodeURIComponent(inv.href.split('body=')[1]);
@@ -1239,9 +1259,16 @@ async function run() {
     '„Andere, Anna“, Hausnummer und PLZ/Ort richtig gelesen', JSON.stringify(annaA));
   check(adr?.items.length === 2 && !adr.items.some((x) => x.nachname === 'Alt'), 'nur das eingetragene Blatt (nicht „Verstorbene“)');
   check(annaA?.extras.some((x) => x.label === 'IBAN'), 'nicht zugeordnete Spalten bleiben sichtbar (darum die Warnung in der Prüfung)');
+  // Ein zweites, ungenutztes Konto gleichen Namens (etwa ein altes) stört die Zuordnung nicht (E58)
+  fake.state.directory.push({ resourceName: 'people/223', names: [{ displayName: 'Anna Andere' }], emailAddresses: [{ value: 'anna.alt@beispiel.de' }], photos: [] });
+  b2.invalidate('directory');
   const mem2 = await step('listMembers (Zuordnung über den Namen)', () => b2.listMembers());
   const annaM = mem2?.find((m) => m.email === ANNA);
-  check(annaM?.wohnort === 'Braunschweig' && annaM?.kneipname === 'Annabella', 'private E-Mail im Verzeichnis: Zuordnung über den eindeutigen Namen (eigenes Profil hat Vorrang)', JSON.stringify(annaM));
+  const annaAlt = mem2?.find((m) => m.email === 'anna.alt@beispiel.de');
+  check(annaM?.appNutzer && annaM?.wohnort === 'Braunschweig' && annaM?.kneipname === 'Annabella', 'private E-Mail im Verzeichnis: Zuordnung über den eindeutigen Namen (eigenes Profil hat Vorrang)', JSON.stringify(annaM));
+  check(annaAlt && !annaAlt.appNutzer && !annaAlt.wohnort && !annaAlt.kneipname, 'zweites Konto „Anna Andere“ ohne App-Nutzung: die Zuordnung bekommt die Anna, die die App nutzt', JSON.stringify(annaAlt));
+  fake.state.directory.pop();
+  b2.invalidate('directory');
   Object.assign(config, savedCfg);
 
   /* ---------------------------------------------------------------- Private Konfiguration (E43) */

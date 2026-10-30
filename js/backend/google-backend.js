@@ -295,6 +295,8 @@ export class GoogleBackend {
       const prev = visNewest.get(owner.email);
       if (!prev || String(f.modifiedTime) > String(prev.f.modifiedTime)) visNewest.set(owner.email, { f, owner });
     }
+    // Wer die App nutzt: hat eine Sichtbarkeits-Datei (man selbst immer – sonst säße man nicht in der App)
+    const nutztApp = (email) => visNewest.has(email) || email === this.myEmail;
     const hidden = new Set((config.ausgeblendeteKonten || []).map((e) => String(e).toLowerCase()));
     for (const [email, { f }] of visNewest) if (email !== this.myEmail && !visibilityOf(f)) hidden.add(email);
     const map = new Map();
@@ -324,17 +326,23 @@ export class GoogleBackend {
       if (!a.email || hidden.has(a.email)) continue;
       if (!this.isWorkspace || map.has(a.email)) enrich(get(a.email), a);
     }
-    // Steht im Verzeichnis eine andere (z. B. private) E-Mail-Adresse: über den Namen zuordnen –
-    // nur bei genau einem Treffer, lieber keiner als der falsche
+    // Steht im Verzeichnis eine andere (z. B. private) E-Mail-Adresse: über den Namen zuordnen – nur bei genau
+    // einem Treffer, lieber keiner als der falsche. Heißen mehrere Konten gleich (etwa ein altes und ein neues),
+    // zählt das, das die App nutzt (E58)
     if (this.isWorkspace) {
       const free = addrItems.filter((a) => !usedEntries.has(a) && !(a.email && map.has(a.email)));
       const sameName = new Map();
       for (const m of map.values()) {
         const k = nameKey(m.name);
-        if (k) sameName.set(k, (sameName.get(k) || 0) + 1);
+        if (k) sameName.set(k, [...(sameName.get(k) || []), m]);
       }
+      const eindeutig = (m) => {
+        const gleiche = sameName.get(nameKey(m.name)) || [];
+        const nutzer = gleiche.length > 1 ? gleiche.filter((x) => nutztApp(x.email)) : gleiche;
+        return nutzer.length === 1 && nutzer[0] === m;
+      };
       for (const m of map.values()) {
-        if (matched.has(m.email) || !m.name || sameName.get(nameKey(m.name)) > 1) continue;
+        if (matched.has(m.email) || !m.name || !eindeutig(m)) continue;
         const { entry } = findOwnAddress(free, { name: m.name });
         if (!entry) continue;
         enrich(m, entry);
@@ -372,7 +380,7 @@ export class GoogleBackend {
     const me = get(this.myEmail);
     me.name = me.name || this.user.name;
     me.photo = me.photo || this.user.photo;
-    return sortMembers([...map.values()].map((m) => ({ ...m, name: m.name || m.email, appNutzer: visNewest.has(m.email) })));
+    return sortMembers([...map.values()].map((m) => ({ ...m, name: m.name || m.email, appNutzer: nutztApp(m.email) })));
   }
 
   async getMember(email) {

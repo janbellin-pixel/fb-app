@@ -113,7 +113,7 @@ export default async function home(ctx) {
     setHtml(q('#h-birthdays'), html`
       ${sectionTitle('Nächste Geburtstage', { href: '#/adressen', label: 'Adressverzeichnis' })}
       <div class="card">${next.map(({ a, nb }) => {
-        // Mit App-Konto (über E-Mail-Adresse oder Namen) zum Profil, sonst zur Einladung in die App (E58)
+        // Wer die App nutzt (über E-Mail-Adresse oder Vor- und Nachnamen) → Profil, sonst Einladung in die App (E58)
         const m = memberForAddress(a, members);
         const when = nb.days === 0 ? 'heute' : relDay(nb.date);
         return html`<a class="birthday ${nb.days === 0 ? 'today' : ''}" href="${m ? `#/mitglied/${encodeURIComponent(m.email)}` : `#/einladen/${encodeURIComponent(a.id)}`}">

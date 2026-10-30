@@ -1,9 +1,10 @@
-// Einladung in die App (E58): Wer im Adressverzeichnis steht, aber kein App-Konto hat, lässt sich von den
-// Geburtstagen aus einladen – mit einer vorbereiteten E-Mail (mailto) oder telefonisch. Die App schreibt dabei
-// nichts; Konten legt der Vorstand an, Zugangsdaten gibt es auf Anfrage an config.zugangsdaten.
-// Hier auch die Zuordnung Adresseintrag → Mitglied: über die E-Mail-Adresse, sonst über den Namen.
+// Einladung in die App (E58): Wer im Adressverzeichnis steht, aber die App noch nicht nutzt, lässt sich von den
+// Geburtstagen und aus dem Adressverzeichnis einladen – mit einer vorbereiteten E-Mail (mailto) oder telefonisch.
+// Die App schreibt dabei nichts; Konten legt der Vorstand an, Zugangsdaten gibt es auf Anfrage an config.zugangsdaten.
+// Hier auch die Zuordnung Adresseintrag → Mitglied: nur unter denen, die die App nutzen (appNutzer, E40), über die
+// E-Mail-Adresse, sonst über Vor- und Nachnamen.
 import { config, appBaseUrl } from '../config.js';
-import { mailEnc, nameKey } from './adressabgleich.js';
+import { mailEnc, nameKey, nameParts } from './adressabgleich.js';
 import { firstName } from './text.js';
 
 /** Postfach, bei dem neue Mitglieder ihre Zugangsdaten anfragen (Einrichtung → Optionen); leer = beim Absender */
@@ -13,27 +14,42 @@ export function zugangsdatenEmail() {
 
 /**
  * Nachschlagen für viele Einträge des Adressverzeichnisses: members ist die Map E-Mail → Mitglied (memberMap()).
- * Gefunden wird über die E-Mail-Adresse, sonst über den Namen ohne Titel (nameKey) – nur bei genau einem
- * Mitglied dieses Namens, lieber keins als das falsche. Steht im Verzeichnis eine private Adresse, zählt der Name.
+ * Es zählen nur Mitglieder, die die App nutzen (appNutzer) – wer nur ein Konto hat, bekommt die Einladung; so stört
+ * auch ein zweites, ungenutztes Konto gleichen Namens nicht. Gefunden wird über die E-Mail-Adresse, sonst über den
+ * Namen: erst genau (nameKey, ohne Titel), dann über Vor- und Nachnamen (der Nachname und ein Vorname des Eintrags
+ * kommen im Kontonamen vor – Reihenfolge und zweite Vornamen sind egal, Initialen reichen nicht). Immer nur bei
+ * genau einem Treffer, lieber keins als das falsche.
  */
 export function memberFinder(members) {
-  const byName = new Map();
-  for (const m of members?.values?.() || []) {
+  const nutzer = [...(members?.values?.() || [])].filter((m) => m?.appNutzer);
+  const genau = new Map();
+  for (const m of nutzer) {
     const k = nameKey(m.name);
-    if (k) byName.set(k, byName.has(k) ? null : m); // null = mehrdeutig
+    if (k) genau.set(k, genau.has(k) ? null : m); // null = mehrdeutig
   }
+  const teile = nutzer.map((m) => ({ m, set: new Set(nameParts(m.name)) }));
   return (a) => {
-    if (!a || !members?.size) return null;
+    if (!a || !nutzer.length) return null;
     const mail = String(a.email || '').toLowerCase().trim();
-    if (mail && members.has(mail)) return members.get(mail);
+    const direkt = mail ? members.get(mail) : null;
+    if (direkt?.appNutzer) return direkt;
     for (const k of [nameKey(a.name), nameKey(`${a.vorname || ''} ${a.nachname || ''}`)]) {
-      if (k && byName.has(k)) return byName.get(k);
+      if (k && genau.has(k)) return genau.get(k);
     }
-    return null;
+    let nach = nameParts(a.nachname);
+    let vor = nameParts(a.vorname);
+    if (!nach.length || !vor.length) {
+      const t = nameParts(a.name);
+      nach = t.slice(-1);
+      vor = t.slice(0, -1);
+    }
+    if (!nach.length || !vor.length) return null;
+    const treffer = teile.filter(({ set }) => nach.every((t) => set.has(t)) && vor.some((t) => set.has(t)));
+    return treffer.length === 1 ? treffer[0].m : null;
   };
 }
 
-/** Mitglied (App-Konto) zu einem Eintrag des Adressverzeichnisses – oder null, wenn es keins gibt */
+/** Mitglied, das die App nutzt, zu einem Eintrag des Adressverzeichnisses – oder null, wenn es keins gibt */
 export const memberForAddress = (a, members) => memberFinder(members)(a);
 
 /** Ansprache: Vorname ohne Titel, sonst der ganze Name */

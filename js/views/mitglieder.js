@@ -311,23 +311,29 @@ export async function einladen(ctx) {
       html`<p><a class="btn btn-sm" href="#/adressen">${icon('book', 'icon-sm')}Zum Adressverzeichnis</a></p>`)}</div>`);
     return;
   }
-  const members = memberMap(await app.load('members', () => b.listMembers(), () => {}, { maxAge: 10 * 60_000 }).catch(() => []));
+  // Wer die App nutzt, steht in der Mitgliederliste (Sichtbarkeits-Dateien, E40). Lässt sie sich gerade nicht laden
+  // (und es gibt keinen gespeicherten Stand), weiß die App nicht, wer die App nutzt – dann lieber ein Hinweis als
+  // „noch nicht registriert“
+  let members = null;
+  let ladeFehler = null;
+  try {
+    members = memberMap(await app.load('members', () => b.listMembers(), (list) => { members = memberMap(list); }, { maxAge: 10 * 60_000 }));
+  } catch (err) {
+    ladeFehler = err;
+  }
   if (!ctx.alive()) return;
-  const m = memberForAddress(a, members);
+  const m = members && memberForAddress(a, members);
   if (m) {
     app.navigate(`#/mitglied/${encodeURIComponent(m.email)}`, { replace: true });
     return;
   }
   const suche = html`<a class="btn btn-sm" href="#/adressen?q=${encodeURIComponent(a.nachname || a.name)}">${icon('book', 'icon-sm')}Im Adressverzeichnis</a>`;
-  // Ohne Google-Verzeichnis (Berechtigung fehlt oder Fehler) weiß die App nicht, wer ein Konto hat –
-  // dann lieber kein „noch nicht registriert“, sondern der Hinweis wie unter „Mitglieder“
-  const info = b.directoryInfo;
-  if (app.mode === 'google' && info && !info.ok && info.reason !== 'no-workspace') {
-    setHtml(c, html`<div style="margin-top:1rem">${notice('gold', `Ob ${a.name} schon ein App-Konto hat, lässt sich gerade nicht prüfen`,
-      info.reason === 'scope' ? 'Der App fehlt deine Erlaubnis für das Google-Verzeichnis. Ein Klick genügt – bei Google bitte alle Häkchen setzen.' : `Das Google-Verzeichnis ist nicht erreichbar. Google meldet: „${info.error}“.`,
-      html`<p class="row wrap" style="margin:.5rem 0 0;gap:.5rem">${info.reason === 'scope' ? html`<button class="btn btn-sm btn-primary" data-action="grant-directory">${icon('key', 'icon-sm')}Berechtigung erteilen</button>` : ''}${suche}</p>`)}</div>`);
+  if (!members) {
+    setHtml(c, html`<div style="margin-top:1rem">${notice('gold', `Ob ${a.name} die App schon nutzt, lässt sich gerade nicht prüfen`,
+      `Die Mitgliederliste konnte nicht geladen werden: ${ladeFehler?.message || ladeFehler}`,
+      html`<p class="row wrap" style="margin:.5rem 0 0;gap:.5rem"><button class="btn btn-sm btn-primary" data-action="retry">${icon('refresh', 'icon-sm')}Noch einmal versuchen</button>${suche}</p>`)}</div>`);
     c.addEventListener('click', (e) => {
-      if (e.target.closest('[data-action=grant-directory]')) auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash });
+      if (e.target.closest('[data-action=retry]')) app.refresh();
     });
     return;
   }

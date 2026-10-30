@@ -39,6 +39,11 @@ export function adressaenderungEmail() {
 const TITEL = /\b(prof|dr|dipl|ing|med|jur|rer|nat|phil|habil|mult|h\.?\s?c)\b\.?/gi;
 /** Vergleichsschlüssel für Namen: ohne Titel, Leer- und Sonderzeichen */
 export const nameKey = (s) => norm(String(s || '').replace(TITEL, ' ')).replace(/[^a-z]/g, '');
+/**
+ * Namensteile für den Vergleich über Vor- und Nachnamen (Einladung in die App, E58): ohne Titel, Kneipname
+ * („v/o …“) und Klammern, klein und ohne Umlaute; Initialen wie „M.“ zählen nicht
+ */
+export const nameParts = (s) => norm(String(s || '').replace(/\(.*?\)|v\/o.*$/gi, ' ').replace(TITEL, ' ')).split(/[^a-z]+/).filter((p) => p.length > 1);
 
 /**
  * Eintrag des Mitglieds im Adressverzeichnis: zuerst über die E-Mail-Adresse des Google-Kontos,

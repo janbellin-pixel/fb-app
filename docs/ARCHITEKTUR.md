@@ -45,7 +45,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | `js/lib/datenschutz.js` | Wortlaut der Datenschutzerklärung und der Einwilligungen (Muster), Fassung, Prüfsumme |
 | `js/lib/einwilligungsliste.js` | Aufbau und Abgleich der vertraulichen Sammeltabelle |
 | `js/lib/adressabgleich.js` | Abgleich „Mein Profil“ ↔ Adressverzeichnis, E-Mail-Entwurf für Adressänderungen |
-| `js/lib/einladung.js` | Zuordnung Adresseintrag → Mitglied (E-Mail-Adresse, sonst Name), vorbereitete Einladung in die App für Personen ohne Konto (E58) |
+| `js/lib/einladung.js` | Zuordnung Adresseintrag → Mitglied (nur App-Nutzer; E-Mail-Adresse, sonst Vor- und Nachname), vorbereitete Einladung in die App für alle, die sie noch nicht nutzen (E58) |
 | `AGENTS.md`, `CLAUDE.md` | verbindliche Kurzregeln für KI-Assistenten |
 | `js/lib/*.js` | weitere Hilfen: Datum, Text/Markdown, Export (ICS/vCard), Speicher, Schriftgröße, Einrichtung |
 | `vendor/` | PDF.js 6.3 (Apache 2.0), StPageFlip 2.0.7 (MIT, lokal korrigiert: E49), qrcode-generator 2.0.4 (MIT) |
