@@ -1,5 +1,5 @@
 // Bausteine, die auf mehreren Seiten vorkommen
-import { html, icon, avatarStack, avatar } from '../ui.js';
+import { html, icon, avatarStack, avatar, notice, describeError } from '../ui.js';
 import { categoryInfo, config } from '../config.js';
 import { summarizeAttendees } from '../backend/common.js';
 import { toDate, fWeekdayShort, fMonthShort, fEventTime, relTime, fDateShort } from '../lib/dates.js';
@@ -164,4 +164,32 @@ export function initForumSeen(threads) {
 
 export function appName() {
   return config.appName;
+}
+
+const CHAT_HOME = 'https://chat.google.com/';
+/** Google Chat in der Admin-Konsole (Chateinladungen, Chat-Apps) – Adresse aus der Google-Hilfe „Chateinladungen automatisch annehmen“ */
+const ADMIN_CHAT = 'https://admin.google.com/ac/appsettings/216932279217';
+
+/**
+ * Senden im Chat abgelehnt (403): Meist ist die Unterhaltung bei Google noch eine Nachrichtenanfrage bzw. Einladung –
+ * lesen geht, antworten erst nach dem Annehmen in Google Chat. Das erklärt ein Hinweis mit dem Grund von Google statt
+ * der allgemeinen Meldung „Kein Zugriff … Freigabe“: im Chat über dem Eingabefeld, im Profil unter „Nachricht“ und
+ * „Bierjunge“ (E30, E45). Der Knopf führt direkt dorthin, wo man annehmen kann: zur Unterhaltung bei Google (url, nur
+ * https), sonst zu Google Chat; bei gesperrten Chat-Apps für Admins zur Einstellung in der Admin-Konsole. Andere Fehler: null.
+ */
+export function sendRefusal(err, { url = '', admin = false } = {}) {
+  if (err?.status !== 403 || err.code || describeError(err).relogin) return null;
+  const google = err.message ? html`<br><span class="muted">Google: „${err.message}“</span>` : '';
+  const knopf = (href, text) => html`<p style="margin:.625rem 0 0"><a class="btn btn-sm" href="${href}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}${text}</a></p>`;
+  if (/chat app|allowlist/i.test(err.message || '')) {
+    return notice('gold', 'Chat-Apps nicht erlaubt',
+      html`Die Admins müssen in der Google-Admin-Konsole Chat-Apps erlauben: Apps › Google Workspace › Google Chat › Chat-Apps › „Nutzern erlauben, Chat-Apps zu installieren“.${google}`,
+      admin ? knopf(ADMIN_CHAT, 'Einstellung in der Admin-Konsole') : '');
+  }
+  const direkt = /^https:\/\//.test(url);
+  return notice('gold', 'Antworten noch nicht möglich',
+    html`Vermutlich eine noch nicht angenommene <b>Nachrichtenanfrage</b> (jemand hat dir zuerst geschrieben) oder Einladung. ${direkt
+      ? 'Öffne die Unterhaltung in Google Chat und nimm die Anfrage dort an.'
+      : html`Annehmen in Google Chat: <b>Neuer Chat › Nachrichtenanfragen</b>.`} Danach klappt es auch hier.${google}`,
+    knopf(direkt ? url : CHAT_HOME, direkt ? 'In Google Chat öffnen' : 'Google Chat öffnen'));
 }

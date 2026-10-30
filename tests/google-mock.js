@@ -602,6 +602,17 @@ async function run() {
   const denied = await b.sendMessage('spaces/AAA', 'geht nicht').then(() => null).catch((e) => e);
   fake.state.chatSendDenied = '';
   check(denied?.status === 403 && !denied.code && /install this Chat app/.test(denied.message), 'Senden von Google abgelehnt: Grund kommt für die Meldung im Chat an', JSON.stringify([denied?.status, denied?.code, denied?.message]));
+  // Hinweis statt „Kein Zugriff“ (E30/E45): im Chat über dem Eingabefeld, im Profil unter „Nachricht“ und „Bierjunge“
+  const { sendRefusal } = await import('../js/views/parts.js');
+  const { toHtmlString } = await import('../js/html.js');
+  const hinweis = (e, o) => toHtmlString(sendRefusal(e, o) || '');
+  const anfrage = hinweis({ status: 403, message: 'The caller is not a member of the space.' }, { url: 'https://chat.google.com/dm/DM9?cls=11' });
+  check(/Antworten noch nicht möglich/.test(anfrage) && /Nachrichtenanfrage/.test(anfrage) && /not a member of the space/.test(anfrage) && /href="https:\/\/chat\.google\.com\/dm\/DM9\?cls=11"/.test(anfrage), 'Senden abgelehnt: Hinweis zur Nachrichtenanfrage mit Grund von Google und Knopf zur Unterhaltung', anfrage);
+  const ohneLink = hinweis({ status: 403, message: 'x' }, { url: 'javascript:alert(1)' });
+  check(/href="https:\/\/chat\.google\.com\/"/.test(ohneLink) && !/javascript:/.test(ohneLink), 'ohne (oder mit unbrauchbarer) Adresse: Knopf zu Google Chat', ohneLink);
+  const apps = hinweis(denied, { admin: true });
+  check(/Chat-Apps nicht erlaubt/.test(apps) && /install this Chat app/.test(apps) && /href="https:\/\/admin\.google\.com\//.test(apps) && !/admin\.google\.com/.test(hinweis(denied)), 'Chat-Apps gesperrt: eigener Hinweis, Einstellung nur für Admins verlinkt', apps);
+  check(sendRefusal({ status: 403, message: 'Request had insufficient authentication scopes.' }) === null && sendRefusal({ status: 404, message: 'x' }) === null && sendRefusal(Object.assign(new Error('Schreibschutz'), { status: 403, code: 'write_blocked' })) === null, 'kein Hinweis bei fehlender Berechtigung, 404 oder Schreibschutz');
   // Direktnachricht, die jemand anderes angefangen hat – ohne Zustimmung aus E30 sind die Mitglieder nicht lesbar
   fake.state.spaces.push({ name: 'spaces/DM9', spaceType: 'DIRECT_MESSAGE', lastActiveTime: new Date().toISOString(), spaceUri: 'https://chat.google.com/dm/DM9?cls=11' });
   fake.state.chatMembers['spaces/DM9'] = ['111', '222'];

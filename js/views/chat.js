@@ -10,6 +10,7 @@ import * as auth from '../auth.js';
 import { local } from '../lib/store.js';
 import { isUnreadChat, markChatRead, onChange, GOOGLE_CHAT_APP, notificationsWanted, enableNotifications } from '../lib/hinweise.js';
 import { inGruppe } from '../lib/gruppen.js';
+import { sendRefusal } from './parts.js';
 
 const CHAT_HOME = 'https://chat.google.com/';
 /** Knöpfe „… kontaktieren“ (E45): Schlüssel in config.vorstand und Name der Gruppe */
@@ -329,20 +330,6 @@ function dayLabel(d) {
   return fDateNoYear(d);
 }
 
-/**
- * Senden abgelehnt (403): Meist ist die Unterhaltung bei Google noch eine Nachrichtenanfrage bzw. Einladung –
- * lesen geht, antworten erst nach dem Annehmen in Google Chat. Das erklärt ein Hinweis über dem Eingabefeld
- * (mit dem Grund von Google) statt der allgemeinen Meldung „Freigabe fehlt“. Andere Fehler: null.
- */
-function sendRefusal(err) {
-  if (err?.status !== 403 || err.code || describeError(err).relogin) return null;
-  const google = err.message ? html`<br><span class="muted">Google: „${err.message}“</span>` : '';
-  if (/chat app|allowlist/i.test(err.message || '')) {
-    return notice('gold', 'Chat-Apps nicht erlaubt', html`Die Admins müssen in der Google-Admin-Konsole Chat-Apps erlauben (Apps › Google Workspace › Google Chat › Chat-Apps).${google}`);
-  }
-  return notice('gold', 'Antworten noch nicht möglich', html`Vermutlich eine noch nicht angenommene <b>Nachrichtenanfrage</b> oder Einladung. Annehmen in Google Chat: <b>Neuer Chat › Nachrichtenanfragen</b>. Danach klappt es auch hier.${google}`);
-}
-
 export async function room(ctx) {
   const { el, app, params, query } = ctx;
   const b = app.backend;
@@ -485,7 +472,8 @@ export async function room(ctx) {
       markChatRead(spaceId, msg.created);
       setTimeout(poll, 4500);
     } catch (err) {
-      const hint = sendRefusal(err);
+      // Knopf im Hinweis führt zur Unterhaltung bei Google (Adresse wie „Google Chat“ oben), Admins bei Chat-Apps zur Einstellung
+      const hint = sendRefusal(err, { url: el.querySelector('#open-ext')?.href || '', admin: app.isAdmin() });
       if (!hint) showError(err);
       else {
         console.error(err);

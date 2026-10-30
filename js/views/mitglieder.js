@@ -5,6 +5,7 @@ import { config, statusGroup } from '../config.js';
 import { local } from '../lib/store.js';
 import * as auth from '../auth.js';
 import { gesperrt } from '../lib/gruppen.js';
+import { sendRefusal } from './parts.js';
 
 const BIERJUNGE = 'Bierjunge!';
 
@@ -193,6 +194,7 @@ export async function detail(ctx) {
           ${m.telefon ? html`<a class="btn" href="tel:${m.telefon.replace(/[^\d+]/g, '')}">${icon('phone', 'icon-sm')}Anrufen</a>` : ''}
           ${isMe ? html`<a class="btn btn-primary" href="#/profil">${icon('edit', 'icon-sm')}Profil bearbeiten</a>` : ''}
         </div>
+        <div id="chat-hint" class="hidden" style="margin-top:.75rem"></div>
       </div>
     </div>
     ${m.angebot ? html`
@@ -222,6 +224,22 @@ export async function detail(ctx) {
 
   const grant = () => auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: location.hash });
 
+  const hintBox = c.querySelector('#chat-hint');
+
+  /**
+   * Google lehnt das Senden ab (403): Hinweis wie im Chat – meist eine noch nicht angenommene Nachrichtenanfrage,
+   * weil die andere Person zuerst geschrieben hat – statt „Kein Zugriff … Admins können ihn freigeben“ (E30, E45).
+   * url: Unterhaltung bei Google, falls schon bekannt. Andere Fehler: false (dann die übliche Meldung).
+   */
+  function absage(err, url = '') {
+    const hint = sendRefusal(err, { url, admin: app.isAdmin() });
+    if (!hint) return false;
+    console.error(err);
+    setHtml(hintBox, hint);
+    hintBox.classList.remove('hidden');
+    return true;
+  }
+
   // „Bierjunge!“ als Direktnachricht – ohne in den Chat zu wechseln
   async function bierjunge(btn) {
     if (!b.chatCanCreate()) {
@@ -229,17 +247,19 @@ export async function detail(ctx) {
       return;
     }
     btn.disabled = true;
+    let space = null;
     try {
-      const space = await b.openDirectChat(m.email, m.name);
+      space = await b.openDirectChat(m.email, m.name);
       await b.sendMessage(space.id, BIERJUNGE, { art: 'bierjunge' }); // Art für den Chat-Hinweis (E51)
       app.forget('chat-spaces').catch(() => {});
+      hintBox.classList.add('hidden');
       prost(btn);
       toast(`Bierjunge an ${firstName(m.name) || m.name} geschickt`);
       setTimeout(() => { btn.disabled = false; }, 5000); // nicht aus Versehen gleich mehrmals
     } catch (err) {
       btn.disabled = false;
       if (err.code === 'chat_scope') grant();
-      else showError(err, 'Bierjunge nicht verschickt');
+      else if (!absage(err, space?.url)) showError(err, 'Bierjunge nicht verschickt');
     }
   }
 
@@ -260,7 +280,7 @@ export async function detail(ctx) {
         grant();
         return;
       }
-      showError(err);
+      if (!absage(err)) showError(err);
     }
   });
 }
