@@ -11,6 +11,7 @@ import { newId, calendarEventId, firstName } from '../lib/text.js';
 import { addDays, isoDate, isoLocal } from '../lib/dates.js';
 import { resizeImage } from '../ui.js';
 import { buildRecord, dsConfig, textPruefsumme } from '../lib/datenschutz.js';
+import { anhangPruefen, anhaengeAus } from './common.js';
 
 const STATE_KEY = 'fb.demo.v1';
 const wait = (ms = 160) => new Promise((r) => setTimeout(r, ms + Math.random() * 140));
@@ -275,10 +276,10 @@ export class DemoBackend {
     return true; // der Demo-Nutzer ist Admin
   }
 
-  newsFields({ title, text, category, pinned, image }) {
+  newsFields({ title, text, category, pinned, image, anhaenge }) {
     const t = String(title || '').trim().slice(0, 140);
     if (!t) throw new Error('Bitte einen Titel eingeben.');
-    return { title: t, text: String(text || '').trim().slice(0, 4000), category: String(category || '').slice(0, 60), pinned: !!pinned, image: image || '' };
+    return { title: t, text: String(text || '').trim().slice(0, 4000), category: String(category || '').slice(0, 60), pinned: !!pinned, image: image || '', anhaenge: anhaengeAus(anhaenge) };
   }
 
   async createNews(fields) {
@@ -322,6 +323,33 @@ export class DemoBackend {
     return ref || '';
   }
 
+  /* ---------------------------------------------------------- Anhänge (E56): in der Demo nur in dieser Sitzung im Speicher */
+  async uploadAnhang(file) {
+    await wait(300);
+    const mime = anhangPruefen(file);
+    const id = newId('a');
+    this.anhangBlobs = this.anhangBlobs || new Map();
+    this.anhangBlobs.set(id, file);
+    return { id, name: String(file.name || 'Anhang').slice(0, 100), mime, groesse: file.size };
+  }
+
+  async trashOwnAnhaenge() {}
+
+  async loadAnhang(a) {
+    const f = this.anhangBlobs?.get(a.id);
+    if (!f) throw new Error('In der Demo sind Anhänge nur in der Sitzung da, in der sie angehängt wurden.');
+    return f.arrayBuffer();
+  }
+
+  async anhangUrl(a) {
+    const f = this.anhangBlobs?.get(a.id);
+    return f ? URL.createObjectURL(f) : '';
+  }
+
+  anhangOpenUrl() {
+    return '';
+  }
+
   /* ---------------------------------------------------------- Forum */
   forumRows() {
     const f = this.bucket('forum', { threads: [], posts: [], edits: {}, deletedPosts: [], flags: {} });
@@ -336,6 +364,7 @@ export class DemoBackend {
     const posts = [...base.posts, ...f.posts].map((p) => ({
       id: p.id, themaId: p.threadId, autorEmail: p.authorEmail, autorName: p.authorName, erstellt: p.created,
       text: f.edits[p.id]?.text ?? p.text, bearbeitet: f.edits[p.id]?.edited || p.edited || '',
+      anhaenge: f.edits[p.id]?.anhaenge ?? p.anhaenge ?? [],
       geloescht: f.deletedPosts.includes(p.id) ? 'ja' : '',
     }));
     return { threads, posts };
@@ -359,31 +388,32 @@ export class DemoBackend {
     if (!p || p.autorEmail !== DEMO_ME_EMAIL) throw new Error('Nur eigene Beiträge können geändert werden.');
   }
 
-  async createThread({ category, title, text }) {
+  async createThread({ category, title, text, anhaenge = [] }) {
     await wait(350);
     const f = this.bucket('forum', { threads: [], posts: [], edits: {}, deletedPosts: [], flags: {} });
     const id = newId('t');
     const now = nowIso();
     f.threads.push({ id, category, title, authorEmail: DEMO_ME_EMAIL, authorName: this.user.name, created: now });
-    f.posts.push({ id: newId('p'), threadId: id, authorEmail: DEMO_ME_EMAIL, authorName: this.user.name, created: now, text });
+    f.posts.push({ id: newId('p'), threadId: id, authorEmail: DEMO_ME_EMAIL, authorName: this.user.name, created: now, text, anhaenge: anhaengeAus(anhaenge) });
     this.save();
     return id;
   }
 
-  async reply(threadId, text) {
+  async reply(threadId, text, anhaenge = []) {
     await wait(300);
     const f = this.bucket('forum', { threads: [], posts: [], edits: {}, deletedPosts: [], flags: {} });
-    f.posts.push({ id: newId('p'), threadId, authorEmail: DEMO_ME_EMAIL, authorName: this.user.name, created: nowIso(), text });
+    f.posts.push({ id: newId('p'), threadId, authorEmail: DEMO_ME_EMAIL, authorName: this.user.name, created: nowIso(), text, anhaenge: anhaengeAus(anhaenge) });
     this.save();
   }
 
-  async editPost(postId, text) {
+  async editPost(postId, text, anhaenge) {
     await wait(250);
     this.ownPost(postId);
     const f = this.bucket('forum', { threads: [], posts: [], edits: {}, deletedPosts: [], flags: {} });
     const own = f.posts.find((p) => p.id === postId);
-    if (own) own.text = text;
-    f.edits[postId] = { text, edited: nowIso() };
+    const liste = anhaenge === undefined ? (f.edits[postId]?.anhaenge ?? own?.anhaenge ?? []) : anhaengeAus(anhaenge);
+    if (own) Object.assign(own, { text, anhaenge: liste });
+    f.edits[postId] = { text, anhaenge: liste, edited: nowIso() };
     this.save();
   }
 

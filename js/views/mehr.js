@@ -178,7 +178,7 @@ export async function settings(ctx) {
   const renderPush = () => {
     const box = el.querySelector('#push-state');
     const stand = push.pushStand(me.email);
-    const themen = push.moeglicheThemen();
+    const themen = push.moeglicheThemen({ demo: app.mode === 'demo' });
     if (app.mode !== 'demo' && !push.pushEingerichtet()) {
       setHtml(box, html`<p class="small muted">Noch nicht eingerichtet.${app.isAdmin() ? html` Admins: <a href="#/einrichtung">Einrichtung</a> › Optionen › Push-Mitteilungen.` : ''}</p>`);
     } else if (push.pushNurInstalliert()) {

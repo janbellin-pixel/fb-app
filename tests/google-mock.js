@@ -1364,6 +1364,45 @@ async function run() {
   window.SpeechSynthesisUtterance = uttAlt;
 
   /* ---------------------------------------------------------------- Gesamtbilanz */
+  section('Anhänge an News und Forum (E56)');
+  const verstoesseVorher = fake.state.violations.length;
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a]);
+  const anhang = await step('uploadAnhang (News)', () => b.uploadAnhang(new File([pdfBytes], 'Protokoll.pdf', { type: 'application/pdf' }), { typ: 'news' }));
+  const anhangDatei = anhang ? fake.state.files.get(anhang.id) : null;
+  check(anhang?.name === 'Protokoll.pdf' && anhang.mime === 'application/pdf' && anhang.groesse === 9 && anhangDatei?.ownerEmail === me.email && anhangDatei.appProperties.fbTyp === 'anhang' && anhangDatei.mimeType === 'application/pdf' && anhangDatei.parents.length === 1,
+    'Anhang als eigene Datei im eigenen App-Ordner', JSON.stringify(anhang));
+  check(fake.state.permissions.some((p) => p.file === anhang?.id && ['domain', 'group'].includes(p.type) && p.role === 'reader'), 'Anhang für Mitglieder lesbar freigegeben');
+  const docx = await step('uploadAnhang (Forum, Typ aus der Endung)', () => b.uploadAnhang(new File(['x'], 'Satzung.docx', { type: '' }), { typ: 'forum' }));
+  check(docx?.mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && docx.groesse === 1, 'Office-Dokument ohne Browser-Typ: Typ aus der Endung', JSON.stringify(docx));
+  const exe = await b.uploadAnhang(new File(['x'], 'virus.exe', { type: 'application/x-msdownload' })).then(() => null).catch((e) => e.message);
+  const gross = await b.uploadAnhang(new File([new ArrayBuffer(16 * 1024 * 1024)], 'gross.pdf', { type: 'application/pdf' })).then(() => null).catch((e) => e.message);
+  check(/erlaubt sind/.test(exe || '') && /zu groß/.test(gross || ''), 'ausführbare und zu große Dateien werden abgelehnt', `${exe} | ${gross}`);
+  const fremd = fake.addFile({ id: 'fremd1234567', name: 'Fremd.pdf', mimeType: 'application/pdf', appProperties: { fbTyp: 'anhang' }, ownerEmail: ANNA, ownerName: 'Anna Andere' });
+  const fremdEintrag = { id: fremd.id, name: 'Fremd.pdf', mime: 'application/pdf', groesse: 5 };
+  const nidA = await step('createNews mit Anhängen', () => b.createNews({ title: 'Protokoll der Sitzung', text: 'Anbei.', category: 'Haus', anhaenge: [anhang, { id: 'x', name: '' }, fremdEintrag] }));
+  const newsA = (await b.listNews()).find((n) => n.id === nidA);
+  check(newsA?.anhaenge?.length === 2 && newsA.anhaenge[0].id === anhang.id && newsA.anhaenge[0].name === 'Protokoll.pdf' && newsA.anhaenge[1].id === fremd.id, 'News nennt die Anhänge – kaputte Einträge fallen weg', JSON.stringify(newsA?.anhaenge));
+  await step('updateNews ohne den eigenen Anhang', () => b.updateNews(nidA, { title: 'Protokoll der Sitzung', text: 'Ohne.', category: 'Haus', anhaenge: [fremdEintrag] }));
+  check(fake.state.files.get(anhang.id)?.trashed === true && !fremd.trashed, 'entfernter eigener Anhang im Papierkorb, der fremde unberührt');
+  await step('deleteNews mit fremdem Anhang', () => b.deleteNews(nidA));
+  check(!fremd.trashed && fake.state.violations.length === verstoesseVorher, 'Löschen der News lässt den fremden Anhang in Ruhe – kein Verstoß');
+  // Forum: Thema mit Anhang, Antwort mit Anhang, beim Bearbeiten entfernt, Textänderung lässt sie stehen
+  const tidA = await step('createThread mit Anhang', () => b.createThread({ category: 'Allgemeines', title: 'Satzung', text: 'Entwurf anbei', anhaenge: [docx] }));
+  const pdf2 = await step('uploadAnhang (Antwort)', () => b.uploadAnhang(new File([pdfBytes], 'Anmerkungen.pdf', { type: 'application/pdf' }), { typ: 'forum' }));
+  await step('reply mit Anhang', () => b.reply(tidA, 'Meine Anmerkungen', [pdf2]));
+  let forumA = await b.listForum();
+  const ersterA = forumA.posts.find((p) => p.id === tidA);
+  const antwortA = forumA.posts.find((p) => p.threadId === tidA && p.id !== tidA);
+  check(ersterA?.anhaenge?.[0]?.id === docx?.id && antwortA?.anhaenge?.[0]?.id === pdf2?.id && antwortA.anhaenge[0].name === 'Anmerkungen.pdf', 'Thema und Antwort nennen ihre Anhänge', JSON.stringify([ersterA?.anhaenge, antwortA?.anhaenge]));
+  await step('editPost ohne Anhang', () => b.editPost(antwortA.id, 'Zurückgezogen', []));
+  forumA = await b.listForum();
+  check(forumA.posts.find((p) => p.id === antwortA.id)?.anhaenge.length === 0 && fake.state.files.get(pdf2.id)?.trashed === true, 'beim Bearbeiten entfernter Anhang im Papierkorb');
+  await step('editPost nur Text', () => b.editPost(tidA, 'Entwurf anbei (überarbeitet)'));
+  forumA = await b.listForum();
+  check(forumA.posts.find((p) => p.id === tidA)?.anhaenge?.[0]?.id === docx?.id && !fake.state.files.get(docx.id)?.trashed, 'Textänderung lässt die Anhänge stehen');
+  await step('deleteThread mit Anhang', () => b.deleteThread(tidA));
+  check(fake.state.files.get(docx.id)?.trashed === true, 'gelöschtes Thema: eigener Anhang im Papierkorb');
+
   section('Gesamtbilanz');
   const ownWrites = fake.state.writes.filter((w) => w.own).length;
   check(fake.state.violations.length === 0, `kein einziger Schreibzugriff auf fremde oder gemeinsame Daten (${ownWrites} erlaubte eigene Schreibvorgänge)`, fake.state.violations.join(' | '));

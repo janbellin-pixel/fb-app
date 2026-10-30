@@ -34,6 +34,7 @@ import {
   buildForum, newsFromRows, sortNews, sortMembers, isSongFile, songFromFile, sortSongs, ZEITUNGEN,
 } from './common.js';
 import { htmlToText } from '../lib/text.js';
+import { anhangPruefen, anhaengeAus } from './common.js';
 import { isoLocal } from '../lib/dates.js';
 import { resizeImage } from '../ui.js';
 import { findOwnAddress, nameKey } from '../lib/adressabgleich.js';
@@ -54,7 +55,7 @@ const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
 const VISIBILITY_FILE = 'Sichtbarkeit (Mitglieder-App).json';
 const PAPIERPOST_FILE = 'Papierpost (Mitglieder-App).json';
 const PUSH_FILE = 'Push-Mitteilungen (Mitglieder-App).json';
-const PUSH_THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen'];
+const PUSH_THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen', 'dszeitung'];
 const CHAT_HINWEIS_FILE = 'Chat-Hinweise (Mitglieder-App).json';
 const CHAT_HINWEIS_ARTEN = ['direkt', 'gruppe', 'bierjunge'];
 const CHAT_HINWEIS_FRIST = 3600; // Sekunden: ältere Einträge fallen beim nächsten Schreiben weg
@@ -1049,6 +1050,7 @@ export class GoogleBackend {
         title,
         text: clip(d.text, MAX_NEWS_LENGTH),
         image: clip(d.bild, 300),
+        anhaenge: anhaengeAus(d.anhaenge),
         category: clip(d.kategorie, 60),
         pinned: !!d.angeheftet,
         authorEmail: owner.email,
@@ -1063,12 +1065,12 @@ export class GoogleBackend {
     return isNewsAuthorEmail(this.myEmail);
   }
 
-  newsData({ title, text, category, pinned, image }) {
+  newsData({ title, text, category, pinned, image, anhaenge }) {
     const titel = clip(title, 140);
     if (!titel) throw new Error('Bitte einen Titel eingeben.');
     const t = String(text || '').trim();
     if (t.length > MAX_NEWS_LENGTH) throw new Error(`Der Text ist zu lang (höchstens ${MAX_NEWS_LENGTH} Zeichen).`);
-    return { titel, text: t, kategorie: clip(category, 60), angeheftet: !!pinned, bild: clip(image, 300) };
+    return { titel, text: t, kategorie: clip(category, 60), angeheftet: !!pinned, bild: clip(image, 300), anhaenge: anhaengeAus(anhaenge) };
   }
 
   /** News schreiben: eigene Datei im eigenen App-Ordner, für Mitglieder nur lesbar (wie im Forum) */
@@ -1088,6 +1090,7 @@ export class GoogleBackend {
     await drive.updateFile(id, { description: JSON.stringify(data), name: `News – ${clip(data.titel, 80)}.json`, appProperties: { fbKategorie: data.kategorie } });
     // ein ersetztes eigenes Bild aufräumen
     if (prev.bild && prev.bild !== data.bild) await this.trashOwnNewsImage(prev.bild);
+    await this.trashOwnAnhaenge(anhaengeAus(prev.anhaenge).filter((a) => !data.anhaenge.some((n) => n.id === a.id)));
     this.invalidate('appNews');
   }
 
@@ -1096,6 +1099,7 @@ export class GoogleBackend {
     if (!f || !f.ownedByMe) throw new Error('Nur eigene News können gelöscht werden.');
     await drive.trashFile(id);
     await this.trashOwnNewsImage(parseJson(f.description).bild);
+    await this.trashOwnAnhaenge(anhaengeAus(parseJson(f.description).anhaenge));
     this.invalidate('appNews');
   }
 
@@ -1118,6 +1122,47 @@ export class GoogleBackend {
     if (!id) return;
     const own = (await this.listAppFiles('newsbild').catch(() => [])).find((x) => x.id === id && x.ownedByMe);
     if (own) await drive.trashFile(id).catch((e) => console.warn('News-Bild nicht gelöscht', e));
+  }
+
+  /* ---------------------------------------------------------------- Anhänge (E56) */
+
+  /**
+   * Dokument an eine News oder einen Forumsbeitrag hängen: eigene Datei im eigenen App-Ordner, für Mitglieder lesbar
+   * (wie Beitrag und News-Bild). Typ und Größe prüft anhangPruefen(); im Beitrag steht nur { id, name, mime, groesse }.
+   */
+  async uploadAnhang(file, { typ = 'forum' } = {}) {
+    if (typ === 'news' && !(await this.canEditNews())) throw new Error('News schreiben dürfen nur Admins und die Redaktion.');
+    if (typ !== 'news' && !this.forumEnabled()) throw new Error('Das Forum ist ausgeschaltet.');
+    const mime = anhangPruefen(file);
+    const name = clip(String(file.name || 'Anhang'), 100);
+    const folder = await this.appFolder();
+    const f = await drive.upload({ name, mimeType: mime, parents: [folder], appProperties: { fbTyp: 'anhang', fbFuer: typ } }, file, 'id,size');
+    registerOwnFile(f.id);
+    await this.shareOwnFile(f.id);
+    return { id: f.id, name, mime, groesse: Number(f.size) || file.size || 0 };
+  }
+
+  /** Eigene Anhänge, die kein Beitrag mehr nennt, in den Papierkorb (fremde bleiben unberührt) */
+  async trashOwnAnhaenge(list) {
+    if (!list.length) return;
+    const own = await this.listAppFiles('anhang').catch(() => []);
+    for (const a of list) {
+      if (own.some((x) => x.id === a.id && x.ownedByMe)) await drive.trashFile(a.id).catch((e) => console.warn('Anhang nicht gelöscht', e));
+    }
+  }
+
+  /** Inhalt eines Anhangs über die Schnittstelle (Mitglieder sind in der App angemeldet, nicht unbedingt bei Drive) */
+  loadAnhang(a) {
+    return drive.download(a.id);
+  }
+
+  /** Adresse zum Speichern auf dem Gerät (Blob-URL, je Sitzung gemerkt) */
+  anhangUrl(a) {
+    return this.imageUrl(`drive:${a.id}`);
+  }
+
+  anhangOpenUrl(a) {
+    return `https://drive.google.com/file/d/${encodeURIComponent(a.id)}/view`;
   }
 
   newsSheetUrl() {
@@ -1156,9 +1201,9 @@ export class GoogleBackend {
       const edited = data.bearbeitet || '';
       if (p.fbRolle === 'thema') {
         threadRows.push({ id: f.id, kategorie: p.fbKategorie || 'Allgemeines', titel: clip(data.titel, 140) || '(ohne Titel)', autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime });
-        postRows.push({ id: f.id, themaId: f.id, autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime, text: clip(data.text, MAX_POST_LENGTH), bearbeitet: edited });
+        postRows.push({ id: f.id, themaId: f.id, autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime, text: clip(data.text, MAX_POST_LENGTH), bearbeitet: edited, anhaenge: data.anhaenge });
       } else if (p.fbRolle === 'antwort' && p.fbThema) {
-        postRows.push({ id: f.id, themaId: p.fbThema, autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime, text: clip(data.text, MAX_POST_LENGTH), bearbeitet: edited });
+        postRows.push({ id: f.id, themaId: p.fbThema, autorEmail: owner.email, autorName: owner.name, erstellt: f.createdTime, text: clip(data.text, MAX_POST_LENGTH), bearbeitet: edited, anhaenge: data.anhaenge });
       }
     }
     const forum = buildForum(threadRows, postRows);
@@ -1176,26 +1221,29 @@ export class GoogleBackend {
     return t;
   }
 
-  async createThread({ category, title, text }) {
+  async createThread({ category, title, text, anhaenge = [] }) {
     if (!this.forumEnabled()) throw new Error('Das Forum ist ausgeschaltet.');
-    const f = await this.createOwnFile('forum', { titel: clip(title, 140), text: this.checkText(text) },
+    const f = await this.createOwnFile('forum', { titel: clip(title, 140), text: this.checkText(text), anhaenge: anhaengeAus(anhaenge) },
       { fbRolle: 'thema', fbKategorie: clip(category, 60) }, `Forum – ${clip(title, 80)}.json`);
     this.invalidate('forum');
     return f.id;
   }
 
-  async reply(threadId, text) {
+  async reply(threadId, text, anhaenge = []) {
     if (!this.forumEnabled()) throw new Error('Das Forum ist ausgeschaltet.');
-    await this.createOwnFile('forum', { text: this.checkText(text) }, { fbRolle: 'antwort', fbThema: threadId }, 'Forum – Antwort.json');
+    await this.createOwnFile('forum', { text: this.checkText(text), anhaenge: anhaengeAus(anhaenge) }, { fbRolle: 'antwort', fbThema: threadId }, 'Forum – Antwort.json');
     this.invalidate('forum');
   }
 
-  async editPost(postId, text) {
+  /** Eigenen Beitrag ändern; anhaenge = neue Liste (weggelassen: unverändert) – entfernte eigene Anhänge in den Papierkorb */
+  async editPost(postId, text, anhaenge) {
     const files = await this.listAppFiles('forum');
     const f = files.find((x) => x.id === postId);
     if (!f || !f.ownedByMe) throw new Error('Nur eigene Beiträge können bearbeitet werden.');
     const data = parseJson(f.description);
-    await drive.updateFile(postId, { description: JSON.stringify({ ...data, text: this.checkText(text), bearbeitet: nowIso() }) });
+    const neu = anhaengeAus(anhaenge === undefined ? data.anhaenge : anhaenge);
+    await drive.updateFile(postId, { description: JSON.stringify({ ...data, text: this.checkText(text), anhaenge: neu, bearbeitet: nowIso() }) });
+    await this.trashOwnAnhaenge(anhaengeAus(data.anhaenge).filter((a) => !neu.some((n) => n.id === a.id)));
     this.invalidate('forum');
   }
 
@@ -1204,6 +1252,7 @@ export class GoogleBackend {
     const f = files.find((x) => x.id === postId);
     if (!f || !f.ownedByMe) throw new Error('Nur eigene Beiträge können gelöscht werden.');
     await drive.trashFile(postId);
+    await this.trashOwnAnhaenge(anhaengeAus(parseJson(f.description).anhaenge));
     this.invalidate('forum');
   }
 

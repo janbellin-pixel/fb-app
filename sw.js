@@ -43,6 +43,7 @@ const CORE = [
   './js/lib/text.js',
   './js/lib/vorlesen.js',
   './js/views/adressen.js',
+  './js/views/anhang.js',
   './js/views/chat.js',
   './js/views/datenschutz.js',
   './js/views/einrichtung.js',

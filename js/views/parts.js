@@ -1,7 +1,7 @@
 // Bausteine, die auf mehreren Seiten vorkommen
-import { html, icon, avatarStack, avatar, notice, describeError } from '../ui.js';
+import { html, icon, avatarStack, avatar, notice, describeError, toast, showError, setHtml } from '../ui.js';
 import { categoryInfo, config } from '../config.js';
-import { summarizeAttendees } from '../backend/common.js';
+import { summarizeAttendees, ANHANG_ACCEPT, ANHANG_MAX, ANHANG_MAX_MB, anhangPruefen, anhangArt, anhangLesbar, groesseText } from '../backend/common.js';
 import { toDate, fWeekdayShort, fMonthShort, fEventTime, relTime, fDateShort } from '../lib/dates.js';
 import { plainText } from '../lib/text.js';
 
@@ -114,6 +114,7 @@ export function newsCard(item, imageUrl = '', { isNew = false } = {}) {
         ${isNew ? html`<span class="badge badge-new">Neu</span>` : ''}
         ${item.pinned ? html`<span class="badge badge-black">${icon('bookmark', 'icon-sm')}Angeheftet</span>` : ''}
         ${item.category ? html`<span class="badge badge-green">${item.category}</span>` : ''}
+        ${item.anhaenge?.length ? html`<span class="badge" title="Anhänge">${icon('paperclip', 'icon-sm')}${item.anhaenge.length}</span>` : ''}
       </div>
       <h3>${item.title}</h3>
       <p>${plainText(item.text, 180)}</p>
@@ -192,4 +193,104 @@ export function sendRefusal(err, { url = '', admin = false } = {}) {
       ? 'Öffne die Unterhaltung in Google Chat und nimm die Anfrage dort an.'
       : html`Annehmen in Google Chat: <b>Neuer Chat › Nachrichtenanfragen</b>.`} Danach klappt es auch hier.${google}`,
     knopf(direkt ? url : CHAT_HOME, direkt ? 'In Google Chat öffnen' : 'Google Chat öffnen'));
+}
+
+/* ---------------------------------------------------------------- Anhänge (E56) */
+
+/** Link zur Leseansicht (PDF, Bilder) – zurück geht es zur Seite, auf der die Liste steht */
+const anhangLink = (a) => `#/anhang/${encodeURIComponent(a.id)}?name=${encodeURIComponent(a.name)}&mime=${encodeURIComponent(a.mime)}&zurueck=${encodeURIComponent(location.hash || '#/')}`;
+
+/** Anhänge eines Beitrags: PDF und Bilder öffnet die App in der Leseansicht, alles andere lädt sie herunter (bindAnhaenge) */
+export function anhaengeListe(anhaenge = []) {
+  if (!anhaenge.length) return '';
+  return html`<ul class="anhaenge" aria-label="Anhänge">${anhaenge.map((a) => html`
+    <li><a class="anhang" href="${anhangLesbar(a.mime) ? anhangLink(a) : '#'}" data-anhang="${a.id}" data-name="${a.name}" data-mime="${a.mime}">
+      ${icon(a.mime.startsWith('image/') ? 'image' : 'file', 'icon-sm')}<span class="grow ellipsis">${a.name}</span>
+      <span class="small muted">${anhangArt(a.mime)}${a.groesse ? ` · ${groesseText(a.groesse)}` : ''}</span></a></li>`)}</ul>`;
+}
+
+/** Klicks auf Anhänge, die die App nicht anzeigt: Inhalt über die Schnittstelle laden und zum Speichern anbieten */
+export function bindAnhaenge(root, b) {
+  root.addEventListener('click', async (e) => {
+    const a = e.target.closest('a.anhang[data-anhang]');
+    if (!a || anhangLesbar(a.dataset.mime)) return;
+    e.preventDefault();
+    if (a.dataset.busy) return;
+    a.dataset.busy = '1';
+    try {
+      const url = await b.anhangUrl({ id: a.dataset.anhang, name: a.dataset.name, mime: a.dataset.mime });
+      if (!url) throw new Error('Dieser Anhang ist gerade nicht verfügbar.');
+      const l = document.createElement('a');
+      l.href = url;
+      l.download = a.dataset.name || 'Anhang';
+      document.body.append(l);
+      l.click();
+      l.remove();
+    } catch (err) {
+      showError(err, 'Anhang nicht geladen');
+    } finally {
+      delete a.dataset.busy;
+    }
+  });
+}
+
+/** Feld „Anhänge“ für Formulare (News, Forum): Vorhandene behalten oder entfernen, Neue wählen; hochgeladen wird beim Speichern */
+export function anhangFeld() {
+  return html`<div class="field" data-anhang-feld>
+    <span class="label">Anhänge (optional)</span>
+    <ul class="anhaenge anhang-wahl"></ul>
+    <div class="row wrap" style="gap:.5rem;margin-top:.5rem"><label class="btn btn-sm">${icon('paperclip', 'icon-sm')}Datei anhängen<input type="file" class="sr-only" accept="${ANHANG_ACCEPT}" multiple></label></div>
+    <span class="hint">PDF, Bilder und Office-Dokumente, je bis ${ANHANG_MAX_MB} MB, höchstens ${ANHANG_MAX}. Gespeichert in deinem Google Drive, für Mitglieder lesbar.</span>
+  </div>`;
+}
+
+export function bindAnhangFeld(feld, vorhandene = []) {
+  let behalten = [...vorhandene];
+  let neue = [];
+  const liste = feld.querySelector('.anhang-wahl');
+  const input = feld.querySelector('input[type=file]');
+  const zeile = (name, info, weg) => html`<li><span class="anhang">${icon('file', 'icon-sm')}<span class="grow ellipsis">${name}</span><span class="small muted">${info}</span>
+    <button type="button" class="btn btn-ghost btn-sm btn-icon" data-weg="${weg}" aria-label="„${name}“ entfernen">${icon('x', 'icon-sm')}</button></span></li>`;
+  const render = () => setHtml(liste, html`${behalten.map((a, i) => zeile(a.name, groesseText(a.groesse), `alt:${i}`))}${neue.map((f, i) => zeile(f.name, `neu · ${groesseText(f.size)}`, `neu:${i}`))}`);
+  input.addEventListener('change', () => {
+    for (const f of input.files || []) {
+      try {
+        anhangPruefen(f, behalten.length + neue.length);
+        neue.push(f);
+      } catch (err) {
+        toast(err.message, { type: 'err', timeout: 6000 });
+      }
+    }
+    input.value = '';
+    render();
+  });
+  feld.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-weg]');
+    if (!btn) return;
+    const [art, i] = btn.dataset.weg.split(':');
+    if (art === 'alt') behalten.splice(Number(i), 1);
+    else neue.splice(Number(i), 1);
+    render();
+  });
+  render();
+  return {
+    /** Neue Dateien hochladen und die vollständige Liste liefern; status(text) meldet den Fortschritt */
+    async hochladen(b, typ, status = () => {}) {
+      const raus = [...behalten];
+      for (let i = 0; i < neue.length; i++) {
+        status(`Anhang ${i + 1} von ${neue.length} wird hochgeladen …`);
+        raus.push(await b.uploadAnhang(neue[i], { typ }));
+      }
+      neue = [];
+      behalten = raus;
+      render();
+      return raus;
+    },
+  };
+}
+
+/** Text eines mit setBusy() beschäftigten Knopfs ändern (z. B. Fortschritt beim Hochladen) */
+export function busyText(btn, text) {
+  const n = btn?.lastChild;
+  if (n && n.nodeType === 3) n.textContent = text;
 }

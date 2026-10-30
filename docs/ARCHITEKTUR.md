@@ -13,7 +13,7 @@ Handy / PC (PWA)  ──OAuth 2.0──▶  Google-Konto des Mitglieds
        │
        ├─ Google Calendar API   Termine lesen; eigene Antwort im eigenen Kalender
        ├─ Google Sheets API     nur lesen: News, Adressverzeichnis
-       ├─ Google Drive API      lesen: Zeitungs-PDFs, Galerie, News-Bilder
+       ├─ Google Drive API      lesen: Zeitungs-PDFs, Galerie, News-Bilder, Anhänge
        │                        eigene Dateien: Profil, Forum, Zusagen, Einwilligung,
        │                        Sichtbarkeit, Papierpost-Wahl, Push-Anmeldung, Chat-Hinweise
        ├─ People API            Workspace-Verzeichnis (Namen, Fotos)
@@ -66,9 +66,9 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 | Profilfoto, Name | Google-Konto bzw. Workspace-Verzeichnis | – | jedes Mitglied im Google-Konto |
 | Profil-Zusatzangaben | JSON in der Beschreibung einer kleinen Datei im **eigenen** Drive (`appProperties.fbTyp = profil`), Ordner „Frankonia-Brunonia App – meine Beiträge und Profil“. Felder: Kneipname, Status, „Aktiv seit“ (Rezeption), Ämter, Studium/Beruf, aktuelle bzw. letzte Tätigkeit, Wohnort, Über mich, Angebot für Jüngere, Telefon, Instagram, LinkedIn | lesen (Freigabe Gruppe/Domain) – nur, solange das Mitglied sichtbar ist (E40) | jedes Mitglied selbst |
 | Adressänderungen | keine Speicherung: „Mein Profil“ gleicht Anschrift und Stammdaten mit dem Adressverzeichnis ab (`js/lib/adressabgleich.js`) und bereitet eine E-Mail an `config.adressaenderung` vor | – | Mitglied schickt sie ab, Schriftwart pflegt das Verzeichnis |
-| Forum | je Beitrag eine kleine Datei im **eigenen** Drive des Verfassers (`fbTyp = forum`, `fbRolle = thema/antwort`, `fbThema`, `fbKategorie`) | lesen | jeder seine eigenen |
+| Forum | je Beitrag eine kleine Datei im **eigenen** Drive des Verfassers (`fbTyp = forum`, `fbRolle = thema/antwort`, `fbThema`, `fbKategorie`); Anhänge als eigene Dateien daneben (`fbTyp = anhang`, E56) | lesen | jeder seine eigenen |
 | Status, Kneipname, Rezeption (in der App „Aktiv seit“), Beruf, Wohnort | Adressverzeichnis. Der **Status** von dort hat immer Vorrang; die übrigen Angaben kann das Mitglied im eigenen Profil ergänzen oder überschreiben | lesen | Admins / Schriftwart |
-| News | Eigene Dateien der Redaktion (`fbTyp=news`, Bilder `fbTyp=newsbild`) und Tabelle „News“ | lesen; Admins/Redaktion schreiben eigene | Redaktion in der App bzw. in Google Tabellen |
+| News | Eigene Dateien der Redaktion (`fbTyp=news`, Bilder `fbTyp=newsbild`, Anhänge `fbTyp=anhang`, E56) und Tabelle „News“ | lesen; Admins/Redaktion schreiben eigene | Redaktion in der App bzw. in Google Tabellen |
 | Adressen, Geburtstage | Tabelle „Adressverzeichnis“ (Spalten frei, werden erkannt) | lesen | Admins / Schriftwart |
 | Bundesbote (Zeitung) | PDF-Dateien im Drive-Ordner, Dateiname `JJJJ-N Titel.pdf` | lesen | Redaktion in Google Drive |
 | DS-Zeitung | PDF-Dateien im eigenen Drive-Ordner (`dsZeitungOrdnerId`, freiwillig), Dateiname `JJJJ-N DS-Zeitung.pdf`; gelesene Ausgaben wie beim Bundesboten im Cache-Speicher `fb-zeitung` (E38) | lesen | Verantwortliche der Verbindung in Google Drive |

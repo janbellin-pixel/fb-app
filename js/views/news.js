@@ -8,7 +8,7 @@ import { markdown, plainText } from '../lib/text.js';
 import { fDateLong, fDateShort } from '../lib/dates.js';
 import { appBaseUrl, config } from '../config.js';
 import { local } from '../lib/store.js';
-import { newsCard, memberMap, personFor } from './parts.js';
+import { newsCard, memberMap, personFor, anhaengeListe, anhangFeld, bindAnhangFeld, bindAnhaenge, busyText } from './parts.js';
 import { isNewNews, markNewsRead } from '../lib/hinweise.js';
 
 const ROOM_KEY = 'fb.newsRaum'; // zuletzt gewählter Chat-Raum für Ankündigungen (E33)
@@ -91,6 +91,7 @@ export async function detail(ctx) {
     <article class="card card-pad" style="max-width:51.25rem">
       ${img ? html`<img class="news-hero-img" src="${img}" alt="" referrerpolicy="no-referrer">` : ''}
       <div class="prose">${markdown(item.text)}</div>
+      ${anhaengeListe(item.anhaenge || [])}
       <hr>
       <div class="row between wrap">
         <a class="row" style="color:inherit;text-decoration:none" href="${author.email ? `#/mitglied/${encodeURIComponent(author.email)}` : '#/mitglieder'}">
@@ -104,6 +105,7 @@ export async function detail(ctx) {
         </div>
       </div>
     </article>`);
+  bindAnhaenge(c, b);
   c.addEventListener('click', async (e) => {
     if (e.target.closest('[data-action=share]')) {
       await shareLink(item.title, `${appBaseUrl()}#/news/${encodeURIComponent(item.id)}`);
@@ -179,6 +181,7 @@ export async function editor(ctx) {
         </div>
         <span class="hint">Wird verkleinert in deinem Google Drive gespeichert.</span>
       </div>
+      ${anhangFeld()}
       ${!editId && b.chatStatus().available ? html`<div class="field" id="n-announce-box">
         <label class="checkbox"><input type="checkbox" id="n-announce"> Im Chat ankündigen</label>
         <select class="select" id="n-room" aria-label="Chat-Raum für die Ankündigung" style="margin-top:.5rem" disabled><option value="">Räume werden geladen …</option></select>
@@ -193,6 +196,7 @@ export async function editor(ctx) {
 
   const form = el.querySelector('#f');
   const textEl = form.querySelector('#n-text');
+  const anh = bindAnhangFeld(form.querySelector('[data-anhang-feld]'), item?.anhaenge || []);
 
   // Räume für die Ankündigung: nur Räume und Gruppen, in denen ich bin (keine Direktnachrichten)
   const roomSel = form.querySelector('#n-room');
@@ -254,6 +258,7 @@ export async function editor(ctx) {
     try {
       if (newFile) image = await b.uploadNewsImage(newFile);
       fields.image = image;
+      fields.anhaenge = await anh.hochladen(b, 'news', (s) => busyText(btn, s));
       let id = editId;
       if (editId) await b.updateNews(editId, fields);
       else id = await b.createNews(fields);

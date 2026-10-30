@@ -264,11 +264,15 @@ Object.assign(window, {
   } } } },
   Drive: { Files: {
     list: ({ q, corpora }) => {
-      const typ = /value='(\w+)'/.exec(q)[1];
+      const typ = /value='(\w+)'/.exec(q)?.[1];
+      const eltern = [...q.matchAll(/'([^']+)' in parents/g)].map((m) => m[1]);
+      const mime = /mimeType = '([^']+)'/.exec(q)?.[1];
       const ab = /createdTime > '([^']+)'/.exec(q)?.[1];
       const mod = /modifiedTime > '([^']+)'/.exec(q)?.[1];
-      const files = welt.dateien.filter((f) => f.properties?.fbTyp === typ && !f.trashed && (!ab || f.createdTime > ab) && (!mod || f.modifiedTime > mod)
-        && (corpora === 'domain' ? f.domain : f.owners[0].emailAddress === PUSH || (f.geteilt || []).includes(PUSH)));
+      const meine = (f) => f.owners[0].emailAddress === PUSH || (f.geteilt || []).includes(PUSH);
+      const sichtbar = (f) => (corpora === 'domain' ? f.domain : corpora === 'allDrives' ? f.domain || meine(f) : meine(f));
+      const files = welt.dateien.filter((f) => (!typ || f.properties?.fbTyp === typ) && (!eltern.length || (f.parents || []).some((p) => eltern.includes(p)))
+        && (!mime || f.mimeType === mime) && !f.trashed && (!ab || f.createdTime > ab) && (!mod || f.modifiedTime > mod) && sichtbar(f));
       return { files: files.map((f) => ({ ...f })) };
     },
     get: (id) => ({ ...welt.dateien.find((f) => f.id === id) }),
@@ -480,6 +484,28 @@ await step('Chat-Hinweise', async () => {
     'diagnose: nichts verschickt; Auslöser und Themen je Gerät im Protokoll', d);
   check(/Empfänger ohne angemeldetes Gerät \(bekommen nichts\): niemand@beispiel\.de –/.test(d) && !/vorbei|emil|x y@z/.test(d),
     'diagnose: nur frische Empfänger ohne Gerät, ohne Absender und Unsinn', d);
+});
+
+await step('DS-Zeitung', async () => {
+  section('DS-Zeitung (E57): neue Ausgabe im Ordner → eigenes Thema');
+  welt.konfiguration.dsZeitungOrdnerId = 'ds-ordner';
+  await anmelden('Ulla', 'ulla@beispiel.de', ['dszeitung'], 'https://fcm.googleapis.com/fcm/send/ulla');
+  pushSenden(); // Bestätigung für Ulla
+  const admin = [{ emailAddress: 'admin@beispiel.de', displayName: 'Admin Beispiel' }];
+  const alt = iso(Date.now() - 30 * 86400000);
+  // Jahresordner mit einer alten Ausgabe (vor dem Zeitfenster) und einer neuen; Anna hat das Thema nicht
+  welt.dateien.push({ id: 'ds-2026', name: '2026', mimeType: 'application/vnd.google-apps.folder', parents: ['ds-ordner'], createdTime: alt, modifiedTime: alt, owners: admin, properties: {}, domain: true });
+  welt.dateien.push({ id: 'ds-alt', name: '2026-1 DS-Zeitung.pdf', mimeType: 'application/pdf', parents: ['ds-2026'], createdTime: alt, modifiedTime: alt, owners: admin, properties: {}, domain: true });
+  welt.dateien.push({ id: 'ds-neu', name: '2026-2 DS-Zeitung.pdf', mimeType: 'application/pdf', parents: ['ds-2026'], createdTime: iso(Date.now()), modifiedTime: iso(Date.now()), owners: admin, properties: {}, domain: true });
+  const start = welt.anfragen.length;
+  pushSenden();
+  const m = await verschickt(start);
+  const ulla = m.filter((x) => x.url.includes('ulla')).map((x) => x.nachricht);
+  check(m.length === 1 && ulla.length === 1 && ulla[0].title === 'Neue DS-Zeitung' && ulla[0].body === '2026-2 DS-Zeitung' && ulla[0].url === '#/ds-zeitung' && ulla[0].tag === 'dszeitung:ds-neu',
+    'Ulla: „Neue DS-Zeitung“ mit dem Namen der Ausgabe – die alte Ausgabe nicht, Anna (ohne das Thema) nichts', JSON.stringify(m.map((x) => [x.url, x.nachricht])));
+  pushSenden();
+  check(welt.anfragen.length === start + 1, 'nächster Durchlauf: nicht noch einmal');
+  check(sammel_([{ thema: 'news' }, { thema: 'dszeitung' }]).body === '1 News, 1 DS-Zeitung', 'Sammeltext nennt die DS-Zeitung');
 });
 
 const failed = results.filter((r) => !r.ok);

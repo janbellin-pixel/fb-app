@@ -502,12 +502,11 @@ def page_overview(c, sample, kontakt, crest, skyline):
 
     # Gut zu wissen
     tips = [
-        ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße. {b('Lieber dunkel?')} Mehr › Darstellung. {b('Vorlesen?')} Im Bundesboten oder in der DS-Zeitung oben auf den Lautsprecher tippen."),
-        ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“ (News, Forum, Termine, Nachrichten aus der App). iPhone: vorher auf den Home-Bildschirm legen."),
-        ("users", f"{b('Profil ausfüllen:')} Mehr › Mein Profil – dort auch Adressänderungen melden."),
-        ("music", f"{b('Liedermappe:')} Liednummer eintippen und Enter – schon ist das Lied offen."),
+        ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße. {b('Lieber dunkel?')} Mehr › Darstellung. {b('Vorlesen?')} Lautsprecher oben im Bundesboten. {b('Anhängen?')} In News und Forum: PDF, Bilder, Office."),
+        ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“, Themen wählbar (auch DS-Zeitung). iPhone: vorher auf den Home-Bildschirm legen."),
+        ("users", f"{b('Profil ausfüllen:')} Mehr › Mein Profil – dort auch Adressänderungen melden. {b('Liedermappe:')} Liednummer eintippen und Enter."),
         ("shield", f"{b('Keine Sorge:')} Kaputt machen kann man nichts, Gemeinsames zeigt die App nur an."),
-        ("share", f"{b('iPhone:')} Kalender-Links öffnen Safari – dort einmal anmelden, dann geht es."),
+        ("share", f"{b('iPhone:')} Kalender-Links öffnen Safari – dort einmal anmelden."),
         ("chat", f"{b('Fragen?')} {kontakt}"),
     ]
     tip_st = style(11, leading=15)

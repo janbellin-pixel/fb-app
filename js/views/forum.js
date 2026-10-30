@@ -8,7 +8,7 @@ import {
 import { markdown, matchesQuery } from '../lib/text.js';
 import { relTime, fDateTime } from '../lib/dates.js';
 import { config } from '../config.js';
-import { threadRow, memberMap, personFor, forumSeen, isUnread, markThreadSeen, initForumSeen } from './parts.js';
+import { threadRow, memberMap, personFor, forumSeen, isUnread, markThreadSeen, initForumSeen, anhaengeListe, anhangFeld, bindAnhangFeld, bindAnhaenge, busyText } from './parts.js';
 import { local } from '../lib/store.js';
 
 export default async function forum(ctx) {
@@ -78,6 +78,8 @@ export async function thread(ctx) {
   let posts = [];
   let members = new Map();
   let editing = null;
+  let replyAnh = null; // Anhänge-Feld der Antwort (E56)
+  let editAnh = null; // … des gerade bearbeiteten Beitrags
 
   async function load() {
     const [forumData, mem] = await Promise.all([b.listForum(), b.listMembers().catch(() => [])]);
@@ -101,11 +103,12 @@ export async function thread(ctx) {
         </div>
         ${isEditing ? html`
           <textarea class="textarea" id="edit-text" rows="5">${p.text}</textarea>
+          ${anhangFeld()}
           <div class="row" style="justify-content:flex-end;margin-top:.5rem">
             <button class="btn btn-sm btn-ghost" data-action="cancel-edit">Abbrechen</button>
             <button class="btn btn-sm btn-primary" data-action="save-edit" data-id="${p.id}">Speichern</button>
           </div>`
-        : html`<div class="post-body">${markdown(p.text)}</div>`}
+        : html`<div class="post-body">${markdown(p.text)}</div>${anhaengeListe(p.anhaenge || [])}`}
         ${!isEditing && own ? html`<div class="post-tools">
           <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${p.id}">${icon('edit', 'icon-sm')}Bearbeiten</button>
           ${i > 0 ? html`<button class="btn btn-ghost btn-sm btn-danger" data-action="delete" data-id="${p.id}">${icon('trash', 'icon-sm')}Löschen</button>` : ''}
@@ -128,8 +131,14 @@ export async function thread(ctx) {
         <form class="card composer" id="reply" style="margin-top:.875rem">
           <label for="reply-text" class="label">Antworten</label>
           <textarea class="textarea" id="reply-text" rows="4" maxlength="4000" placeholder="Deine Antwort … (**fett**, *kursiv*, Links möglich)">${local.get(draftKey, '')}</textarea>
+          ${anhangFeld()}
           <div class="row"><button class="btn btn-primary" type="submit">${icon('send', 'icon-sm')}Antwort senden</button></div>
         </form>`}`);
+    // Anhänge-Felder (E56) an die frisch gezeichneten Formulare binden
+    const replyFeld = c.querySelector('#reply [data-anhang-feld]');
+    replyAnh = replyFeld ? bindAnhangFeld(replyFeld) : null;
+    const editFeld = c.querySelector('.post [data-anhang-feld]');
+    editAnh = editFeld ? bindAnhangFeld(editFeld, posts.find((p) => p.id === editing)?.anhaenge || []) : null;
     markThreadSeen(t.id, t.lastActivity);
   }
 
@@ -141,6 +150,7 @@ export async function thread(ctx) {
   }
   if (!ctx.alive()) return;
   render();
+  bindAnhaenge(c, b);
 
   c.addEventListener('input', (e) => { if (e.target.id === 'reply-text') local.set(draftKey, e.target.value); });
 
@@ -153,7 +163,7 @@ export async function thread(ctx) {
     const btn = e.target.querySelector('[type=submit]');
     setBusy(btn, true, 'Wird gesendet …');
     try {
-      await b.reply(t.id, text);
+      await b.reply(t.id, text, replyAnh ? await replyAnh.hochladen(b, 'forum', (s) => busyText(btn, s)) : []);
       local.del(draftKey);
       await load();
       render();
@@ -184,8 +194,8 @@ export async function thread(ctx) {
         case 'save-edit': {
           const text = c.querySelector('#edit-text').value.trim();
           if (!text) return;
-          setBusy(a, true);
-          await b.editPost(id, text);
+          setBusy(a, true, 'Wird gespeichert …');
+          await b.editPost(id, text, editAnh ? await editAnh.hochladen(b, 'forum', (s) => busyText(a, s)) : undefined);
           editing = null;
           await load();
           render();
@@ -235,12 +245,14 @@ export async function newThread(ctx) {
       <div class="field"><label for="t-title">Titel *</label><input class="input" id="t-title" name="title" maxlength="140" required value="${draft.title || ''}" placeholder="Worum geht es?"></div>
       <div class="field"><label for="t-text">Beitrag *</label><textarea class="textarea" id="t-text" name="text" rows="9" maxlength="4000" placeholder="Schreib deinen Beitrag … (**fett**, *kursiv*, - Listen, Links)">${draft.text || ''}</textarea>
         <span class="hint">Gespeichert in deinem Google Drive; ändern oder löschen kannst nur du.</span></div>
+      ${anhangFeld()}
       <div class="form-actions">
         <a class="btn btn-ghost" href="#/forum">Abbrechen</a>
         <button class="btn btn-primary" type="submit">${icon('send', 'icon-sm')}Thema erstellen</button>
       </div>
     </form>`);
   const form = el.querySelector('#f');
+  const anh = bindAnhangFeld(form.querySelector('[data-anhang-feld]'));
   form.addEventListener('input', () => local.set(draftKey, formData(form)));
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -249,7 +261,8 @@ export async function newThread(ctx) {
     const btn = form.querySelector('[type=submit]');
     setBusy(btn, true, 'Wird erstellt …');
     try {
-      const id = await b.createThread({ category: d.category, title: d.title, text: form.querySelector('#t-text').value.trim() });
+      const anhaenge = await anh.hochladen(b, 'forum', (s) => busyText(btn, s));
+      const id = await b.createThread({ category: d.category, title: d.title, text: form.querySelector('#t-text').value.trim(), anhaenge });
       local.del(draftKey);
       toast('Thema erstellt');
       app.navigate(`#/forum/${encodeURIComponent(id)}`, { replace: true });

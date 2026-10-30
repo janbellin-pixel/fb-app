@@ -6,7 +6,7 @@
 // Absenders (E51, google-backend.js) – ohne Inhalt und Absender; was in Google Chat selbst geschrieben wird, meldet
 // weiter die App „Google Chat“ (E33).
 // Ein/aus und Themen merkt sich das Gerät je Konto (localStorage); maßgeblich für das Skript ist die Datei.
-import { config } from '../config.js';
+import { config, hasDsZeitung } from '../config.js';
 import { local } from './store.js';
 import { isIos, isStandalone } from '../ui.js';
 import { gesperrt } from './gruppen.js';
@@ -19,6 +19,8 @@ export const THEMEN = [
   // Chat (E51): nur, was jemand aus der Mitglieder-App schickt – die Mitteilung nennt weder Inhalt noch Absender
   { id: 'chat', label: 'Direktnachrichten und Bierjungen', sub: 'Aus der Mitglieder-App an dich geschickt', bereich: 'chat' },
   { id: 'chatgruppen', label: 'Gruppen und Räume', sub: 'Aus der Mitglieder-App in deine Gruppen und Räume geschickt', bereich: 'chat', vorgewaehlt: false },
+  // DS-Zeitung (E57): eine neue Ausgabe im Ordner – z. B. von DsZeitung.gs abgelegt; eigenes Thema, nicht vorgewählt
+  { id: 'dszeitung', label: 'DS-Zeitung', sub: 'Neue Ausgabe im Ordner der DS-Zeitung', bereich: 'dsZeitung', vorgewaehlt: false },
 ];
 /** Vorwahl beim Einschalten: alles außer Gruppen und Räumen (die können laut werden) */
 export const vorgewaehlteThemen = (themen) => themen.filter((t) => t.vorgewaehlt !== false).map((t) => t.id);
@@ -37,9 +39,9 @@ export const pushUnterstuetzt = () => 'serviceWorker' in navigator && 'PushManag
 export const pushNurInstalliert = () => isIos() && !isStandalone();
 
 /** Themen, die das Mitglied in der App überhaupt sieht (Gruppen, E41; Forum oder Chat aus; kein Kalender) */
-export const moeglicheThemen = () => THEMEN.filter((t) => !gesperrt(t.bereich)
+export const moeglicheThemen = ({ demo = false } = {}) => THEMEN.filter((t) => !gesperrt(t.bereich)
   && (t.id !== 'forum' || config.forum?.aktiv !== false) && (t.id !== 'termine' || !!config.kalenderId)
-  && (t.bereich !== 'chat' || config.chat?.aktiv !== false));
+  && (t.bereich !== 'chat' || config.chat?.aktiv !== false) && (t.id !== 'dszeitung' || demo || hasDsZeitung()));
 
 /** Kommt dieses Thema auf diesem Gerät schon per Push? (Dann zeigt die App dieselbe Mitteilung nicht noch einmal) */
 export const pushThemaAn = (email, thema) => {

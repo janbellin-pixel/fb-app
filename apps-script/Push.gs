@@ -12,7 +12,9 @@
  *       schreibt – ohne Inhalt und ohne Absender; nur der Bierjunge nennt, wer ihn geschickt hat („Carl Beispiel hat
  *       dir einen angehängt!“, Name laut Google-Konto des Absenders). Die App des Absenders legt dafür in seinem
  *       Drive eine Hinweis-Datei ab (je Empfänger und Art nur der Zeitpunkt der letzten Nachricht, eine Stunde lang),
- *       lesbar nur für dieses Konto. Was direkt in Google Chat geschrieben wird, meldet weiter die App „Google Chat“.
+ *       lesbar nur für dieses Konto. Was direkt in Google Chat geschrieben wird, meldet weiter die App „Google Chat“,
+ *     • eine neue DS-Zeitung (E57): eine neue PDF im Ordner der DS-Zeitung oder einem Jahresordner darin, z. B. von
+ *       DsZeitung.gs abgelegt – eigenes Thema „DS-Zeitung“, in der App je Gerät wählbar.
  *
  *   Das Skript LIEST nur: die private Konfiguration der App, den Kalender, die News-Tabelle, Forum- und
  *   News-Dateien, die Push-Anmeldungen und die Chat-Hinweise, die Mitglieder mit diesem Konto geteilt haben. Es
@@ -54,7 +56,7 @@ const EINSTELLUNGEN = {
   chatMinuten: 1,
 };
 
-const THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen'];
+const THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen', 'dszeitung'];
 // Chat-Hinweise (E51): Arten, wie die App sie in die Hinweis-Datei schreibt, und die Mitteilungen dazu (ohne Absender)
 const CHAT_ARTEN = ['direkt', 'gruppe', 'bierjunge'];
 const CHAT_TEXTE = {
@@ -122,6 +124,7 @@ function pushSenden() {
       quelle('News', function () { return appNews_(cfg, seit); });
       quelle('Forum', function () { return forum_(cfg, seit); });
       quelle('Termine', function () { return termine_(cfg, seit, jetzt); });
+      quelle('DS-Zeitung', function () { return dsZeitung_(cfg, seit); });
     }
     const frisch = neues.filter(function (x) { return !stand.gesendet[kennung_(x.schluessel)]; });
 
@@ -300,6 +303,7 @@ function konfiguration_() {
     // News aus der App zählen nur von Admins und Redaktion (wie in der App)
     autoren: liste(c.admins).concat(liste(c.redaktion)),
     forum: !(c.forum && c.forum.aktiv === false),
+    dsOrdner: String(c.dsZeitungOrdnerId || '').trim(),
     konto: String((c.push && c.push.konto) || '').trim().toLowerCase(),
     schluessel: String((c.push && c.push.schluessel) || '').trim(),
   };
@@ -443,6 +447,32 @@ function termine_(cfg, seit, jetzt) {
   return raus;
 }
 
+/** Neue DS-Zeitung (E57): PDFs, die seit „seit“ im Ordner der DS-Zeitung oder einem Unterordner (Jahresordner) angelegt wurden */
+function dsZeitung_(cfg, seit) {
+  if (!cfg.dsOrdner) return [];
+  const eltern = [cfg.dsOrdner].concat(ordnerListe_("'" + cfg.dsOrdner + "' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false")
+    .map(function (f) { return f.id; }));
+  const q = '(' + eltern.map(function (id) { return "'" + id + "' in parents"; }).join(' or ') + ") and mimeType = 'application/pdf'"
+    + " and createdTime > '" + seit.toISOString() + "' and trashed = false";
+  return ordnerListe_(q).map(function (f) {
+    const name = String(f.name || '').replace(/\.pdf$/i, '');
+    return { schluessel: 'dszeitung:' + f.id, thema: 'dszeitung', titel: 'Neue DS-Zeitung', text: kurz_(name, 90) || 'Neue Ausgabe in der Mitglieder-App', url: '#/ds-zeitung', autor: '' };
+  });
+}
+
+/** Dateien zu einer Ordner-Abfrage – auch in einer geteilten Ablage (lesend) */
+function ordnerListe_(q) {
+  const raus = [];
+  let seite;
+  do {
+    const a = Drive.Files.list({ q: q, fields: 'nextPageToken, files(id, name, createdTime)', pageSize: 100, pageToken: seite,
+      corpora: 'allDrives', includeItemsFromAllDrives: true, supportsAllDrives: true });
+    (a.files || []).forEach(function (f) { raus.push(f); });
+    seite = a.nextPageToken;
+  } while (seite);
+  return raus;
+}
+
 /** Dateien der App mit fbTyp (öffentliche Eigenschaft), angelegt seit … – eigene, geteilte und in der Domain */
 function appDateien_(typ, seit) {
   const q = "properties has { key='fbTyp' and value='" + typ + "' } and createdTime > '" + seit.toISOString() + "' and trashed = false";
@@ -547,6 +577,7 @@ function sammel_(liste) {
   if (zahl('news')) teile.push(zahl('news') + ' News');
   if (zahl('forum')) teile.push(zahl('forum') + (zahl('forum') === 1 ? ' Forumsbeitrag' : ' Forumsbeiträge'));
   if (zahl('termine')) teile.push(zahl('termine') + (zahl('termine') === 1 ? ' neuer Termin' : ' neue Termine'));
+  if (zahl('dszeitung')) teile.push(zahl('dszeitung') + ' DS-Zeitung');
   return { title: 'Neues in der Mitglieder-App', body: teile.join(', '), url: '#/', tag: 'sammel' };
 }
 

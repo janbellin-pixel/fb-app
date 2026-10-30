@@ -449,6 +449,68 @@ export function addressesFromRows(rows) {
 }
 
 /* ---------------------------------------------------------- Forum */
+/* ================================================================ Anhänge (E56): Dokumente an News und Forumsbeiträgen */
+
+export const ANHANG_MAX = 5; // je Beitrag
+export const ANHANG_MAX_MB = 15; // je Datei
+/** Erlaubte Dateitypen (MIME → Kurzname): Dokumente und Bilder, nichts Ausführbares */
+export const ANHANG_TYPEN = {
+  'application/pdf': 'PDF',
+  'image/jpeg': 'Bild', 'image/png': 'Bild', 'image/webp': 'Bild', 'image/gif': 'Bild', 'image/heic': 'Bild',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word', 'application/msword': 'Word',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel', 'application/vnd.ms-excel': 'Excel',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint', 'application/vnd.ms-powerpoint': 'PowerPoint',
+  'application/vnd.oasis.opendocument.text': 'Text', 'application/vnd.oasis.opendocument.spreadsheet': 'Tabelle', 'application/vnd.oasis.opendocument.presentation': 'Präsentation',
+  'text/plain': 'Text', 'text/csv': 'Tabelle',
+};
+/** Dateiendung → MIME, falls der Browser keinen Typ liefert (z. B. Android bei .docx) */
+const ANHANG_ENDUNGEN = {
+  pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls: 'application/vnd.ms-excel',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ppt: 'application/vnd.ms-powerpoint',
+  odt: 'application/vnd.oasis.opendocument.text', ods: 'application/vnd.oasis.opendocument.spreadsheet', odp: 'application/vnd.oasis.opendocument.presentation',
+  txt: 'text/plain', csv: 'text/csv',
+};
+export const ANHANG_ACCEPT = Object.keys(ANHANG_ENDUNGEN).map((e) => `.${e}`).join(',');
+
+/** MIME einer Datei zum Anhängen: aus dem Typ des Browsers, sonst aus der Endung; '' = nicht erlaubt */
+export function anhangMime(file) {
+  const typ = String(file?.type || '').toLowerCase().split(';')[0].trim();
+  if (ANHANG_TYPEN[typ]) return typ;
+  const endung = String(file?.name || '').toLowerCase().match(/\.([a-z0-9]{2,5})$/)?.[1] || '';
+  return (!typ || typ === 'application/octet-stream') && ANHANG_ENDUNGEN[endung] ? ANHANG_ENDUNGEN[endung] : '';
+}
+
+/** Datei fürs Anhängen prüfen (Anzahl, Typ, Größe) – liefert den MIME-Typ oder wirft eine verständliche Meldung */
+export function anhangPruefen(file, vorhandene = 0) {
+  if (vorhandene >= ANHANG_MAX) throw new Error(`Höchstens ${ANHANG_MAX} Anhänge je Beitrag.`);
+  const mime = anhangMime(file);
+  if (!mime) throw new Error(`„${file?.name || 'Datei'}“ geht nicht – erlaubt sind PDF, Bilder und Office-Dokumente (Word, Excel, PowerPoint, OpenDocument, Text).`);
+  if (!(file.size > 0)) throw new Error(`„${file.name}“ ist leer.`);
+  if (file.size > ANHANG_MAX_MB * 1024 * 1024) throw new Error(`„${file.name}“ ist zu groß (höchstens ${ANHANG_MAX_MB} MB).`);
+  return mime;
+}
+
+/** Anhänge aus gespeicherten Daten: nur vollständige Einträge { id, name, mime, groesse }, höchstens ANHANG_MAX */
+export function anhaengeAus(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((a) => a && typeof a === 'object' && /^[-\w]{4,}$/.test(String(a.id || '')) && String(a.name || '').trim())
+    .slice(0, ANHANG_MAX)
+    .map((a) => ({ id: String(a.id), name: String(a.name).trim().slice(0, 100), mime: String(a.mime || ''), groesse: Number(a.groesse) > 0 ? Number(a.groesse) : 0 }));
+}
+
+export const anhangArt = (mime) => ANHANG_TYPEN[mime] || 'Datei';
+/** Zeigt die App selbst an (Leseansicht): PDF und gängige Bilder */
+export const anhangLesbar = (mime) => mime === 'application/pdf' || /^image\/(jpeg|png|webp|gif)$/.test(String(mime || ''));
+
+export function groesseText(bytes) {
+  const n = Number(bytes) || 0;
+  if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
+  if (n >= 1024) return `${Math.round(n / 1024)} KB`;
+  return n ? `${n} B` : '';
+}
+
 export function buildForum(threadRows, postRows) {
   const posts = postRows
     .filter((p) => p.id && p.themaId && !truthy(p.geloescht))
@@ -460,6 +522,7 @@ export function buildForum(threadRows, postRows) {
       created: String(p.erstellt || ''),
       text: String(p.text || ''),
       edited: String(p.bearbeitet || ''),
+      anhaenge: anhaengeAus(p.anhaenge),
       _row: p._row,
     }))
     .sort((a, b) => a.created.localeCompare(b.created));

@@ -30,6 +30,7 @@ export const ROUTES = [
   { path: 'forum', load: v('forum'), tab: 'mehr', nav: 'forum', title: 'Forum', bereich: 'forum' },
   { path: 'forum-neu', load: v('forum', 'newThread'), tab: 'mehr', nav: 'forum', title: 'Neues Thema', bereich: 'forum' },
   { path: 'forum/:id', load: v('forum', 'thread'), tab: 'mehr', nav: 'forum', title: 'Forum', bereich: 'forum' },
+  { path: 'anhang/:id', load: v('anhang'), tab: 'mehr', nav: '', title: 'Anhang' },
   { path: 'mehr', load: v('mehr'), tab: 'mehr', nav: '', title: 'Mehr' },
   { path: 'einstellungen', load: v('mehr', 'settings'), tab: 'mehr', nav: '', title: 'Einstellungen' },
   { path: 'datenschutz', load: v('datenschutz'), tab: 'mehr', nav: '', title: 'Datenschutz', public: true },
