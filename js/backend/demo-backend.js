@@ -4,7 +4,7 @@ import {
   buildMembers, buildEvents, buildNews, buildForumData, buildChat, buildAddressRows, buildGallery, DEMO_ISSUES, DEMO_DS_ISSUES, DEMO_SONGS, DEMO_ME_EMAIL, DEMO_DOMAIN,
 } from './demo-data.js';
 import {
-  addressesFromRows, buildForum, issueFromFile, sortIssues, sortMembers, sortNews, songFromFile, sortSongs, PROFILE_FIELDS,
+  addressesFromRows, buildForum, issueFromFile, sortIssues, sortMembers, sortNews, songFromFile, sortSongs, sortAlbums, PROFILE_FIELDS,
 } from './common.js';
 import { local } from '../lib/store.js';
 import { newId, calendarEventId, firstName } from '../lib/text.js';
@@ -482,7 +482,7 @@ export class DemoBackend {
   /* ---------------------------------------------------------- Galerie */
   async listGallery() {
     await wait();
-    return { albums: buildGallery(), folderUrl: '' };
+    return { albums: sortAlbums(buildGallery()), folderUrl: '' };
   }
 
   /** Demo: kein echter Upload-Ordner – der Link führt nur zu Google Drive */

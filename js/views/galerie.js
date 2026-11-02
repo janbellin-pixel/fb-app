@@ -1,22 +1,25 @@
 // Fotogalerie: Fotos aus einem festen Google-Drive-Ordner (nur lesen).
-// Unterordner sind Alben; ein Name wie „2026-06 Stiftungsfest“ wird als „Stiftungsfest · Juni 2026“ angezeigt.
-// Ansicht „Alben“: alle Alben nebeneinander; „Ordner“: die Ordner darüber als aufklappbare Gruppen (E46).
+// Unterordner sind Alben; ein Name wie „2026-06-15 Stiftungsfest“ wird als „Stiftungsfest · 15. Juni 2026“ angezeigt
+// (auch „2026-06 …“ und „2003 …“; liegt das Album in einem Jahresordner, zählt dessen Jahr – E59).
+// Ansicht „Alben“: Zeitachse mit Jahresüberschriften, neueste zuerst, Sammlungen ohne Datum zuletzt;
+// „Ordner“: die Ordner darüber als aufklappbare Gruppen (E46).
 // Fotos hochladen: Link auf einen eigenen Upload-Ordner in Drive (die App selbst schreibt dort nicht, E46).
 import { html, setHtml, icon, hero, backLink, skeletonList, emptyState, errorBox, loading, toast, openModal } from '../ui.js';
 import { fDateShort, toDate, isValid } from '../lib/dates.js';
 import { local } from '../lib/store.js';
+import { albumDate } from '../backend/common.js';
 
 const VIEW_KEY = 'fb.galerieAnsicht';
 
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
 export function albumInfo(album) {
-  const m = String(album.title).match(/^(\d{4})[-_.](\d{1,2})\s+(.+)$/);
-  const name = m ? m[3] : album.title;
-  // verschachtelte Alben („2023/Stiftungsfest“): übergeordnete Ordner als Zusatz
-  const when = m ? `${MONATE[(+m[2] - 1 + 12) % 12]} ${m[1]}` : (album.path || []).join(' › ');
+  const d = albumDate(album);
+  const datum = !d.jahr ? '' : !d.monat ? String(d.jahr) : `${d.tag ? `${d.tag}. ` : ''}${MONATE[d.monat - 1]} ${d.jahr}`;
+  // übergeordnete Ordner als Zusatz – ohne reine Jahresordner, das Jahr steht schon im Datum
+  const ordner = (album.path || []).filter((s) => !/^\d{4}$/.test(String(s).trim())).join(' › ');
   const n = album.photos.length;
-  return { name, when, count: `${n} ${n === 1 ? 'Foto' : 'Fotos'}` };
+  return { name: d.name, datum, jahr: d.jahr, when: [ordner, datum].filter(Boolean).join(' · '), count: `${n} ${n === 1 ? 'Foto' : 'Fotos'}` };
 }
 
 /** Bildunterschrift aus dem Dateinamen: ohne Endung und Nummer; Kameranamen (IMG_2041, DSC01234, PXL_…) entfallen */
@@ -67,7 +70,7 @@ function albumCard(b, a, { inFolder = false } = {}) {
   const info = albumInfo(a);
   const covers = a.photos.slice(0, 3);
   // in der Ordneransicht steht der Ordner schon darüber – nur ein Datum aus dem Namen bleibt
-  const when = inFolder && !/^\d{4}[-_.]\d{1,2}\s/.test(a.title) ? '' : info.when;
+  const when = inFolder ? (albumDate(a).ausPfad ? '' : info.datum) : info.when;
   return html`<a class="card album-card" href="#/galerie/${encodeURIComponent(a.id)}">
     <div class="album-cover ${covers.length > 2 ? 'trio' : ''}">${covers.map((p) => thumbImg(b, p, 600))}</div>
     <div class="album-meta"><div class="title">${info.name}</div><div class="small muted">${[when, info.count].filter(Boolean).join(' · ')}</div></div>
@@ -89,6 +92,26 @@ function folderLevel(b, node, depth = 0) {
       </details>`;
     })}
     ${albums.length ? html`<div class="album-grid">${albums.map((a) => albumCard(b, a, { inFolder: depth > 0 }))}</div>` : ''}`;
+}
+
+/** Ansicht „Alben“: Zeitachse – je Jahr eine Überschrift (die Alben kommen schon sortiert), Alben ohne Datum als „Sammlungen“ */
+export function yearSections(albums) {
+  const groups = new Map();
+  for (const a of albums) {
+    const k = albumDate(a).jahr || 0;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(a);
+  }
+  return [...groups].map(([jahr, list]) => ({ jahr, label: jahr ? String(jahr) : 'Sammlungen', albums: list }));
+}
+
+function albumTimeline(b, albums) {
+  const sections = yearSections(albums);
+  if (sections.length < 2) return html`<div class="album-grid">${albums.map((a) => albumCard(b, a))}</div>`;
+  return html`${sections.map((s) => html`<section class="album-year">
+    <h2>${s.label} <span class="small muted">${s.albums.length === 1 ? '1 Album' : `${s.albums.length} Alben`}</span></h2>
+    <div class="album-grid">${s.albums.map((a) => albumCard(b, a))}</div>
+  </section>`)}`;
 }
 
 function uploadDialog(url) {
@@ -126,7 +149,7 @@ export default async function galerie(ctx) {
         <button class="chip" data-view="alben" aria-pressed="${mode === 'alben'}">${icon('grid', 'icon-sm')}Alben</button>
         <button class="chip" data-view="ordner" aria-pressed="${mode === 'ordner'}">${icon('folder', 'icon-sm')}Ordner</button>
       </div>` : ''}
-      ${mode === 'ordner' ? folderLevel(b, albumTree(data.albums)) : html`<div class="album-grid">${data.albums.map((a) => albumCard(b, a))}</div>`}
+      ${mode === 'ordner' ? folderLevel(b, albumTree(data.albums)) : albumTimeline(b, data.albums)}
       ${data.folderUrl ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Alle Fotos liegen auch im <a href="${data.folderUrl}" target="_blank" rel="noopener">Galerie-Ordner in Google Drive</a>.</p>` : ''}`);
   }
 

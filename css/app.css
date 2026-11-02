@@ -987,6 +987,9 @@ body.reader-open .topbar, body.reader-open .tabbar, body.reader-open .footer, bo
 /* ---------- Galerie ---------- */
 .album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
 .album-card { overflow: hidden; }
+/* Zeitachse der Galerie (E59): Jahresüberschriften über den Alben */
+.album-year + .album-year { margin-top: 1.75rem; }
+.album-year h2 { display: flex; align-items: baseline; gap: .625rem; margin: 0 0 .75rem; padding-bottom: .375rem; border-bottom: 1px solid var(--line); font-weight: 300; font-size: 1.5rem; letter-spacing: .2px; }
 .album-cover { aspect-ratio: 3 / 2; background: #222; display: grid; gap: 2px; }
 .album-cover.trio { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
 .album-cover.trio img:first-child { grid-row: 1 / 3; }

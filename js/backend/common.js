@@ -44,6 +44,43 @@ export function sortMembers(list) {
   return list.slice().sort((a, b) => norm(lastName(a.name)).localeCompare(norm(lastName(b.name))) || norm(a.name).localeCompare(norm(b.name)));
 }
 
+/* ---------------------------------------------------------- Galerie (E59) */
+
+const jahrZahl = (s) => { const n = Number(s); return n >= 1800 && n <= 2200 ? n : 0; };
+
+/**
+ * Datum eines Albums aus dem Ordnernamen – „2026-06-15 Stiftungsfest“, „2026-06 Stiftungsfest“, „2003 Harzwanderung“,
+ * auch nur „1961“ – sonst aus dem letzten Jahresordner im Pfad („Chronik/1963/Stiftungsfest“, „Bundesdias/1963“).
+ * name = Titel ohne das Datum; jahr 0 = kein Datum (Sammlungen wie „Haus“); ausPfad = Jahr kam aus dem Pfad.
+ */
+export function albumDate(album) {
+  const title = String(album?.title || '').trim();
+  const m = title.match(/^(\d{4})(?:[-_.](\d{1,2})(?:[-_.](\d{1,2}))?)?(?:\s+(.+))?$/);
+  if (m && jahrZahl(m[1])) {
+    const monat = m[2] && +m[2] >= 1 && +m[2] <= 12 ? +m[2] : 0;
+    const tag = monat && m[3] && +m[3] >= 1 && +m[3] <= 31 ? +m[3] : 0;
+    return { jahr: +m[1], monat, tag, name: m[4] || title, ausPfad: false };
+  }
+  const jahre = (album?.path || []).map((s) => jahrZahl(String(s).trim())).filter(Boolean);
+  const jahr = jahre.length ? jahre[jahre.length - 1] : 0;
+  return { jahr, monat: 0, tag: 0, name: title, ausPfad: !!jahr };
+}
+
+/** Alben mit Datum zuerst (neueste oben, innerhalb eines Tages nach Name), danach die ohne Datum alphabetisch */
+export function sortAlbums(albums) {
+  const key = (a) => {
+    const d = albumDate(a);
+    return d.jahr ? `${d.jahr}-${String(d.monat).padStart(2, '0')}-${String(d.tag).padStart(2, '0')}` : '';
+  };
+  const name = (a) => [...(a.path || []), a.title].join(' ');
+  return albums.slice().sort((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    if (ka !== kb) return kb.localeCompare(ka);
+    return name(a).localeCompare(name(b), 'de', { numeric: true });
+  });
+}
+
 export function lastName(name) {
   const parts = String(name || '').trim().split(/\s+/);
   return parts[parts.length - 1] || '';

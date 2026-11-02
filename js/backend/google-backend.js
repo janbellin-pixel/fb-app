@@ -31,7 +31,7 @@ import { buildRecord, consentRecipients, isConsentManager, pruefsumme, ja } from
 import { prepareConsentSheet, syncConsentSheet, TABLE_TYPE } from '../lib/einwilligungsliste.js';
 import {
   SHEETS, NEWS_SCHEMA, PROFILE_FIELDS, PROFILE_MAX, guessCategory, parseEventMeta, stripAppLink, issueFromFile, sortIssues, addressesFromRows, addressTab,
-  buildForum, newsFromRows, sortNews, sortMembers, isSongFile, songFromFile, sortSongs, ZEITUNGEN,
+  buildForum, newsFromRows, sortNews, sortMembers, isSongFile, songFromFile, sortSongs, sortAlbums, ZEITUNGEN,
 } from './common.js';
 import { htmlToText } from '../lib/text.js';
 import { anhangPruefen, anhaengeAus } from './common.js';
@@ -1429,10 +1429,8 @@ export class GoogleBackend {
       // path = übergeordnete Ordner (z. B. ["2023"]), title = Name des Albums selbst
       if (list.length) albums.push({ id: s.id, title: s.name, path: s.path.slice(0, -1), photos: list.map(toPhoto), modified: s.modifiedTime });
     }
-    // neueste Alben zuerst (Ordnernamen wie „2026-06 Stiftungsfest“ oder Jahresordner sortieren sich von selbst)
-    const sortKey = (a) => [...(a.path || []), a.title].join(' ');
-    albums.sort((a, b) => sortKey(b).localeCompare(sortKey(a), 'de', { numeric: true }));
-    return { albums, folderUrl: `https://drive.google.com/drive/folders/${folder}` };
+    // neueste Alben zuerst – nach dem Datum im Ordnernamen oder dem Jahresordner (E59), Sammlungen ohne Datum zuletzt
+    return { albums: sortAlbums(albums), folderUrl: `https://drive.google.com/drive/folders/${folder}` };
   }
 
   /** Ordner, in den alle Mitglieder Fotos hochladen dürfen (E46) – nur als Link; '' = nicht eingerichtet */

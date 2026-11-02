@@ -535,6 +535,30 @@ async function run() {
   check(gal?.albums[0].photos.length === 4 && gal.albums[0].photos[0].thumb, 'Fotos mit Vorschaubild');
   check(b.photoUrl(gal.albums[0].photos[0], 1600).endsWith('=s1600'), 'Vorschaugröße wählbar');
   check(gal?.albums[0].photos[0].taken === '2026-06-27T18:30:00', 'Aufnahmedatum (EXIF) gelesen', gal?.albums[0].photos[0].taken);
+  // Zeitachse (E59): Datum aus dem Albumnamen oder dem Jahresordner, Sortierung, Anzeige
+  const { albumDate, sortAlbums } = await import('../js/backend/common.js');
+  const { albumInfo, yearSections } = await import('../js/views/galerie.js');
+  const ad = albumDate({ title: '2026-06-15 Stiftungsfest – Ball', path: ['Chronik', '2026'] });
+  check(ad.jahr === 2026 && ad.monat === 6 && ad.tag === 15 && ad.name === 'Stiftungsfest – Ball' && !ad.ausPfad, 'Albumdatum mit Tag aus dem Namen', JSON.stringify(ad));
+  const adP = albumDate({ title: 'Stiftungsfest', path: ['Chronik', '1963'] });
+  const adJ = albumDate({ title: '2003 Harzwanderung', path: ['Balhorn'] });
+  check(adP.jahr === 1963 && adP.ausPfad && adP.name === 'Stiftungsfest' && adJ.jahr === 2003 && !adJ.monat && adJ.name === 'Harzwanderung'
+    && albumDate({ title: 'Haus', path: [] }).jahr === 0 && albumDate({ title: '1963-70 Dias' }).monat === 0,
+    'Jahr aus dem Jahresordner oder „2003 …“; ohne Datum = Sammlung; „1963-70“ ist kein Monat', JSON.stringify([adP, adJ]));
+  const sortiert = sortAlbums([
+    { title: 'Haus', path: [], photos: [] }, { title: '2001 Stiftungsfest', path: ['Balhorn'], photos: [] },
+    { title: 'Kneipe', path: ['Chronik', '2025'], photos: [] }, { title: '2025-06-14 Sommerfest', path: ['Chronik', '2025'], photos: [] },
+    { title: 'Balhorn', path: [], photos: [] }, { title: '2025-10 Semesterankneipe', path: ['Chronik', '2025'], photos: [] },
+  ]).map((a) => a.title);
+  check(sortiert.join('|') === '2025-10 Semesterankneipe|2025-06-14 Sommerfest|Kneipe|2001 Stiftungsfest|Balhorn|Haus',
+    'Alben: neueste zuerst (Tag vor Monat vor Jahresordner), Sammlungen ohne Datum alphabetisch zuletzt', sortiert.join('|'));
+  const ai = albumInfo({ title: '2025-06-14 Sommerfest', path: ['Chronik', '2025'], photos: [{}] });
+  const aiF = albumInfo({ title: 'Stiftungsfest', path: ['Chronik', '1963'], photos: [] });
+  const aiB = albumInfo({ title: '1980-06 StF', path: ['Fink (Dias)'], photos: [] });
+  check(ai.name === 'Sommerfest' && ai.when === 'Chronik · 14. Juni 2025' && ai.count === '1 Foto' && aiF.when === 'Chronik · 1963' && aiB.when === 'Fink (Dias) · Juni 1980',
+    'Anzeige: Titel ohne Datum, Zusatz aus Ordnern (ohne Jahresordner) und Datum', JSON.stringify([ai, aiF, aiB]));
+  const abschnitte = yearSections(sortAlbums([{ title: '2025-06-14 Sommerfest', path: [], photos: [] }, { title: 'Haus', path: [], photos: [] }, { title: '2024-12 Adventskaffee', path: [], photos: [] }]));
+  check(abschnitte.map((s) => s.label).join('|') === '2025|2024|Sammlungen', 'Ansicht „Alben“: Jahresüberschriften, Sammlungen zuletzt', JSON.stringify(abschnitte.map((s) => [s.label, s.albums.length])));
   const full = await step('photoFullUrl', () => b.photoFullUrl(gal.albums[0].photos[0]));
   check(String(full).startsWith('blob:'), 'Original über Anmeldung geladen');
   // Fotos hochladen (E46): nur ein Link auf den Upload-Ordner – die App selbst lädt nichts hoch
