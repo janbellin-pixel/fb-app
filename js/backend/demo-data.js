@@ -484,14 +484,27 @@ const GALLERY = [
   ['2025-12 Haus & Garten', ['01 Das Haus im Winter', '02 Garten im Sommer', '03 Neue Küche'], '2025-12-12'],
 ];
 
+// Videos im Album (E62): [Album, Dateiname, Dauer in Sekunden, Vorschaubild aus dem Album, Größe in Bytes]
+// (erfundene Szene, im Browser aus einer Canvas-Animation aufgenommen – kein echtes Video)
+const GALLERY_VIDEOS = [
+  ['2026-05 Semesterprogramm', 'Kanutour (Video).mp4', 6, '01 Kanutour', 74223],
+];
+
 export function buildGallery() {
   return GALLERY.map(([album, names, date], a) => ({
     id: `album${a + 1}`,
     title: album,
     path: [album.slice(0, 4)], // Jahresordner – für die Ordneransicht
-    photos: names.map((n, i) => {
-      const url = encodeURI(`assets/demo/galerie/${album}/${n}.webp`);
-      return { id: `album${a + 1}-${i + 1}`, name: n.replace(/^\d+\s+/, ''), thumb: url, url, width: 1200, height: 800, taken: `${date}T18:00:00Z` };
-    }),
+    photos: [
+      ...names.map((n, i) => {
+        const url = encodeURI(`assets/demo/galerie/${album}/${n}.webp`);
+        return { id: `album${a + 1}-${i + 1}`, name: n.replace(/^\d+\s+/, ''), kind: 'image', mime: 'image/webp', thumb: url, url, width: 1200, height: 800, taken: `${date}T18:00:00Z` };
+      }),
+      ...GALLERY_VIDEOS.filter(([al]) => al === album).map(([, name, duration, poster, size], i) => ({
+        id: `album${a + 1}-video${i + 1}`, name, kind: 'video', mime: name.endsWith('.mp4') ? 'video/mp4' : 'video/webm', duration, size,
+        thumb: encodeURI(`assets/demo/galerie/${album}/${poster}.webp`), url: encodeURI(`assets/demo/galerie/${album}/${name}`),
+        width: 640, height: 360, taken: `${date}T19:00:00Z`,
+      })),
+    ],
   }));
 }

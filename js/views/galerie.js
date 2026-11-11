@@ -16,21 +16,35 @@ const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'A
 export function albumInfo(album) {
   const d = albumDate(album);
   const datum = !d.jahr ? '' : !d.monat ? String(d.jahr) : `${d.tag ? `${d.tag}. ` : ''}${MONATE[d.monat - 1]} ${d.jahr}`;
-  // übergeordnete Ordner als Zusatz – ohne reine Jahresordner, das Jahr steht schon im Datum
-  const ordner = (album.path || []).filter((s) => !/^\d{4}$/.test(String(s).trim())).join(' › ');
-  const n = album.photos.length;
-  return { name: d.name, datum, jahr: d.jahr, when: [ordner, datum].filter(Boolean).join(' · '), count: `${n} ${n === 1 ? 'Foto' : 'Fotos'}` };
+  // übergeordnete Ordner als Zusatz – ohne reine Jahresordner und Zeitspannen („1907–1999“, E61), das Jahr steht schon im Datum
+  const ordner = (album.path || []).filter((s) => !/^\d{4}(\s*[–-]\s*\d{4})?$/.test(String(s).trim())).join(' › ');
+  const videos = album.photos.filter((p) => p.kind === 'video').length;
+  const fotos = album.photos.length - videos;
+  const count = [fotos || !videos ? `${fotos} ${fotos === 1 ? 'Foto' : 'Fotos'}` : '', videos ? `${videos} ${videos === 1 ? 'Video' : 'Videos'}` : ''].filter(Boolean).join(' · ');
+  return { name: d.name, datum, jahr: d.jahr, when: [ordner, datum].filter(Boolean).join(' · '), count };
 }
 
-/** Bildunterschrift aus dem Dateinamen: ohne Endung und Nummer; Kameranamen (IMG_2041, DSC01234, PXL_…) entfallen */
+const KAMERA = '(?:img|dsc[nf]?|dsci|pxl|p|im|mvimg|photo|bild|foto|wp|whatsapp image|screenshot)';
+
+/** Bildunterschrift aus dem Dateinamen: ohne Endung und Nummer; Kameranamen (IMG_2041, DSC01234, PXL_…) entfallen – auch
+ * hinter einer Vorsilbe aus dem Einsortieren („Siegerehrung IMG_2041“ → „Siegerehrung“, E61) */
 export function photoTitle(name) {
-  const base = String(name || '').replace(/\.[a-z0-9]{2,5}$/i, '').trim();
-  if (/^(img|dsc[nf]?|pxl|p|mvimg|photo|bild|foto|wp|whatsapp image|screenshot)[\s_-]*\d/i.test(base) || /^[\d\s_.:-]+$/.test(base)) return '';
-  return base.replace(/^\d+[\s._-]+(?=\D)/, '');
+  let base = String(name || '').replace(/\.[a-z0-9]{2,5}$/i, '').replace(/\s+\(\d+\)$/, '').trim();
+  if (new RegExp(`^${KAMERA}[\\s_-]*\\d`, 'i').test(base) || /^[\d\s_.:()-]+$/.test(base)) return '';
+  base = base.replace(new RegExp(`\\s+(?:${KAMERA}[\\s_-]*\\d[\\d\\s_.:-]*(?:wa\\d+)?|\\d{6,}[\\d_.:-]*)$`, 'i'), '');
+  // führende Nummer oder ein Datum („03 Vortragsabend“, „2026-06-27 Festkommers“) entfallen
+  return base.replace(/^(?:\d{4}(?:-\d{2}){0,2}|\d+)[\s._-]+(?=\D)/, '');
 }
+
+/** Dauer „1:05“ aus Sekunden */
+export const dauer = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 function thumbImg(b, photo, size, cls = '') {
-  return html`<img class="${cls}" src="${b.photoUrl(photo, size)}" alt="${photoTitle(photo.name) || 'Foto'}" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-photo="${photo.id}">`;
+  const video = photo.kind === 'video';
+  const img = html`<img class="${cls}" src="${b.photoUrl(photo, size)}" alt="${photoTitle(photo.name) || (video ? 'Video' : 'Foto')}" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-photo="${photo.id}">`;
+  if (!video) return img;
+  // Videos (E62): Kennzeichen mit Dauer auf dem Vorschaubild
+  return html`${img}<span class="video-badge" aria-hidden="true">${icon('play', 'icon-sm')}${photo.duration ? dauer(photo.duration) : ''}</span>`;
 }
 
 /** Falls ein Vorschaubild nicht lädt: Originalbild über die Anmeldung holen */
@@ -202,7 +216,7 @@ export async function album(ctx) {
     setHtml(c, html`
       ${hero(info.name, [info.when, info.count].filter(Boolean).join(' · '))}
       <div class="photo-grid">${a.photos.map((p, i) => html`
-        <button class="photo-thumb" data-index="${i}" aria-label="${[`Foto ${i + 1}`, photoTitle(p.name)].filter(Boolean).join(': ')}">${thumbImg(b, p, 500)}</button>`)}</div>`);
+        <button class="photo-thumb" data-index="${i}" aria-label="${[`${p.kind === 'video' ? 'Video' : 'Foto'} ${i + 1}`, photoTitle(p.name)].filter(Boolean).join(': ')}">${thumbImg(b, p, 500)}</button>`)}</div>`);
   }
 
   // dieselben (zwischengespeicherten) Daten wie die Albumübersicht; fehlt das Album darin, einmal frisch laden
@@ -232,26 +246,48 @@ function openLightbox(b, album, start, info) {
   document.body.appendChild(box);
   document.body.classList.add('lightbox-open');
 
+  /** Video (E62): Player über die Adresse des Service Workers; sonst oder bei Fehlern der Hinweis mit Link zu Google Drive */
+  function videoHinweis(p, grund) {
+    const typ = (String(p.name || '').match(/\.([a-z0-9]{2,5})$/i)?.[1] || '').toLowerCase();
+    return html`<div class="video-hinweis">${icon('play')}<p>${grund || `Dieses Video${typ ? ` (.${typ})` : ''} kann die App hier nicht abspielen.`}</p>
+      ${p.webViewLink ? html`<a class="btn btn-on-dark btn-sm" href="${p.webViewLink}" target="_blank" rel="noopener">${icon('external', 'icon-sm')}In Google Drive öffnen</a>` : ''}</div>`;
+  }
+
   function render() {
     const p = album.photos[index];
-    const caption = [photoTitle(p.name), p.taken && isValid(toDate(p.taken)) ? fDateShort(p.taken) : ''].filter(Boolean).join(' · ');
+    const video = p.kind === 'video';
+    const mb = video && p.size ? `${(p.size / 1048576).toFixed(p.size < 10485760 ? 1 : 0)} MB` : '';
+    const caption = [photoTitle(p.name), p.taken && isValid(toDate(p.taken)) ? fDateShort(p.taken) : '', video && p.duration ? dauer(p.duration) : '', mb].filter(Boolean).join(' · ');
+    box.querySelector('video')?.pause();
     setHtml(box, html`
       <div class="lightbox-bar">
         <button class="btn btn-on-dark btn-icon btn-sm" data-lb="close" aria-label="Schließen">${icon('x')}</button>
         <div class="grow ellipsis"><strong>${info.name}</strong> · ${index + 1} / ${album.photos.length}</div>
-        <button class="btn btn-on-dark btn-sm" data-lb="original">${icon('download', 'icon-sm')}Original</button>
+        <button class="btn btn-on-dark btn-sm" data-lb="original">${icon(video ? 'external' : 'download', 'icon-sm')}${video ? 'In Drive öffnen' : 'Original'}</button>
       </div>
       <div class="lightbox-stage">
-        <button class="lightbox-nav prev" data-lb="prev" aria-label="Vorheriges Foto" ${index === 0 ? 'disabled' : ''}>${icon('chevronLeft')}</button>
-        <img src="${b.photoUrl(p, 1600)}" alt="${photoTitle(p.name) || `Foto ${index + 1}`}" referrerpolicy="no-referrer" data-photo="${p.id}">
-        <button class="lightbox-nav next" data-lb="next" aria-label="Nächstes Foto" ${index === album.photos.length - 1 ? 'disabled' : ''}>${icon('chevronRight')}</button>
+        <button class="lightbox-nav prev" data-lb="prev" aria-label="Vorheriges" ${index === 0 ? 'disabled' : ''}>${icon('chevronLeft')}</button>
+        ${video
+    ? (b.videoPlayable(p)
+      ? html`<video controls autoplay playsinline preload="metadata" poster="${b.photoUrl(p, 1600)}" src="${b.videoUrl(p)}" data-photo="${p.id}" aria-label="${photoTitle(p.name) || `Video ${index + 1}`}"></video>`
+      : videoHinweis(p, navigator.serviceWorker?.controller ? '' : 'Videos laufen erst, wenn die App einmal neu geladen wurde.'))
+    : html`<img src="${b.photoUrl(p, 1600)}" alt="${photoTitle(p.name) || `Foto ${index + 1}`}" referrerpolicy="no-referrer" data-photo="${p.id}">`}
+        <button class="lightbox-nav next" data-lb="next" aria-label="Nächstes" ${index === album.photos.length - 1 ? 'disabled' : ''}>${icon('chevronRight')}</button>
       </div>
       <div class="lightbox-caption">${caption}</div>`);
     const img = box.querySelector('img');
-    img.addEventListener('error', async () => {
+    img?.addEventListener('error', async () => {
       if (img.dataset.fallback) return;
       img.dataset.fallback = '1';
       try { img.src = await b.photoFullUrl(p); } catch { /* bleibt leer */ }
+    });
+    const vid = box.querySelector('video');
+    vid?.addEventListener('error', () => {
+      const code = vid.error?.code;
+      const grund = code === 4 ? '' : code === 2 ? 'Das Video konnte nicht geladen werden – bitte Verbindung und Anmeldung prüfen.' : '';
+      const stage = box.querySelector('.lightbox-stage');
+      vid.replaceWith(stage.ownerDocument.createElement('div'));
+      setHtml(stage.querySelector('div'), videoHinweis(p, grund));
     });
   }
 
@@ -262,12 +298,14 @@ function openLightbox(b, album, start, info) {
     render();
   };
   const close = () => {
+    box.querySelector('video')?.pause();
     box.remove();
     document.body.classList.remove('lightbox-open');
     document.removeEventListener('keydown', onKey);
   };
   const onKey = (e) => {
     if (e.key === 'Escape') close();
+    else if (document.activeElement?.tagName === 'VIDEO') return; // Pfeiltasten gehören dem Player
     else if (e.key === 'ArrowRight') go(1);
     else if (e.key === 'ArrowLeft') go(-1);
   };
@@ -289,9 +327,9 @@ function openLightbox(b, album, start, info) {
     }
   });
 
-  // Wischen auf dem Handy
+  // Wischen auf dem Handy – nicht auf dem Videoplayer (dort gehören die Gesten den Bedienelementen)
   let x0 = null;
-  box.addEventListener('pointerdown', (e) => { x0 = e.clientX; });
+  box.addEventListener('pointerdown', (e) => { x0 = e.target.closest('video') ? null : e.clientX; });
   box.addEventListener('pointerup', (e) => {
     if (x0 === null) return;
     const dx = e.clientX - x0;

@@ -211,6 +211,11 @@ export function createFakeGoogle({ me, workspace = true }) {
       file.thumbnailLink = `${location.origin}/tests/keine-vorschau/${id}=s220`;
       file.imageMediaMetadata = { width: 1200, height: 800, time: '2026:06:27 18:30:00' };
     }
+    if (file.mimeType.startsWith('video/')) {
+      // Videos (E62): Drive liefert ein Standbild und die Dauer
+      file.thumbnailLink = `${location.origin}/tests/keine-vorschau/${id}=s220`;
+      file.videoMediaMetadata = { width: 1920, height: 1080, durationMillis: 42000 };
+    }
     state.files.set(id, file);
     if (file.mimeType === 'application/vnd.google-apps.spreadsheet') newSpreadsheet(id, file.name);
     return file;

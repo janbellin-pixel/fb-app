@@ -997,7 +997,14 @@ body.reader-open .topbar, body.reader-open .tabbar, body.reader-open .footer, bo
 .album-meta { padding: .75rem 1rem .875rem; }
 .album-meta .title { font-weight: 650; font-size: 1.0625rem; }
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr)); gap: .375rem; }
-.photo-thumb { padding: 0; border: 0; background: #ddd; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 3px; cursor: zoom-in; display: block; }
+.photo-thumb { padding: 0; border: 0; background: #ddd; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 3px; cursor: zoom-in; display: block; position: relative; }
+/* Videos (E62): Kennzeichen mit Dauer auf dem Vorschaubild, Player im Vollbild */
+.album-cover { position: relative; }
+.video-badge { position: absolute; left: .375rem; bottom: .375rem; display: inline-flex; align-items: center; gap: .2rem; padding: .15rem .5rem .15rem .3rem; border-radius: 999px; background: rgba(0, 0, 0, .65); color: #fff; font-size: .75rem; line-height: 1.3; pointer-events: none; }
+.album-cover .video-badge { left: .25rem; bottom: .25rem; }
+.lightbox-stage video { max-width: 100%; max-height: 100%; background: #000; }
+.video-hinweis { display: grid; gap: .75rem; justify-items: center; text-align: center; color: #ddd; padding: 1rem; max-width: min(100%, 24rem); }
+.video-hinweis p { margin: 0; }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s var(--ease); }
 @media (hover: hover) { .photo-thumb:hover img { transform: scale(1.04); } }
 img.broken { visibility: hidden; }

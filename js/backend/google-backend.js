@@ -26,7 +26,7 @@ import * as people from '../google/people.js';
 import * as chat from '../google/chat.js';
 import { ApiError } from '../google/client.js';
 import { registerOwnFile, isOwnFile, registerOwnTable } from '../google/guard.js';
-import { hasScope } from '../auth.js';
+import { hasScope, getAccessToken } from '../auth.js';
 import { buildRecord, consentRecipients, isConsentManager, pruefsumme, ja } from '../lib/datenschutz.js';
 import { prepareConsentSheet, syncConsentSheet, TABLE_TYPE } from '../lib/einwilligungsliste.js';
 import {
@@ -49,7 +49,7 @@ const SCOPE_CHAT_MEMBERS = 'https://www.googleapis.com/auth/chat.memberships';
 const CHAT_NAMES = 'fb.chatNamen'; // Namen selbst angelegter Unterhaltungen (falls das Verzeichnis fehlt)
 const APP_FOLDER = 'Frankonia-Brunonia App – meine Beiträge und Profil';
 const OWN_FIELDS = 'id,name,description,createdTime,modifiedTime,appProperties,ownedByMe,owners(emailAddress,displayName,photoLink)';
-const GALLERY_FIELDS = 'id,name,mimeType,thumbnailLink,webViewLink,createdTime,modifiedTime,imageMediaMetadata(width,height,time),parents';
+const GALLERY_FIELDS = 'id,name,mimeType,size,thumbnailLink,webViewLink,createdTime,modifiedTime,imageMediaMetadata(width,height,time),videoMediaMetadata(width,height,durationMillis),parents';
 const TABLE_FIELDS = 'id,name,ownedByMe,appProperties,owners(emailAddress,displayName,photoLink)';
 const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
 const VISIBILITY_FILE = 'Sichtbarkeit (Mitglieder-App).json';
@@ -1403,19 +1403,28 @@ export class GoogleBackend {
   async listGallery() {
     const folder = (config.galerieOrdnerId || '').trim();
     if (!folder) throw notConfigured('Der Galerie-Ordner');
-    // Alben = Ordner mit Fotos, auch verschachtelt („2023/Wintersemester/Kneipe“): bis drei Ebenen tief
+    // Alben = Ordner mit Fotos oder Videos, auch verschachtelt („2023/Wintersemester/Kneipe“): bis drei Ebenen tief
     const { files, folders } = await this.listFolderTree(folder, {
-      depth: 3, filter: "mimeType contains 'image/'", fields: GALLERY_FIELDS, orderBy: 'name',
+      depth: 3, filter: "(mimeType contains 'image/' or mimeType contains 'video/')", fields: GALLERY_FIELDS, orderBy: 'name',
     });
-    const toPhoto = (f) => ({
-      id: f.id,
-      name: f.name,
-      thumb: f.thumbnailLink || '',
-      width: f.imageMediaMetadata?.width || 0,
-      height: f.imageMediaMetadata?.height || 0,
-      taken: exifToIso(f.imageMediaMetadata?.time) || f.createdTime || '',
-      webViewLink: f.webViewLink || '',
-    });
+    // Videos (E62): Vorschaubild von Drive, Dauer aus den Metadaten, Größe für die Wiedergabe über den Service Worker
+    const toPhoto = (f) => {
+      const video = String(f.mimeType || '').startsWith('video/');
+      const meta = (video ? f.videoMediaMetadata : f.imageMediaMetadata) || {};
+      return {
+        id: f.id,
+        name: f.name,
+        kind: video ? 'video' : 'image',
+        mime: f.mimeType || '',
+        size: Number(f.size) || 0,
+        duration: video ? Math.round((Number(meta.durationMillis) || 0) / 1000) : 0,
+        thumb: f.thumbnailLink || '',
+        width: meta.width || 0,
+        height: meta.height || 0,
+        taken: exifToIso(f.imageMediaMetadata?.time) || f.createdTime || '',
+        webViewLink: f.webViewLink || '',
+      };
+    };
     const byFolder = new Map();
     for (const f of files) {
       if (!byFolder.has(f.parentId)) byFolder.set(f.parentId, []);
@@ -1445,11 +1454,34 @@ export class GoogleBackend {
   }
 
   async photoFullUrl(photo) {
+    if (photo.kind === 'video') return photo.webViewLink || `https://drive.google.com/file/d/${encodeURIComponent(photo.id)}/view`;
     if (this.blobUrls.has(photo.id)) return this.blobUrls.get(photo.id);
     const blob = await drive.downloadBlob(photo.id);
     const url = URL.createObjectURL(blob);
     this.blobUrls.set(photo.id, url);
     return url;
+  }
+
+  /**
+   * Adresse zum Abspielen eines Videos (E62): eine eigene Adresse der App, die der Service Worker mit der Anmeldung
+   * an die Drive-API durchreicht – samt Bereichsanforderungen des Players, so dass auch große Videos sofort
+   * anlaufen und vorgespult werden können. Die Größe steht in der Adresse, damit der Service Worker die
+   * Bereichsantwort vollständig beschreiben kann. Ohne Service Worker liefert die Adresse nichts (Hinweis mit
+   * Link zu Google Drive). Das Anmelde-Token bekommt der Service Worker per Nachricht, nie über die Adresse.
+   */
+  videoUrl(photo) {
+    const token = getAccessToken();
+    if (token && navigator.serviceWorker?.controller) navigator.serviceWorker.controller.postMessage({ type: 'token', token });
+    return new URL(`_video/${encodeURIComponent(photo.id)}?size=${Number(photo.size) || 0}`, document.baseURI).href;
+  }
+
+  /** Dieser Browser kann das Format im <video>-Element abspielen (sonst nur der Link zu Google Drive) */
+  videoPlayable(photo) {
+    const v = typeof document === 'undefined' ? null : document.createElement('video');
+    const typ = String(photo.mime || '');
+    if (!v || !typ.startsWith('video/')) return false;
+    if (!navigator.serviceWorker?.controller) return false;
+    return v.canPlayType(typ) !== '' || /^video\/(mp4|quicktime|x-m4v|webm)$/.test(typ);
   }
 
   /* ================================================================ Chat (eigene Nachrichten, neue Unterhaltungen mit Personen) */

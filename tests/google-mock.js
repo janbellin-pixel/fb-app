@@ -583,6 +583,24 @@ async function run() {
   const galBaum = albumTree(galTief?.albums || []);
   const knoten2025 = galBaum.children.get('2025');
   check(knoten2025?.album?.id === gTY.id && knoten2025.children.get('Wintersemester')?.children.get('Kneipe')?.album?.id === gTK.id, 'Ordnerbaum für die Ansicht „Ordner“');
+  // Videos (E62): im Album mit Dauer und Größe; Wiedergabe über die eigene Adresse, die der Service Worker an Drive durchreicht
+  const videoDatei = fake.addFile({ ...FW, name: 'Kneipe 2.mp4', mimeType: 'video/mp4', parents: [gTK.id], content: new Uint8Array(2048).buffer });
+  const galVideo = await step('listGallery (mit Video)', () => b.listGallery());
+  const videoAlbum = galVideo?.albums.find((a) => a.id === gTK.id);
+  const videoEintrag = videoAlbum?.photos.find((p) => p.id === videoDatei.id);
+  check(videoEintrag?.kind === 'video' && videoEintrag.duration === 42 && videoEintrag.size === 2048 && videoEintrag.mime === 'video/mp4' && videoEintrag.thumb.includes('=s220')
+    && videoAlbum.photos.length === 2 && videoAlbum.photos[0].kind === 'image', 'Video im Album: Art, Dauer, Größe, Standbild von Drive', JSON.stringify(videoEintrag));
+  const videoAdresse = b.videoUrl(videoEintrag);
+  check(videoAdresse.startsWith(`${location.origin}/`) && /\/_video\/[-\w]+\?size=2048$/.test(videoAdresse) && !/token|ya29/i.test(videoAdresse), 'Videoadresse der App für den Service Worker, ohne Token in der Adresse', videoAdresse);
+  const videoLink = await b.photoFullUrl(videoEintrag);
+  check(b.photoUrl(videoEintrag, 600).endsWith('=s600') && videoLink.includes(videoDatei.id) && !videoLink.startsWith('blob:') && typeof b.videoPlayable(videoEintrag) === 'boolean',
+    'Standbild in Wunschgröße, „In Drive öffnen“ = Link statt Download, Abspielbarkeit prüfbar', videoLink);
+  const { photoTitle } = await import('../js/views/galerie.js');
+  const titel = ['Siegerehrung IMG_1234.jpg', 'Ankneipe 20050423_200000.jpg', 'Magazin 03.jpg', 'IMG_1234.jpg', '2026-06 Stiftungsfest.jpg', 'Reuter DSC_0012 (2).jpg', 'Kneipe 2.mp4', 'Tour Danzig IMG-20230525-WA0012.jpeg'].map(photoTitle);
+  check(titel.join('|') === 'Siegerehrung|Ankneipe|Magazin 03||Stiftungsfest|Reuter|Kneipe 2|Tour Danzig', 'Bildunterschrift: Vorsilbe ohne Kameraname und Zeitstempel (E61), Kameranamen allein entfallen', titel.join('|'));
+  const aiAlt = albumInfo({ title: '1963', path: ['Chronik', '1907–1999'], photos: [{}, { kind: 'video' }] });
+  const aiVid = albumInfo({ title: '2026-05 Fahrt', path: [], photos: [{ kind: 'video' }, { kind: 'video' }] });
+  check(aiAlt.when === 'Chronik · 1963' && aiAlt.count === '1 Foto · 1 Video' && aiVid.count === '2 Videos', 'Zeitspannen-Ordner („1907–1999“) nicht als Zusatz; Fotos und Videos gezählt', JSON.stringify([aiAlt, aiVid]));
   check(fake.state.writes.length === wGal, 'Galerie lesen schreibt nichts');
 
   /* ---------------------------------------------------------------- Liedermappe */

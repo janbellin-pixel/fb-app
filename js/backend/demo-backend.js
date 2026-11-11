@@ -498,6 +498,15 @@ export class DemoBackend {
     return photo.url;
   }
 
+  /** Demo-Video liegt als Datei bei der App (E62) */
+  videoUrl(photo) {
+    return photo.url;
+  }
+
+  videoPlayable(photo) {
+    return String(photo.mime || '').startsWith('video/');
+  }
+
   /* ---------------------------------------------------------- Chat */
   chatStatus() {
     return { available: true, canCreate: true };

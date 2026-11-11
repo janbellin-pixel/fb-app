@@ -9,12 +9,18 @@ Schritte:
   plan     Dateien einer Quelle (Unterordner des Upload-Ordners) nach Tag gruppieren – Datum aus dem Dateinamen,
            sonst aus EXIF – Termine aus dem Kalender (ICS) zuordnen, je Gruppe einen Kontaktbogen (20 Vorschaubilder)
            erzeugen und einen Plan als CSV schreiben. Spalte „ziel“ = Album relativ zur Chronik („2026/2026-06-20
-           133. Stiftungsfest“), „Semester“ = kein eigenes Album (Vorgabe ohne eindeutigen Termin), leer = bleibt liegen.
-  auswahl  Den Plan auf ein Foto je Motiv eindampfen (Serien gleicher Motive, es bleibt das schärfste Bild), Videos und
-           Gesperrte (sperrliste.txt) ausnehmen, Alben unter der Mindestgröße ins Semester-Album legen; schreibt
+           133. Stiftungsfest“; mit „/“ davor relativ zur Galerie, etwa „/Dia-Scans/Magazin 01“), „Semester“ = kein
+           eigenes Album (Vorgabe ohne eindeutigen Termin), leer = bleibt liegen.
+           --je-ordner (E61): jeder Ordner mit Bildern ist eine Gruppe (Datum aus drei EXIF-Stichproben, passend zum
+           Semesterordner; Titel aus dem Ordnernamen); Unterordner ab --mindestalbum Bildern werden eigene Alben
+           „Titel – Unterordner“, kleinere gehen im Album darüber auf und ihre Dateien bekommen den Unterordner als
+           Vorsilbe (die App zeigt sie als Bildunterschrift). Spalten „ordner“, „titel“, „vorsilbe“.
+  auswahl  Den Plan auf ein Foto je Motiv eindampfen (Serien gleicher Motive, es bleibt das schärfste Bild; --ohne-doppelte
+           behält alles), Gesperrte (sperrliste.txt) ausnehmen, Alben unter der Mindestgröße ins Semester-Album legen
+           (Vorsilbe = Titel des Ordners); Videos bleiben bei ihrem Album (die App spielt sie ab, E62). Schreibt
            auswahl.csv und Bögen zum Sichten (sichtung_*.jpg: alles, was in die Galerie käme; serien_*.jpg: was entfällt).
   move     auswahl.csv ausführen: Fotos in die Zielalben verschieben (innerhalb derselben Ablage, Drive lädt nichts neu
-           hoch), alles andere nach „Archiv/Nicht in der Galerie/<Quelle>/…“, Protokoll schreiben (auch in den
+           hoch), Doppelte und Gesperrte nach „Archiv/Nicht in der Galerie/<Quelle>/…“, Protokoll schreiben (auch in den
            Archiv-Ordner), leere Quellordner entfernen. Nichts wird gelöscht.
   undo     Ein Protokoll rückwärts ausführen.
 
@@ -280,18 +286,31 @@ def titel_bereinigen(s):
     return VERBOTEN.sub('-', s).strip(' .')
 
 
+PLAN_SPALTEN = ['id', 'tag', 'wochentag', 'bilder', 'videos', 'von', 'bis', 'termine', 'ziel', 'hinweis', 'ordner', 'titel', 'vorsilbe']
+
+
+def plan_schreiben(ablage, plan, listen):
+    with open(ablage / 'plan.csv', 'w', newline='', encoding='utf-8-sig') as f:
+        w = csv.DictWriter(f, fieldnames=PLAN_SPALTEN, delimiter=';', extrasaction='ignore')
+        w.writeheader()
+        w.writerows([{k: z.get(k, '') for k in PLAN_SPALTEN} for z in plan])
+    (ablage / 'dateien.json').write_text(json.dumps(listen, ensure_ascii=False, indent=0), encoding='utf-8')
+
+
 def cmd_plan(args, cfg):
     quelle = os.path.join(cfg['upload'], args.quelle) if args.quelle else cfg['upload']
     ablage = Path(args.ausgabe or (HIER.parent / 'tmp' / 'einsortieren'))
     ablage.mkdir(parents=True, exist_ok=True)
     print(f'Quelle: {quelle}')
+    termine = ics_laden(cfg.get('ics'), ablage)
+    print(f'{len(termine)} Termine im Kalender')
+    if args.je_ordner:
+        return plan_je_ordner(args, quelle, ablage, termine)
     dateien = dateien_sammeln(quelle)
     if args.max:
         dateien = dateien[:args.max]
     print(f'{len(dateien)} Dateien, Datum aus: ' + ', '.join(f'{k}={v}' for k, v in sorted(
         ((w, sum(1 for e in dateien if e['woher'] == w)) for w in {e['woher'] for e in dateien}), key=lambda x: -x[1])))
-    termine = ics_laden(cfg.get('ics'), ablage)
-    print(f'{len(termine)} Termine im Kalender')
     gruppen = gruppen_bilden(dateien)
     plan = []
     listen = {}
@@ -322,15 +341,212 @@ def cmd_plan(args, cfg):
         gids = sorted({e['gid'] for e in liste})
         kontaktbogen(liste, f'Monat {monat} · kleine Gruppen {gids[0]}–{gids[-1]} · {len(liste)} Dateien', ablage / f'monat_{monat}.jpg',
                      zelle=(160, 120), mit_gruppe=True)
-    with open(ablage / 'plan.csv', 'w', newline='', encoding='utf-8-sig') as f:
-        w = csv.DictWriter(f, fieldnames=list(plan[0].keys()) if plan else ['id'], delimiter=';')
-        w.writeheader()
-        w.writerows(plan)
-    (ablage / 'dateien.json').write_text(json.dumps(listen, ensure_ascii=False, indent=0), encoding='utf-8')
+    plan_schreiben(ablage, plan, listen)
     print(f'{len(plan)} Gruppen → {ablage / "plan.csv"}' + ('' if args.ohne_boegen else f', Kontaktbögen bogen_g*.jpg (ab {args.mindestens} Bildern) und monat_*.jpg in {ablage}'))
     for z in plan:
         print(f'{z["id"]} {z["wochentag"]} {z["tag"]} {z["bilder"]:4d} B {z["videos"]:2d} V {z["von"]}–{z["bis"]}  {z["termine"][:70]}')
     print(f'Dann „ziel“ prüfen (Titel eintragen, „{SEMESTER}“ lassen oder leeren) und „auswahl --plan {ablage / "plan.csv"}“ ausführen')
+
+
+# ---------------------------------------------------------------- plan --je-ordner (E61)
+
+# Ordner alter Fotoarchive: Semester- und Sammelordner sind nur Hüllen, Unterordner sind die Alben
+SEMESTER_NAME = re.compile(r'^(ss|sose|sommersemester|ws|wise|wintersemester|wintersemster)[_ -]?(\d{4}|\d{2})', re.I)
+GENERISCH = re.compile(r'^(?:album|neuer ordner|ordner|fotos?|bilder|pics?|dcim|camera|kamera|sonstiges)(?:[ _-]?\d+)?$', re.I)
+ROHSCAN = re.compile(r'^(?:img|scan|bild)[ _-]?\d{3,4}\.(?:jpe?g|tiff?|png)$', re.I)
+# Abkürzungen und Schreibweisen aus Ordnernamen → Titel
+TITEL_WOERTER = {
+    'ankneipe': 'Ankneipe', 'abkneipe': 'Abkneipe', 'kk': 'Kreuzkneipe', 'kreuzkneipe': 'Kreuzkneipe', 'uecomm': 'Übergabekommers',
+    'stifte': 'Stiftungsfest', 'stiftungsfest': 'Stiftungsfest', 'adv': 'Adventskaffee', 'adventskaffee': 'Adventskaffee',
+    'chorsem': 'Chorseminar', 'sofe': 'Sommerfest', 'sommerfest': 'Sommerfest', 'bosseln': 'Boßeln', 'weisserfleck': 'Weißer Fleck',
+    'havanaclubparty': 'Havana-Club-Party', 'bierathlon': 'Bierathlon', 'siegerehrung': 'Siegerehrung', 'begruessungsabend': 'Begrüßungsabend',
+    'begruessung': 'Begrüßung', 'landesvater': 'Landesvater', 'uebungen': 'Übungen', 'festball': 'Festball', 'kommers': 'Kommers',
+    'exbummel': 'Exbummel', 'feuerzangenbowle': 'Feuerzangenbowle', 'dartturnier': 'Dartturnier', 'segeln': 'Segeln', 'ah': 'AH', 'ab': 'AB',
+    'partyvorbereitungen': 'Partyvorbereitungen', 'aktivenfahrt': 'Aktivenfahrt', 'semesterankneipe': 'Semesterankneipe',
+    'und': 'und', 'mit': 'mit', 'oder': 'oder', 'der': 'der', 'die': 'die', 'das': 'das', 'im': 'im', 'am': 'am', 'in': 'in',
+}
+
+
+def semester_aus_name(name):
+    """(Startjahr, 'S'|'W') aus Ordnernamen wie ss2005, ws0405, sommersemester_2003, WS1314 – sonst None"""
+    m = SEMESTER_NAME.match(name)
+    if not m:
+        return None
+    z = m.group(2)
+    jahr = int(z) if len(z) == 4 and int(z) >= 1900 else 2000 + int(z[:2])
+    return jahr, 'S' if m.group(1).lower() in ('ss', 'sose', 'sommersemester') else 'W'
+
+
+def titel_aus_name(name):
+    """Ordnername → Titel: ohne Semester-Kürzel, Jahreszahlen und Nummern, Unterstriche zu Leerzeichen, bekannte Kürzel ausgeschrieben;
+    Platzhalternamen wie „album_003“ ergeben '' (Titel kommt vom Kontaktbogen)"""
+    if GENERISCH.match(name) or semester_aus_name(name) and len(name) <= 8:
+        return ''
+    s = re.sub(r'(?i)[_ -]?(ss|ws|sose|wise)[_ -]?\d{2,8}(?:[_-]\d{2,4})?$', '', name)  # ankneipe_ss2005, kk_ws0405, abkneipe_ws200405
+    s = re.sub(r'(?i)^(ss|ws|sose|wise)[_ -]?\d{2,4}[_-]+', '', s)  # ss2009_akwhameln
+    s = re.sub(r'(?<!\d)(19|20)\d{2}(?!\d)', ' ', s)  # Jahreszahlen, auch angehängt (stifte2005, Ralf2006)
+    s = re.sub(r'(?<=[A-Za-zäöüß])\d{2,3}$', '', s)  # SoFe17, stifte120, Ankneipe1718 (schon oben)
+    s = re.sub(r'^\d+[_ .-]+', '', s)  # 31_Danzig_Stadt
+    s = re.sub(r'^[A-F]_', '', s)  # A_Begruessungsabend
+    s = re.sub(r'[_\s]+', ' ', s).strip(' -_.')
+    worte = [TITEL_WOERTER.get(w.lower(), w[:1].upper() + w[1:]) for w in s.split(' ') if w]
+    return titel_bereinigen(' '.join(worte))
+
+
+GRUENDUNG = 1893  # Stiftungsfest-Nummer = Jahr − Gründungsjahr (2005 → 112.)
+
+
+def mit_nummer(titel, jahr):
+    """„Stiftungsfest“ bekommt seine Nummer aus dem Jahr, wenn sie fehlt"""
+    if titel.lower().startswith('stiftungsfest') and jahr and not re.match(r'^\d+\.', titel):
+        return f'{int(jahr) - GRUENDUNG}. {titel}'
+    return titel
+
+
+def ordner_datum(dp, bilder, semester):
+    """Datum eines Ordners aus drei Stichproben (Dateiname, sonst EXIF) – nur Daten, die zum Semesterordner passen:
+    (Text „JJJJ-MM-TT“ | „JJJJ-MM“ | „JJJJ“ | '', Tag, Herkunft)"""
+    proben = [bilder[round(i * (len(bilder) - 1) / 2)] for i in range(3)] if len(bilder) >= 3 else list(bilder)
+    daten = []
+    for f in dict.fromkeys(proben):
+        z, _ = datum_aus_name(f)
+        if not z:
+            z, _ = exif_datum(os.path.join(dp, f))
+        if z and 1990 <= z.year <= dt.date.today().year:
+            daten.append(z.date())
+    if semester:
+        jahr, art = semester
+        von = dt.date(jahr, 4, 1) if art == 'S' else dt.date(jahr, 10, 1)
+        bis = dt.date(jahr, 9, 30) if art == 'S' else dt.date(jahr + 1, 3, 31)
+        passend = [d for d in daten if von - dt.timedelta(days=45) <= d <= bis + dt.timedelta(days=45)]
+        if daten and not passend:
+            return (f'{jahr}-04' if art == 'S' else f'{jahr}-10'), von, 'semester (EXIF passt nicht)'
+        daten = passend
+    daten.sort()
+    if daten:
+        if (daten[-1] - daten[0]).days <= 3:
+            return daten[0].isoformat(), daten[0], 'exif'
+        mitte = daten[len(daten) // 2]
+        if daten[0].year == daten[-1].year and daten[0].month == daten[-1].month:
+            return mitte.strftime('%Y-%m'), mitte.replace(day=1), 'exif (Monat)'
+        return str(mitte.year), dt.date(mitte.year, 1, 1), 'exif (nur Jahr)'
+    if semester:
+        jahr, art = semester
+        return (f'{jahr}-04', dt.date(jahr, 4, 1), 'semester') if art == 'S' else (f'{jahr}-10', dt.date(jahr, 10, 1), 'semester')
+    return '', None, 'offen'
+
+
+def plan_je_ordner(args, quelle, ablage, termine):
+    """Jeder Ordner mit Bildern ist eine Gruppe. Ebenen: Hülle (Semester- oder Sammelordner oben) → Album → Unterordner.
+    Unterordner ab --mindestalbum Bildern (samt Inhalt) werden eigene Alben „Titel – Unterordner“, kleinere und tiefer
+    liegende gehen im Album darüber auf (ziel des Albums, Vorsilbe = eigener Titel). Hüllen ohne eigenen Titel liefern
+    kein Albumziel: dann steht nur das Datum, der Titel kommt vom Kontaktbogen."""
+    ordner = {}  # rel → Angaben
+    for dp, dn, fn in os.walk(quelle):
+        dn.sort()
+        bilder = sorted(f for f in fn if os.path.splitext(f)[1].lower() in BILD)
+        videos = sorted(f for f in fn if os.path.splitext(f)[1].lower() in VIDEO)
+        rel = os.path.relpath(dp, quelle).replace('\\', '/')
+        teile = [] if rel == '.' else rel.split('/')
+        ordner[rel] = {'rel': rel, 'teile': teile, 'dp': dp, 'bilder': bilder, 'videos': videos, 'unter': sorted(dn)}
+    # Bilder samt Unterordnern und Semester je Ordner
+    def gesamt(rel):
+        o = ordner[rel]
+        if 'gesamt' not in o:
+            o['gesamt'] = len(o['bilder']) + sum(gesamt((rel + '/' if rel != '.' else '') + u) for u in o['unter'] if (rel + '/' if rel != '.' else '') + u in ordner)
+        return o['gesamt']
+    for rel, o in ordner.items():
+        sem = None
+        for t in o['teile']:
+            sem = semester_aus_name(t) or sem
+        o['semester'] = sem
+        o['huelle'] = bool(o['teile']) and len(o['teile']) == 1 and (bool(semester_aus_name(o['teile'][0])) or bool(GENERISCH.match(o['teile'][0])) or (not o['bilder'] and bool(o['unter'])))
+    # Datum und Titel je Ordner (Datum notfalls vom ersten Unterordner mit Bildern)
+    def datum(rel):
+        o = ordner[rel]
+        if 'datum' not in o:
+            if o['bilder']:
+                o['datum'] = ordner_datum(o['dp'], o['bilder'], o['semester'])
+            else:
+                kinder = [(rel + '/' if rel != '.' else '') + u for u in o['unter']]
+                erst = next((k for k in kinder if k in ordner and gesamt(k)), None)
+                o['datum'] = datum(erst) if erst else ordner_datum(o['dp'], [], o['semester'])
+        return o['datum']
+    def albumebene(teile):
+        return 2 if teile and ordner.get(teile[0], {}).get('huelle') else 1
+    def ziel_von(rel):
+        """(ziel, titel, vorsilbe) für den Ordner: eigenes Album, Album darüber oder Hülle"""
+        o = ordner[rel]
+        teile = o['teile']
+        if 'ziel' in o:
+            return o['ziel']
+        ebene = albumebene(teile)
+        text, tag, _ = datum(rel)
+        jahr = text[:4]
+        eigen = mit_nummer(titel_aus_name(teile[-1]), jahr) if teile else ''
+        if len(teile) <= ebene:  # Album (oder Hülle mit losen Bildern)
+            titel = eigen if len(teile) == ebene else ''
+            o['ziel'] = (f'{jahr}/{text} {titel}'.strip() if text else '', titel, '')
+        elif len(teile) == ebene + 1 and gesamt(rel) >= args.mindestalbum:  # Unterordner als eigenes Album
+            oben = ziel_von('/'.join(teile[:ebene]))
+            titel = f'{oben[1]} – {eigen}' if oben[1] and eigen else (eigen or oben[1])
+            o['ziel'] = (f'{jahr}/{text} {titel}'.strip() if text else '', titel, '')
+        else:  # geht im Album darüber auf
+            oben = ziel_von('/'.join(teile[:-1]))
+            o['ziel'] = (oben[0], oben[1], eigen or oben[2])
+        return o['ziel']
+    plan = []
+    listen = {}
+    kleine = defaultdict(list)
+    n = 0
+    for rel in sorted(ordner, key=lambda r: ordner[r]['teile']):
+        o = ordner[rel]
+        if not o['bilder'] and not o['videos']:
+            continue
+        n += 1
+        gid = f'f{n:03d}'
+        text, tag, woher = datum(rel)
+        ziel, titel, vorsilbe = ziel_von(rel)
+        rohscan = bool(o['bilder']) and all(ROHSCAN.match(f) for f in o['bilder'])
+        liste = []
+        for f in o['bilder'] + o['videos']:
+            z, _ = datum_aus_name(f)
+            liste.append({'pfad': os.path.join(o['dp'], f), 'name': f, 'zeit': z or dt.datetime.combine(tag or dt.date(1900, 1, 1), dt.time(12)),
+                          'typ': 'video' if os.path.splitext(f)[1].lower() in VIDEO else 'bild', 'gid': gid})
+        kandidaten = termine_zu_tag(termine, tag) if tag and woher == 'exif' else []
+        hinweise = []
+        if not text:
+            hinweise.append('kein Datum')
+        elif not titel and not vorsilbe:
+            hinweise.append('Titel fehlt (Kontaktbogen)')
+        if rohscan:
+            hinweise.append('Rohscans')
+        if vorsilbe:
+            hinweise.append(f'geht auf in „{ziel}“')
+        plan.append({
+            'id': gid, 'tag': tag.isoformat() if tag else '', 'wochentag': ('Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So')[tag.weekday()] if tag else '',
+            'bilder': len(o['bilder']), 'videos': len(o['videos']), 'von': text, 'bis': woher,
+            'termine': ' | '.join((('(Serie) ' if t['serie'] else '') + t['titel']) for t in kandidaten),
+            'ziel': ziel, 'hinweis': '; '.join(hinweise), 'ordner': rel, 'titel': titel, 'vorsilbe': vorsilbe,
+        })
+        listen[gid] = [e['pfad'] for e in liste]
+        # Bögen nur für Ordner ohne Titel (dort kommt der Titel vom Bogen); alte Archive haben oft keine EXIF-Vorschau,
+        # dann muss jede Datei ganz gelesen werden – darum nur zwölf Bilder je Bogen
+        if args.ohne_boegen or titel or vorsilbe or rohscan:
+            continue
+        if len(o['bilder']) >= args.mindestens:
+            kontaktbogen(liste, f'{gid} · {rel} · {text or "?"} · {len(liste)} Dateien'[:110], ablage / f'bogen_{gid}.jpg', spalten=4, zeilen=3, zelle=(240, 180))
+        else:
+            kleine[o['teile'][0] if o['teile'] else '(oben)'].extend(liste)
+    for huelle, liste in sorted(kleine.items()):
+        gids = sorted({e['gid'] for e in liste})
+        kontaktbogen(liste, f'{huelle} · kleine Ordner {gids[0]}–{gids[-1]} · {len(liste)} Dateien'[:110], ablage / f'klein_{titel_bereinigen(huelle)[:30]}.jpg',
+                     zelle=(160, 120), mit_gruppe=True)
+    plan_schreiben(ablage, plan, listen)
+    print(f'{len(plan)} Ordner → {ablage / "plan.csv"}' + ('' if args.ohne_boegen else f', Kontaktbögen bogen_f*.jpg (Ordner ohne Titel ab {args.mindestens} Bildern) und klein_*.jpg in {ablage}'))
+    for z in plan:
+        print(f'{z["id"]} {z["von"]:10} {z["bilder"]:4d} B {z["videos"]:2d} V  {z["ziel"][:50]:50} {("← " + z["vorsilbe"]) if z["vorsilbe"] else ""} {z["hinweis"]}  [{z["ordner"]}]')
+    print(f'Dann „ziel“ und „titel“ prüfen und „auswahl --plan {ablage / "plan.csv"} --ohne-doppelte“ ausführen')
 
 
 # ---------------------------------------------------------------- auswahl (E60)
@@ -464,36 +680,42 @@ def cmd_auswahl(args, cfg):
             vorschauen[e['pfad']] = vorschau(e['pfad'], (160, 120)) if e['typ'] == 'bild' else None
         return vorschauen[e['pfad']]
 
-    # alle Dateien mit Zeit, Hash und Schärfe (Vorschaubilder aus den Dateiköpfen; Ergebnis in hashes.json für den nächsten Lauf)
+    # alle Dateien mit Zeit, Hash und Schärfe (Vorschaubilder aus den Dateiköpfen; Ergebnis in hashes.json für den nächsten Lauf);
+    # mit --ohne-doppelte wird keine Datei gelesen (Zeit aus dem Namen, sonst der Tag der Gruppe)
     t0 = time.time()
     eintraege = []
     for z in plan:
+        tag = dt.date.fromisoformat(z['tag']) if z['tag'].strip() else None
         for p in listen.get(z['id'], []):
             name = os.path.basename(p)
-            e = {'pfad': p, 'name': name, 'gid': z['id'], 'ziel': z['ziel'].strip(), 'tag': dt.date.fromisoformat(z['tag']),
+            e = {'pfad': p, 'name': name, 'gid': z['id'], 'ziel': z['ziel'].strip(), 'tag': tag,
+                 'titel': z.get('titel', '').strip(), 'vorsilbe': z.get('vorsilbe', '').strip(),
                  'typ': 'video' if os.path.splitext(name)[1].lower() in VIDEO else 'bild', 'motiv': '', 'serie': 1, 'album': '', 'nr': ''}
             c = cache.get(p)
             if c is None:
                 zeit, _ = datum_aus_name(name)
-                if not zeit and e['typ'] == 'bild':
-                    zeit, _ = exif_datum(p)
-                if not zeit:
-                    zeit = dt.datetime.fromtimestamp(os.path.getmtime(p))
-                im = bild(e)
-                c = cache[p] = {'zeit': zeit.isoformat(timespec='seconds'), 'hash': dhash(im) if im is not None else None,
-                                'schaerfe': schaerfe(im) if im is not None else 0.0}
+                if args.ohne_doppelte or e['typ'] == 'video':
+                    c = {'zeit': (zeit or dt.datetime.combine(tag or dt.date(1900, 1, 1), dt.time(12))).isoformat(timespec='seconds'), 'hash': None, 'schaerfe': 0.0}
+                else:
+                    if not zeit:
+                        zeit, _ = exif_datum(p)
+                    if not zeit:
+                        zeit = dt.datetime.fromtimestamp(os.path.getmtime(p))
+                    im = bild(e)
+                    c = cache[p] = {'zeit': zeit.isoformat(timespec='seconds'), 'hash': dhash(im) if im is not None else None,
+                                    'schaerfe': schaerfe(im) if im is not None else 0.0}
             e.update(zeit=dt.datetime.fromisoformat(c['zeit']), hash=c['hash'], schaerfe=c['schaerfe'])
             eintraege.append(e)
     cache_pfad.write_text(json.dumps(cache), encoding='utf-8')
     print(f'{len(eintraege)} Dateien gelesen ({time.time() - t0:.0f} s)')
 
-    # Serien gleicher Motive je Tagesgruppe; es bleibt das typischste und davon das schärfste Bild
+    # Serien gleicher Motive je Tagesgruppe; es bleibt das typischste und davon das schärfste Bild. Videos bleiben immer (E62)
     je_gruppe = defaultdict(list)
     for e in eintraege:
-        if e['typ'] == 'bild':
+        if e['typ'] == 'bild' and not args.ohne_doppelte:
             je_gruppe[e['gid']].append(e)
         else:
-            e['status'] = 'video'
+            e['status'] = 'bleibt'
     for gid, bilder in je_gruppe.items():
         for k, serie in enumerate(serien_bilden(bilder), 1):
             bestes = bestes_der_serie(serie)
@@ -506,15 +728,18 @@ def cmd_auswahl(args, cfg):
         if e['name'].lower() in gesperrt or (e['motiv'] and e['motiv'] in sperren):
             e['status'] = 'gesperrt'
 
-    # Alben: eigenes Album ab Mindestgröße (Stiftungsfest ab zwei Dritteln), sonst Semester-Album; ohne „ziel“ bleibt die Gruppe liegen
+    # Alben: eigenes Album ab Mindestgröße (Stiftungsfest ab zwei Dritteln), sonst Semester-Album; ohne „ziel“ bleibt die Gruppe
+    # liegen; „/…“ liegt fest in der Galerie (Sammlung). Für die Mindestgröße zählen nur Fotos
     bleibt_je_ziel = defaultdict(int)
     for e in eintraege:
-        if e['status'] == 'bleibt':
+        if e['status'] == 'bleibt' and e['typ'] == 'bild':
             bleibt_je_ziel[e['ziel']] += 1
 
     def eigenes_album(ziel):
         if not ziel or ziel.lower() == SEMESTER.lower():
             return False
+        if ziel.startswith('/'):
+            return True
         mindest = args.mindestalbum
         if any(w.lower() in ziel.lower() for w in STETS_EIGEN):
             mindest = -(-mindest * 2 // 3)
@@ -523,7 +748,7 @@ def cmd_auswahl(args, cfg):
     zu_klein = sorted(z for z in bleibt_je_ziel if z and z.lower() != SEMESTER.lower() and not eigenes_album(z))
     je_semester = defaultdict(list)
     for e in eintraege:
-        if not e['ziel']:
+        if not e['ziel'] or (not e['tag'] and not eigenes_album(e['ziel'])):
             e['status'] = 'offen'
         elif eigenes_album(e['ziel']):
             e['album'] = e['ziel']
@@ -534,6 +759,18 @@ def cmd_auswahl(args, cfg):
         album = semester_album(schluessel, erster)
         for e in liste:
             e['album'] = album
+    # Vorsilbe: aus dem Plan (Unterordner, der im Album darüber aufgeht) oder der Titel eines zu kleinen Albums im Semester-Album
+    # (Spalte „titel“, sonst der Titel aus „ziel“ ohne Jahr und Datum)
+    def titel_aus_ziel(ziel):
+        if not ziel or ziel.startswith('/') or ziel.lower() == SEMESTER.lower():
+            return ''
+        return re.sub(r'^\d{4}(?:-\d{2}){0,2}\s*', '', ziel.split('/', 1)[-1]).strip()
+
+    for e in eintraege:
+        vs = e['vorsilbe']
+        if e['album'] and e['album'] != e['ziel']:
+            vs = ' – '.join(x for x in (e['titel'] or titel_aus_ziel(e['ziel']), e['vorsilbe']) if x)
+        e['neuer_name'] = f'{vs} {e["name"]}' if vs and not e['name'].lower().startswith(vs.lower()) else e['name']
 
     # Reihenfolge Album, Zeit; laufende Nummer für alles, was in die Galerie kommt
     eintraege.sort(key=lambda e: (e['album'] or '~', e['zeit'], e['name']))
@@ -544,22 +781,23 @@ def cmd_auswahl(args, cfg):
             e['nr'] = nr
     with open(ablage / 'auswahl.csv', 'w', newline='', encoding='utf-8-sig') as f:
         w = csv.writer(f, delimiter=';')
-        w.writerow(['nr', 'status', 'album', 'datei', 'gruppe', 'tag', 'zeit', 'motiv', 'serie', 'schaerfe', 'pfad'])
+        w.writerow(['nr', 'status', 'album', 'datei', 'neuer_name', 'gruppe', 'tag', 'zeit', 'motiv', 'serie', 'schaerfe', 'pfad'])
         for e in eintraege:
-            w.writerow([e['nr'], e['status'], e['album'], e['name'], e['gid'], e['tag'].isoformat(), e['zeit'].strftime('%Y-%m-%d %H:%M:%S'),
-                        e['motiv'], e['serie'], e['schaerfe'], e['pfad']])
+            w.writerow([e['nr'], e['status'], e['album'], e['name'], e['neuer_name'], e['gid'], e['tag'].isoformat() if e['tag'] else '',
+                        e['zeit'].strftime('%Y-%m-%d %H:%M:%S'), e['motiv'], e['serie'], e['schaerfe'], e['pfad']])
     zaehler = defaultdict(int)
-    alben = defaultdict(int)
+    alben = defaultdict(lambda: [0, 0])
     for e in eintraege:
         zaehler[e['status']] += 1
         if e['status'] == 'bleibt':
-            alben[e['album']] += 1
-    print('Ergebnis: ' + ', '.join(f'{k} {v}' for k, v in sorted(zaehler.items())))
+            alben[e['album']][0 if e['typ'] == 'bild' else 1] += 1
+    print('Ergebnis: ' + ', '.join(f'{k} {v}' for k, v in sorted(zaehler.items())) + f', davon Videos {sum(1 for e in eintraege if e["typ"] == "video")}'
+          + f', umbenannt {sum(1 for e in eintraege if e["neuer_name"] != e["name"])}')
     if zu_klein:
         print('Zu klein für ein eigenes Album, ins Semester-Album: ' + ', '.join(f'{z} ({bleibt_je_ziel[z]})' for z in zu_klein))
     print(f'{len(alben)} Alben:')
     for a in sorted(alben):
-        print(f'  {a}: {alben[a]} Fotos')
+        print(f'  {a}: {alben[a][0]} Fotos' + (f', {alben[a][1]} Videos' if alben[a][1] else ''))
     print(f'→ {ablage / "auswahl.csv"}')
     if args.ohne_boegen:
         return
@@ -651,30 +889,32 @@ def cmd_move(args, cfg):
     offen = sorted({z['gruppe'] for z in auswahl if z['status'] == 'offen'})
     if offen:
         print(f'{len(offen)} Gruppen ohne Ziel bleiben liegen: ' + ', '.join(offen))
-    auftraege = defaultdict(list)  # Zielordner → Quellpfade
+    auftraege = defaultdict(list)  # Zielordner → (Quellpfad, neuer Name)
     quellen = set()
     for z in auswahl:
         if z['status'] == 'bleibt':
-            ordner = os.path.join(chronik, *[titel_bereinigen(t) for t in z['album'].replace('\\', '/').split('/')])
+            album = z['album'].replace('\\', '/')
+            basis = cfg['galerie'] if album.startswith('/') else chronik  # „/…“ = Sammlung in der Galerie statt in der Chronik
+            ordner = os.path.join(basis, *[titel_bereinigen(t) for t in album.strip('/').split('/')])
         elif z['status'] in ARCHIV_ORDNER:
             quelle = quellname(z['pfad'], cfg['upload'])
             quellen.add(quelle)
             ordner = os.path.join(cfg['archiv'], 'Nicht in der Galerie', quelle, ARCHIV_ORDNER[z['status']])
         else:
             continue
-        auftraege[ordner].append(z['pfad'])
+        auftraege[ordner].append((z['pfad'], z.get('neuer_name') or os.path.basename(z['pfad'])))
     n = fehler = 0
     quellordner = set()
     heute = dt.date.today().isoformat()
     for ordner in sorted(auftraege):
         zeilen = []
-        for von in auftraege[ordner]:
+        for von, name in auftraege[ordner]:
             quellordner.add(os.path.dirname(von))
             if args.probe:
                 n += 1
                 continue
             try:
-                nach = verschieben(von, os.path.join(ordner, os.path.basename(von)))
+                nach = verschieben(von, os.path.join(ordner, titel_bereinigen(name) or os.path.basename(von)))
                 zeilen.append([dt.datetime.now().isoformat(timespec='seconds'), von, nach])
                 n += 1
             except OSError as e:
@@ -693,19 +933,23 @@ def cmd_move(args, cfg):
             sperrliste = ablage / 'sperrliste.txt'
             if sperrliste.exists():
                 shutil.copy2(sperrliste, Path(cfg['archiv']) / f'Einsortiert {heute} – Sperrliste {quelle}.txt')
-        # leere Quellordner entfernen (nie den Upload-Ordner selbst)
+        # leere Quellordner entfernen, auch leer gewordene Hüllen darüber (nie den Upload-Ordner selbst)
         upload = os.path.normcase(os.path.normpath(cfg['upload']))
         for d in sorted(quellordner, key=len, reverse=True):
-            if os.path.normcase(os.path.normpath(d)) == upload:
-                continue
-            try:
-                if all(x.lower() == 'desktop.ini' for x in os.listdir(d)):
+            while True:
+                norm = os.path.normcase(os.path.normpath(d))
+                if norm == upload or not norm.startswith(upload + os.sep) or not os.path.isdir(d):
+                    break
+                try:
+                    if not all(x.lower() == 'desktop.ini' for x in os.listdir(d)):
+                        break
                     for x in os.listdir(d):
                         os.remove(os.path.join(d, x))
                     os.rmdir(d)
                     print(f'leeren Ordner entfernt: {d}')
-            except OSError:
-                pass
+                except OSError:
+                    break
+                d = os.path.dirname(d)
     print(f'{n} Dateien verschoben, {fehler} Fehler' + (' (nur Probe)' if args.probe else f', Protokoll: {protokoll}'))
 
 
@@ -737,10 +981,13 @@ def main():
     p.add_argument('--max', type=int, help='nur die ersten N Dateien (zum Ausprobieren)')
     p.add_argument('--ohne-boegen', action='store_true', help='keine Kontaktbögen erzeugen')
     p.add_argument('--mindestens', type=int, default=4, help='eigener Kontaktbogen ab so vielen Bildern, kleinere Gruppen je Monat gesammelt (Standard 4)')
+    p.add_argument('--je-ordner', action='store_true', help='Ordner statt Tage als Gruppen (alte Archive mit Album-Ordnern, E61)')
+    p.add_argument('--mindestalbum', type=int, default=15, help='mit --je-ordner: Unterordner ab so vielen Bildern werden eigene Alben (Standard 15)')
     a = sub.add_parser('auswahl', help='ein Foto je Motiv, Mindestgröße und Semester-Alben, Sperrliste → auswahl.csv und Bögen')
     a.add_argument('--plan', required=True)
     a.add_argument('--mindestalbum', type=int, default=15, help='eigenes Album ab so vielen Fotos (Stiftungsfest ab zwei Dritteln), sonst Semester-Album (Standard 15)')
     a.add_argument('--sperrliste', help='Datei mit Dateinamen, die samt Serie nicht in die Galerie kommen (Standard: sperrliste.txt neben plan.csv)')
+    a.add_argument('--ohne-doppelte', action='store_true', help='keine Serien zusammenlegen, alle Fotos bleiben (liest keine Dateien)')
     a.add_argument('--ohne-boegen', action='store_true', help='keine Bögen erzeugen')
     m = sub.add_parser('move', help='auswahl.csv ausführen')
     m.add_argument('--plan', required=True)

@@ -92,6 +92,8 @@ const app = {
       await Promise.race([aus, new Promise((r) => setTimeout(r, 4000))]).catch((e) => console.warn('Push nicht abgemeldet', e));
     }
     auth.logout({ revoke });
+    // der Service Worker vergisst das Token für Videos (E62)
+    try { navigator.serviceWorker?.controller?.postMessage({ type: 'token', token: null }); } catch { /* kein Service Worker */ }
     local.del('fb.mode');
     clearPrivateConfigCache();
     // Entwürfe (Adressänderung, Chat-Nachrichten) nicht auf dem Gerät lassen
@@ -426,6 +428,8 @@ function registerServiceWorker() {
   navigator.serviceWorker.addEventListener('message', (e) => {
     const hash = e.data?.type === 'navigate' ? String(e.data.hash || '') : '';
     if (hash.startsWith('#/')) navigate(hash);
+    // Video abspielen (E62): der Service Worker braucht die Anmeldung für die Drive-API
+    if (e.data?.type === 'tokenRequest') navigator.serviceWorker.controller?.postMessage({ type: 'token', token: auth.getAccessToken() || null });
   });
   navigator.serviceWorker.register('sw.js').then((reg) => {
     reg.addEventListener('updatefound', () => {

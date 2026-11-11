@@ -102,9 +102,72 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+// Anmelde-Token für Videos (E62): kommt per Nachricht aus der App, liegt nur im Arbeitsspeicher
+let videoToken = null;
+let tokenWaiters = [];
+
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') self.skipWaiting();
+  if (event.data?.type === 'token') {
+    videoToken = typeof event.data.token === 'string' && event.data.token ? event.data.token : null;
+    tokenWaiters.splice(0).forEach((resolve) => resolve(videoToken));
+  }
 });
+
+/** Token aus dem Speicher, sonst bei den offenen Fenstern der App nachfragen (höchstens 3 s warten) */
+async function askToken() {
+  if (videoToken) return videoToken;
+  const wins = await self.clients.matchAll({ type: 'window' });
+  if (!wins.length) return null;
+  const antwort = new Promise((resolve) => {
+    tokenWaiters.push(resolve);
+    setTimeout(() => resolve(null), 3000);
+  });
+  wins.forEach((w) => w.postMessage({ type: 'tokenRequest' }));
+  return antwort;
+}
+
+/**
+ * Video aus Google Drive durchreichen (E62): „_video/<id>?size=…“ → Drive-API mit Anmeldung. Der Bereich (Range),
+ * den der Player anfordert, wird weitergegeben, so dass auch große Videos sofort anlaufen und vorgespult werden
+ * können. Die Antwort wird gestreamt, nichts wird zwischengespeichert. Drive gibt den Bereich in Content-Range
+ * nicht immer frei (CORS) – dann wird er aus der Anfrage und der Größe aus der Adresse nachgebildet.
+ */
+async function proxyVideo(req, id, size) {
+  let token = await askToken();
+  if (!token) return new Response('Nicht angemeldet', { status: 401, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true`;
+  const range = req.headers.get('range') || '';
+  const laden = (t) => fetch(url, { headers: { Authorization: `Bearer ${t}`, ...(range ? { Range: range } : {}) } });
+  let res = await laden(token);
+  if (res.status === 401) {
+    videoToken = null;
+    token = await askToken();
+    if (token) res = await laden(token);
+  }
+  if (!res.ok) return new Response(`Video nicht geladen (${res.status})`, { status: res.status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+  const headers = new Headers();
+  for (const h of ['content-type', 'content-length', 'content-range', 'last-modified', 'etag']) {
+    const v = res.headers.get(h);
+    if (v) headers.set(h, v);
+  }
+  headers.set('accept-ranges', 'bytes');
+  headers.set('cache-control', 'no-store');
+  if (!headers.has('content-type')) headers.set('content-type', 'video/mp4');
+  let status = res.status;
+  const m = range.match(/^bytes=(\d+)-(\d*)$/);
+  if (m && status === 200 && res.headers.get('content-length') && size && Number(res.headers.get('content-length')) < size) {
+    // Drive hat nur den Bereich geliefert, aber 200 gemeldet (oder Content-Range ist nicht lesbar)
+    status = 206;
+  }
+  if (status === 206 && !headers.has('content-range') && m) {
+    const von = Number(m[1]);
+    const laenge = Number(res.headers.get('content-length')) || 0;
+    const bis = m[2] ? Number(m[2]) : (laenge ? von + laenge - 1 : size - 1);
+    headers.set('content-range', `bytes ${von}-${bis}/${size || '*'}`);
+  }
+  return new Response(res.body, { status, statusText: res.statusText, headers });
+}
 
 // Push-Mitteilung (E50, verschickt von apps-script/Push.gs): Titel, Text und Ziel in der App. Jede Push-Nachricht
 // muss sichtbar werden (sonst entziehen die Browser die Erlaubnis) – zur Not mit einem allgemeinen Text.
@@ -166,6 +229,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // Google-Schnittstellen nicht anfassen
   if (url.pathname.includes('/vendor/pdfjs/standard_fonts/')) return;
+  const video = url.pathname.match(/\/_video\/([-\w]+)$/);
+  if (video) {
+    event.respondWith(proxyVideo(req, video[1], Number(url.searchParams.get('size')) || 0));
+    return;
+  }
 
   event.respondWith((async () => {
     const cache = await caches.open(VERSION);

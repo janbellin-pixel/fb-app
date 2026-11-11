@@ -30,7 +30,7 @@ Es gibt **keinen Build-Schritt**: reines HTML, CSS und JavaScript (ES-Module). B
 
 | Pfad | Inhalt |
 |---|---|
-| `index.html`, `manifest.webmanifest`, `sw.js` | App-Hülle, PWA-Manifest, Service Worker (Offline, Updates) |
+| `index.html`, `manifest.webmanifest`, `sw.js` | App-Hülle, PWA-Manifest, Service Worker (Offline, Updates, Push, Videos aus Drive durchreichen – E62) |
 | `config.js` | Öffentliche Konfiguration: nur, was vor der Anmeldung gebraucht wird (Client-ID, Domain, ID der privaten Konfiguration, Demo-Schalter, Angaben der Datenschutzerklärung). Alles Weitere liegt als `config_private.json` in Google Drive, nur für Konten der Domain lesbar; die App lädt und prüft sie nach der Anmeldung (E43, `js/lib/konfiguration.js`) |
 | `css/app.css` | Gestaltung; alle Größen in `rem`, damit die Schriftgröße-Stufen alles mitskalieren |
 | `js/boot.js` | setzt die gewählte Schriftgröße schon vor dem ersten Bild (kein Springen) |
@@ -152,6 +152,7 @@ Jeder Termin enthält den Link `…/#/termin/<ID>`. Auf **Android** öffnet ein 
 - Der Service Worker (`sw.js`) speichert die App-Dateien. Daten werden in IndexedDB zwischengespeichert („zuletzt geladener Stand“). Offline zeigt die App diesen Stand weiter an, statt einer Fehlermeldung. Geöffnete Zeitungsausgaben bleiben offline verfügbar (Cache „fb-zeitung“).
 - Bei jeder Veröffentlichung setzt GitHub Actions eine neue Versionskennung, und die App meldet „Neue Version verfügbar“.
 - Lokal (localhost) lädt der Service Worker immer frisch vom Netz.
+- Videos der Galerie (E62): Der Player lädt `_video/<id>?size=…`; der Service Worker holt die Daten mit dem Anmelde-Token (per Nachricht aus der App, nie in der Adresse) und dem angeforderten Bereich von der Drive-API und reicht sie als Strom durch – ohne Zwischenspeicher, ohne CSP-Änderung.
 
 ## Store-Apps (optional, später)
 
