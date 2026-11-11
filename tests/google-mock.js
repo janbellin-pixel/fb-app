@@ -601,6 +601,16 @@ async function run() {
   const aiAlt = albumInfo({ title: '1963', path: ['Chronik', '1907–1999'], photos: [{}, { kind: 'video' }] });
   const aiVid = albumInfo({ title: '2026-05 Fahrt', path: [], photos: [{ kind: 'video' }, { kind: 'video' }] });
   check(aiAlt.when === 'Chronik · 1963' && aiAlt.count === '1 Foto · 1 Video' && aiVid.count === '2 Videos', 'Zeitspannen-Ordner („1907–1999“) nicht als Zusatz; Fotos und Videos gezählt', JSON.stringify([aiAlt, aiVid]));
+  // Zurück aus einem Album (E63): die Karte des Albums wird angesteuert, zugeklappte Ordner darüber aufgeklappt
+  const { scrollToAlbum } = await import('../js/views/galerie.js');
+  const probeWurzel = document.createElement('div');
+  probeWurzel.innerHTML = '<details class="folder-group"><summary>2025</summary><div><details class="folder-group"><summary>WS</summary>'
+    + '<div class="album-grid"><a class="card album-card" data-album="alb-1" href="#/galerie/alb-1">A</a></div></details></div></details>';
+  const scrollAufrufe = [];
+  probeWurzel.querySelector('[data-album]').scrollIntoView = (o) => scrollAufrufe.push(o);
+  check(scrollToAlbum(probeWurzel, 'alb-1') && [...probeWurzel.querySelectorAll('details')].every((d) => d.open) && scrollAufrufe[0]?.block === 'center'
+    && !scrollToAlbum(probeWurzel, 'alb-x') && scrollAufrufe.length === 1,
+    'Zurück aus einem Album: Karte wird angesteuert, Ordner darüber aufgeklappt, unbekanntes Album stört nicht (E63)');
   check(fake.state.writes.length === wGal, 'Galerie lesen schreibt nichts');
 
   /* ---------------------------------------------------------------- Liedermappe */

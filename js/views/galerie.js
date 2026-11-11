@@ -4,12 +4,16 @@
 // Ansicht „Alben“: Zeitachse mit Jahresüberschriften, neueste zuerst, Sammlungen ohne Datum zuletzt;
 // „Ordner“: die Ordner darüber als aufklappbare Gruppen (E46).
 // Fotos hochladen: Link auf einen eigenen Upload-Ordner in Drive (die App selbst schreibt dort nicht, E46).
+// Zurück aus einem Album: die Übersicht steuert die Karte dieses Albums an, statt oben zu beginnen (E63).
 import { html, setHtml, icon, hero, backLink, skeletonList, emptyState, errorBox, loading, toast, openModal } from '../ui.js';
 import { fDateShort, toDate, isValid } from '../lib/dates.js';
 import { local } from '../lib/store.js';
 import { albumDate } from '../backend/common.js';
 
 const VIEW_KEY = 'fb.galerieAnsicht';
+
+/** Album, das zuletzt geöffnet war – beim nächsten Aufbau der Übersicht wird dessen Karte angesteuert (E63) */
+let zuletztGeoeffnet = null;
 
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
@@ -85,10 +89,19 @@ function albumCard(b, a, { inFolder = false } = {}) {
   const covers = a.photos.slice(0, 3);
   // in der Ordneransicht steht der Ordner schon darüber – nur ein Datum aus dem Namen bleibt
   const when = inFolder ? (albumDate(a).ausPfad ? '' : info.datum) : info.when;
-  return html`<a class="card album-card" href="#/galerie/${encodeURIComponent(a.id)}">
+  return html`<a class="card album-card" href="#/galerie/${encodeURIComponent(a.id)}" data-album="${a.id}">
     <div class="album-cover ${covers.length > 2 ? 'trio' : ''}">${covers.map((p) => thumbImg(b, p, 600))}</div>
     <div class="album-meta"><div class="title">${info.name}</div><div class="small muted">${[when, info.count].filter(Boolean).join(' · ')}</div></div>
   </a>`;
+}
+
+/** Karte eines Albums in der Übersicht ansteuern (mittig im Fenster); zugeklappte Ordner darüber werden aufgeklappt (E63) */
+export function scrollToAlbum(root, id) {
+  const card = root.querySelector(`[data-album="${CSS.escape(String(id))}"]`);
+  if (!card) return false;
+  for (let d = card.closest('details'); d; d = d.parentElement?.closest('details')) d.open = true;
+  card.scrollIntoView({ block: 'center' });
+  return true;
 }
 
 /** Ordneransicht: erst die Unterordner (aufklappbar), dann die Alben dieser Ebene */
@@ -150,6 +163,9 @@ export default async function galerie(ctx) {
   let shown = false;
   let data = null;
   let view = local.get(VIEW_KEY, 'alben') === 'ordner' ? 'ordner' : 'alben';
+  // nach dem Zurück aus einem Album einmal dessen Karte ansteuern (E63) – nur beim ersten Aufbau, nicht beim Ansichtswechsel
+  let ziel = zuletztGeoeffnet;
+  zuletztGeoeffnet = null;
 
   function render() {
     if (!data.albums.length) {
@@ -165,6 +181,7 @@ export default async function galerie(ctx) {
       </div>` : ''}
       ${mode === 'ordner' ? folderLevel(b, albumTree(data.albums)) : albumTimeline(b, data.albums)}
       ${data.folderUrl ? html`<p class="small muted" style="margin-top:1.25rem">${icon('info', 'icon-sm')} Alle Fotos liegen auch im <a href="${data.folderUrl}" target="_blank" rel="noopener">Galerie-Ordner in Google Drive</a>.</p>` : ''}`);
+    if (ziel) { scrollToAlbum(c, ziel); ziel = null; }
   }
 
   el.addEventListener('click', (e) => {
@@ -196,6 +213,7 @@ export default async function galerie(ctx) {
 export async function album(ctx) {
   const { el, app, params } = ctx;
   const b = app.backend;
+  zuletztGeoeffnet = params.album;
   setHtml(el, html`${backLink('#/galerie', 'Alle Alben')}<div id="c">${loading()}</div>`);
   const c = el.querySelector('#c');
   const photosById = new Map();
