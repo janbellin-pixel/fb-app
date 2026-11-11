@@ -52,7 +52,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
 
 HIER = Path(__file__).resolve().parent
 BILD = {'.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp', '.gif', '.tif', '.tiff', '.bmp'}
-VIDEO = {'.mp4', '.mov', '.m4v', '.avi', '.3gp', '.mkv'}
+VIDEO = {'.mp4', '.mov', '.m4v', '.avi', '.3gp', '.mkv', '.wmv', '.mpg', '.mpeg', '.webm'}
 # Datum (und Uhrzeit) im Dateinamen, z. B. 20230123_014446.jpg, IMG-20230525-WA0012.jpg, WhatsApp Image 2024-06-15 at 19.20.33.jpeg
 NAME_MUSTER = [
     re.compile(r'(?<!\d)(20\d\d|19\d\d)(\d\d)(\d\d)[_-](\d\d)(\d\d)(\d\d)(?!\d)'),
@@ -385,7 +385,7 @@ def titel_aus_name(name):
     s = re.sub(r'(?i)[_ -]?(ss|ws|sose|wise)[_ -]?\d{2,8}(?:[_-]\d{2,4})?$', '', name)  # ankneipe_ss2005, kk_ws0405, abkneipe_ws200405
     s = re.sub(r'(?i)^(ss|ws|sose|wise)[_ -]?\d{2,4}[_-]+', '', s)  # ss2009_akwhameln
     s = re.sub(r'(?<!\d)(19|20)\d{2}(?!\d)', ' ', s)  # Jahreszahlen, auch angehängt (stifte2005, Ralf2006)
-    s = re.sub(r'(?<=[A-Za-zäöüß])\d{2,3}$', '', s)  # SoFe17, stifte120, Ankneipe1718 (schon oben)
+    s = re.sub(r'(?<=[A-Za-zäöüß])\d{2,4}$', '', s)  # SoFe17, stifte120, Ankneipe1718
     s = re.sub(r'^\d+[_ .-]+', '', s)  # 31_Danzig_Stadt
     s = re.sub(r'^[A-F]_', '', s)  # A_Begruessungsabend
     s = re.sub(r'[_\s]+', ' ', s).strip(' -_.')
@@ -890,18 +890,17 @@ def cmd_move(args, cfg):
     if offen:
         print(f'{len(offen)} Gruppen ohne Ziel bleiben liegen: ' + ', '.join(offen))
     auftraege = defaultdict(list)  # Zielordner → (Quellpfad, neuer Name)
-    quellen = set()
+    quellen = set()  # Upload-Unterordner (für die Namen der Archiv-Kopien)
     for z in auswahl:
         if z['status'] == 'bleibt':
             album = z['album'].replace('\\', '/')
             basis = cfg['galerie'] if album.startswith('/') else chronik  # „/…“ = Sammlung in der Galerie statt in der Chronik
             ordner = os.path.join(basis, *[titel_bereinigen(t) for t in album.strip('/').split('/')])
         elif z['status'] in ARCHIV_ORDNER:
-            quelle = quellname(z['pfad'], cfg['upload'])
-            quellen.add(quelle)
-            ordner = os.path.join(cfg['archiv'], 'Nicht in der Galerie', quelle, ARCHIV_ORDNER[z['status']])
+            ordner = os.path.join(cfg['archiv'], 'Nicht in der Galerie', quellname(z['pfad'], cfg['upload']), ARCHIV_ORDNER[z['status']])
         else:
             continue
+        quellen.add(quellname(z['pfad'], cfg['upload']))
         auftraege[ordner].append((z['pfad'], z.get('neuer_name') or os.path.basename(z['pfad'])))
     n = fehler = 0
     quellordner = set()
