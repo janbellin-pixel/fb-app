@@ -56,16 +56,19 @@ function statusBadge(status) {
   return html`<span class="badge ${cls}">${status}</span>`;
 }
 
+/** Mitgliederliste: nur, wer die App schon genutzt hat (eigene Sichtbarkeits-Datei, E40), man selbst immer – ohne Umschalter (E65) */
+export const appNutzerListe = (list, meEmail) => {
+  const ich = String(meEmail || '').toLowerCase();
+  return list.filter((m) => m.appNutzer || String(m.email || '').toLowerCase() === ich);
+};
+
 export default async function mitglieder(ctx) {
   const { el, app } = ctx;
   const b = app.backend;
   let list = [];
   let q = local.get('fb.memberSearch', '');
   let group = 'Alle';
-  // Standard: nur Mitglieder, die die App schon genutzt haben (E40)
-  let nurApp = local.get('fb.nurAppNutzer', true) !== false;
   const meEmail = String(app.user?.email || '').toLowerCase();
-  const isAppUser = (m) => m.appNutzer || m.email === meEmail;
 
   setHtml(el, html`
     ${hero('Mitglieder', 'Bundesbrüder im Überblick', html`<a class="btn" href="#/profil">${icon('user', 'icon-sm')}Mein Profil bearbeiten</a>`)}
@@ -99,26 +102,18 @@ export default async function mitglieder(ctx) {
 
   function render() {
     renderDirectoryHint();
-    const appUsers = list.filter(isAppUser);
-    const base = nurApp ? appUsers : list;
+    const base = appNutzerListe(list, meEmail);
     const groups = ['Alle', ...Object.keys(config.statusGruppen || {}), ANGEBOTE];
     const counts = Object.fromEntries(groups.map((g) => [g, base.filter((m) => inGroup(m, g)).length]));
-    // Status-Knöpfe nur, wenn es Gruppen gibt – ein einzelnes „Alle“ wirkte wie „alle Mitglieder zeigen“
+    // Gruppen-Knöpfe nur, wenn es Gruppen gibt – ein einzelnes „Alle“ wäre ohne Sinn
     const realGroups = groups.filter((g) => g !== 'Alle' && counts[g]);
     if (!realGroups.includes(group)) group = 'Alle';
-    setHtml(el.querySelector('#groups'), html`
-      <div class="chips chips-wrap" role="group" aria-label="Anzeigen">
-        <button class="chip" data-show="app" aria-pressed="${nurApp}" title="Nur Mitglieder, die die App schon genutzt haben">${icon('smartphone', 'icon-sm')}App-Nutzer <span class="count">${appUsers.length}</span></button>
-        <button class="chip" data-show="alle" aria-pressed="${!nurApp}" title="Alle Konten der Verbindung">${icon('users', 'icon-sm')}Alle Mitglieder <span class="count">${list.length}</span></button>
-      </div>
-      ${realGroups.length ? html`<div class="chips" role="group" aria-label="Status">${['Alle', ...realGroups].map((g) => html`
-        <button class="chip" data-group="${g}" aria-pressed="${group === g}">${g === ANGEBOTE ? icon('gift', 'icon-sm') : ''}${g} <span class="count">${counts[g]}</span></button>`)}</div>` : ''}`);
+    setHtml(el.querySelector('#groups'), realGroups.length ? html`<div class="chips" role="group" aria-label="Status">${['Alle', ...realGroups].map((g) => html`
+        <button class="chip" data-group="${g}" aria-pressed="${group === g}">${g === ANGEBOTE ? icon('gift', 'icon-sm') : ''}${g} <span class="count">${counts[g]}</span></button>`)}</div>` : '');
     const shown = base.filter((m) => inGroup(m, group)
       && matchesQuery([m.name, m.kneipname, m.status, m.studium, m.taetigkeit, m.wohnort, m.aemter, m.angebot, m.email].join(' '), q));
-    const others = list.length - appUsers.length;
     setHtml(listEl, shown.length
-      ? html`<p class="small muted" style="margin:0 0 .625rem">${shown.length} ${shown.length === 1 ? 'Mitglied' : 'Mitglieder'}${nurApp && others > 0
-        ? html` · ${others} ${others === 1 ? 'weiteres hat' : 'weitere haben'} die App noch nicht genutzt – <button class="link-btn" data-show="alle">alle zeigen</button>` : ''}</p>
+      ? html`<p class="small muted" style="margin:0 0 .625rem">${shown.length} ${shown.length === 1 ? 'Mitglied' : 'Mitglieder'}</p>
         <div class="members-grid">${shown.map((m) => html`
         <a class="card member-card" href="#/mitglied/${encodeURIComponent(m.email)}">
           ${avatar(m, 88)}
@@ -128,8 +123,7 @@ export default async function mitglieder(ctx) {
           ${m.aemter ? html`<span class="tiny muted" style="margin-top:.25rem">${m.aemter}</span>` : ''}
           ${m.angebot ? html`<span class="badge badge-green" style="margin-top:.375rem" title="${m.angebot}">${icon('gift', 'icon-sm')}bietet Unterstützung an</span>` : ''}
         </a>`)}</div>`
-      : html`<div class="card">${emptyState('users', 'Niemand gefunden', q ? `Keine Treffer für „${q}“.` : nurApp && others > 0 ? 'Bisher hat hier noch niemand die App genutzt.' : '')}
-        ${nurApp && others > 0 ? html`<p style="text-align:center;margin:0 0 1rem"><button class="btn btn-sm" data-show="alle">${icon('users', 'icon-sm')}Alle ${list.length} zeigen</button></p>` : ''}</div>`);
+      : html`<div class="card">${emptyState('users', 'Niemand gefunden', q ? `Keine Treffer für „${q}“.` : '')}</div>`);
   }
 
   el.addEventListener('input', (e) => {
@@ -138,8 +132,6 @@ export default async function mitglieder(ctx) {
   el.addEventListener('click', (e) => {
     const g = e.target.closest('[data-group]');
     if (g) { group = g.dataset.group; render(); }
-    const show = e.target.closest('[data-show]');
-    if (show) { nurApp = show.dataset.show === 'app'; local.set('fb.nurAppNutzer', nurApp); render(); }
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
     if (e.target.closest('[data-action=grant-directory]')) auth.login({ extraScopes: auth.SCOPES.workspace, consent: true, returnTo: '#/mitglieder' });

@@ -68,7 +68,7 @@ export class DemoBackend {
   }
 
   members() {
-    // erfunden: jedes vierte Mitglied hat die App noch nicht genutzt („App-Nutzer | Alle Mitglieder“, E40)
+    // erfunden: jedes vierte Mitglied hat die App noch nicht genutzt – fehlt in der Mitgliederliste (E40, E65), zählt für die Einladung (E58)
     return this.baseMembers.map((m, i) => ({ ...this.member(m.email), appNutzer: m.email === DEMO_ME_EMAIL || i % 4 !== 3 }));
   }
 

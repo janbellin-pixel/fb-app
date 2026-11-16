@@ -480,7 +480,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
         ("calendar", "Termine", f"Alle Veranstaltungen als Liste oder Monat. Termin antippen › {b('Zusagen, Vielleicht oder Absagen')}, Gäste und Kommentar angeben, sehen wer kommt. "
                                 f"„Kalender abonnieren“ holt alle Termine in deinen eigenen Kalender."),
         ("chat", "Chat", f"Nachrichten und Gruppen. Direkt an den {b('Aktiven-')} oder {b('Altherrenvorstand')} schreiben – jedes Vorstandsmitglied lädt dich auch in die WhatsApp-Gruppen ein."),
-        ("users", "Mitglieder", f"Wer die App nutzt, mit Foto und Profil ({b('„Alle Mitglieder“')}: alle Konten). Antippen › anrufen, E-Mail, Nachricht oder {b('Bierjunge')}. "
+        ("users", "Mitglieder", f"Wer die App nutzt, mit Foto und Profil, oben nach Gruppen gefiltert. Antippen › anrufen, E-Mail, Nachricht oder {b('Bierjunge')}. "
                                 f"{b('„Angebote für Jüngere“')}: Praktika, Mentoring & Co."),
         ("grid", "Mehr", f"{b('Bundesbote')} · {b('DS-Zeitung')} · {b('Liedermappe')} · {b('Galerie')} · {b('News')} · {b('Forum')} · {b('Adressverzeichnis')} · {b('Wiki')} · "
                          f"{b('Mein Profil')} · {b('Datenschutz')} · {b('Schriftgröße')} · {b('Darstellung')} · Einstellungen"),

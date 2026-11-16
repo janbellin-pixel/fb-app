@@ -1001,7 +1001,7 @@ async function run() {
   b.invalidate('consentTable');
 
   /* ---------------------------------------------------------------- Sichtbarkeit (E40) */
-  section('Sichtbarkeit in der App und „Nur App-Nutzer“ (E40)');
+  section('Sichtbarkeit in der App und Mitgliederliste nur mit App-Nutzern (E40, E65)');
   const visOf = (email) => [...fake.state.files.values()].filter((f) => f.appProperties.fbTyp === 'sichtbarkeit' && f.ownerEmail === email);
   const myVis = () => visOf(me.email)[0];
   check(visOf(me.email).length === 1 && myVis().parents.includes(folder.id) && JSON.parse(myVis().description).sichtbar === true,
@@ -1020,9 +1020,15 @@ async function run() {
   const visList = await step('listMembers (Sichtbarkeit)', () => b.listMembers());
   const vm = (email) => visList?.find((m) => m.email === email);
   check(vm(ANNA)?.appNutzer === true, 'Anna nutzt die App und ist sichtbar', JSON.stringify(vm(ANNA)));
-  check(vm(KARL) && vm(KARL).appNutzer === false, 'Karl steht im Google-Verzeichnis, hat die App aber noch nicht genutzt (nur bei „alle zeigen“)', JSON.stringify(vm(KARL)));
+  check(vm(KARL) && vm(KARL).appNutzer === false, 'Karl steht im Google-Verzeichnis, hat die App aber noch nicht genutzt', JSON.stringify(vm(KARL)));
   check(!vm(BERT) && (await b.getMember(BERT)) === null, 'Bert hat „nicht sichtbar“ gewählt: fehlt in der Liste und als Profil', JSON.stringify(vm(BERT)));
   check(vm(me.email)?.appNutzer === true, 'gefälschte Datei versteckt Theo nicht (Inhaber zählt)');
+  // Mitgliederliste ohne Umschalter (E65): nur App-Nutzer, man selbst immer
+  const { appNutzerListe } = await import('../js/views/mitglieder.js');
+  const inListe = appNutzerListe(visList || [], me.email).map((m) => m.email);
+  check(inListe.includes(ANNA) && inListe.includes(me.email) && !inListe.includes(KARL) && !inListe.includes(BERT)
+    && appNutzerListe([{ email: 'neu@beispiel.de', appNutzer: false }, { email: 'x@beispiel.de', appNutzer: false }], 'Neu@Beispiel.de').length === 1,
+    'Mitgliederliste ohne Umschalter: nur App-Nutzer, man selbst immer (auch ohne Sichtbarkeits-Datei), Karl ohne App-Nutzung fehlt (E65)', JSON.stringify(inListe));
   await blocked('fremde Sichtbarkeit ändern', fake, () => drive.updateFile(annaVis.id, { description: '{"sichtbar":false}' }));
   await blocked('Freigabe eines fremden Profils entfernen', fake, () => drive.deletePermission(bertProfil.id, 'perm-bert'));
   if (![...fake.state.files.values()].some((f) => f.appProperties.fbTyp === 'profil' && f.ownerEmail === me.email)) await b.saveMyProfile({ kneipname: 'Testo' });
