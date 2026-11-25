@@ -9,11 +9,16 @@ const ALL = { supportsAllDrives: true };
 export const FILE_FIELDS = 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,md5Checksum';
 export const FOLDER = 'application/vnd.google-apps.folder';
 
-/** Dateisuche. In einer geteilten Ablage gezielt suchen: { corpora: 'drive', driveId } */
-export async function listFiles(q, { fields = FILE_FIELDS, orderBy = 'name desc', corpora, driveId } = {}) {
+/**
+ * Dateisuche. In einer geteilten Ablage gezielt suchen: { corpora: 'drive', driveId }.
+ * Seiten mit bis zu 1000 Einträgen (Höchstwert der API) und kompaktes JSON: Die Galerie mit rund 14.000 Dateien braucht so
+ * 27 statt 81 Anfragen und 5 statt 18 Runden nacheinander (E66). Bis zu 100 Seiten je Suche – vorher endete sie still
+ * nach 20 Seiten à 200 Einträgen.
+ */
+export async function listFiles(q, { fields = FILE_FIELDS, orderBy = 'name desc', corpora, driveId, maxPages = 100 } = {}) {
   const { items } = await apiAll(`${BASE}/files`, {
-    query: { q, fields: `nextPageToken,files(${fields})`, orderBy, pageSize: 200, includeItemsFromAllDrives: true, corpora, driveId, ...ALL },
-  }, 'files');
+    query: { q, fields: `nextPageToken,files(${fields})`, orderBy, pageSize: 1000, prettyPrint: false, includeItemsFromAllDrives: true, corpora, driveId, ...ALL },
+  }, 'files', maxPages);
   return items;
 }
 

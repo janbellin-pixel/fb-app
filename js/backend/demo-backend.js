@@ -494,6 +494,11 @@ export class DemoBackend {
     return photo.thumb || photo.url;
   }
 
+  /** Demo: Die Vorschaubilder liegen bei der App und laufen nicht ab – dieselbe Adresse (dann folgt das Original, E66) */
+  async freshPhotoUrl(photo) {
+    return this.photoUrl(photo);
+  }
+
   async photoFullUrl(photo) {
     return photo.url;
   }

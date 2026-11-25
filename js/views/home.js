@@ -5,7 +5,7 @@ import { eventCard, memberMap, newsCard, threadRow, issueCover, bindCardLinks, i
 import { local } from '../lib/store.js';
 import { hasSongbook, hasDsZeitung, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
-import { albumInfo } from './galerie.js';
+import { albumInfo, imageFallback } from './galerie.js';
 import { isNewNews } from '../lib/hinweise.js';
 import { gesperrt, linkGesperrt } from '../lib/gruppen.js';
 import { memberForAddress } from '../lib/einladung.js';
@@ -167,13 +167,12 @@ export default async function home(ctx) {
     if (err.usedCache || !ctx.alive()) return;
     setHtml(q(sel), html`<div class="card card-pad small muted">${icon('alert', 'icon-sm')} ${text}: ${err.message}</div>`);
   };
-  // Vorschaubild nicht ladbar → Original über die Anmeldung holen
+  // Vorschaubild nicht ladbar (meist abgelaufen) → frische Adresse, zuletzt das Original (E66); geht beides nicht, entfällt es
   const photos = new Map();
-  q('#h-photos').addEventListener('error', async (e) => {
+  q('#h-photos').addEventListener('error', (e) => {
     const img = e.target;
-    if (img?.tagName !== 'IMG' || !photos.has(img.dataset.photo) || img.dataset.fallback) return;
-    img.dataset.fallback = '1';
-    try { img.src = await b.photoFullUrl(photos.get(img.dataset.photo)); } catch { img.remove(); }
+    if (img?.tagName !== 'IMG' || !photos.has(img.dataset.photo)) return;
+    imageFallback(b, img, photos.get(img.dataset.photo)).then((ok) => { if (!ok) img.remove(); });
   }, true);
 
   const jobs = [
@@ -215,7 +214,7 @@ export default async function home(ctx) {
       setHtml(q('#h-photos'), html`
         ${sectionTitle('Neue Fotos', { href: '#/galerie', label: 'Galerie' })}
         <a class="home-photos" href="#/galerie/${encodeURIComponent(a.id)}" aria-label="Album ${albumInfo(a).name} öffnen">
-          ${shown.map((p) => html`<img src="${b.photoUrl(p, 300)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-photo="${p.id}">`)}
+          ${shown.map((p) => html`<img src="${b.photoUrl(p, 300)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-photo="${p.id}" data-size="300">`)}
         </a>`);
     }, { maxAge: 15 * 60_000 }).catch(() => {}),
   ];

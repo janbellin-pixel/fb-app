@@ -5,6 +5,7 @@
 // „Ordner“: die Ordner darüber als aufklappbare Gruppen (E46).
 // Fotos hochladen: Link auf einen eigenen Upload-Ordner in Drive (die App selbst schreibt dort nicht, E46).
 // Zurück aus einem Album: die Übersicht steuert die Karte dieses Albums an, statt oben zu beginnen (E63).
+// Abgelaufene Vorschaubilder werden frisch angefordert statt als Original geladen; Fotos sind sofort antippbar (E66).
 import { html, setHtml, icon, hero, backLink, skeletonList, emptyState, errorBox, loading, toast, openModal } from '../ui.js';
 import { fDateShort, toDate, isValid } from '../lib/dates.js';
 import { local } from '../lib/store.js';
@@ -45,21 +46,49 @@ export const dauer = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, 
 
 function thumbImg(b, photo, size, cls = '') {
   const video = photo.kind === 'video';
-  const img = html`<img class="${cls}" src="${b.photoUrl(photo, size)}" alt="${photoTitle(photo.name) || (video ? 'Video' : 'Foto')}" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-photo="${photo.id}">`;
+  const img = html`<img class="${cls}" src="${b.photoUrl(photo, size)}" alt="${photoTitle(photo.name) || (video ? 'Video' : 'Foto')}" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-photo="${photo.id}" data-size="${size}">`;
   if (!video) return img;
   // Videos (E62): Kennzeichen mit Dauer auf dem Vorschaubild
   return html`${img}<span class="video-badge" aria-hidden="true">${icon('play', 'icon-sm')}${photo.duration ? dauer(photo.duration) : ''}</span>`;
 }
 
-/** Falls ein Vorschaubild nicht lädt: Originalbild über die Anmeldung holen */
+/**
+ * Ersatzweg, wenn ein Vorschaubild nicht lädt (E66). Meist ist die Adresse abgelaufen – Drive vergibt sie nur für einige
+ * Stunden, im zwischengespeicherten Stand der Galerie veraltet sie. Darum zuerst eine frische Vorschau-Adresse (eine kleine
+ * Anfrage); erst wenn es keine gibt oder auch sie nicht lädt, das Original über die Anmeldung (mehrere MB). Vorher lud jedes
+ * abgelaufene Vorschaubild sofort das Original – bei einem ganzen Album Dutzende Megabyte. `img.dataset.size` = Wunschgröße.
+ * Liefert false, wenn es keinen weiteren Weg gibt (Bild als defekt zeigen oder weglassen).
+ */
+export async function imageFallback(b, img, photo) {
+  const schritt = img.dataset.fallback || '';
+  if (schritt === 'original') return false;
+  if (!schritt) {
+    img.dataset.fallback = 'frisch';
+    const url = await b.freshPhotoUrl(photo, Number(img.dataset.size) || 600).catch(() => '');
+    if (!img.isConnected) return true; // Ansicht inzwischen neu aufgebaut
+    if (url && new URL(url, document.baseURI).href !== img.src) {
+      img.src = url;
+      return true;
+    }
+  }
+  img.dataset.fallback = 'original';
+  if (photo.kind === 'video') return false; // Standbild fehlt – das „Original“ wäre das ganze Video
+  if (!img.isConnected) return true;
+  try {
+    img.src = await b.photoFullUrl(photo);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Ersatzweg für alle Vorschaubilder unterhalb von root; ohne weiteren Weg bleibt die Stelle leer */
 function bindImageFallback(root, b, photosById) {
-  root.addEventListener('error', async (e) => {
+  root.addEventListener('error', (e) => {
     const img = e.target;
-    if (img?.tagName !== 'IMG' || !img.dataset.photo || img.dataset.fallback === '1') return;
-    img.dataset.fallback = '1';
+    if (img?.tagName !== 'IMG' || !img.dataset.photo) return;
     const photo = photosById.get(img.dataset.photo);
-    if (!photo) return;
-    try { img.src = await b.photoFullUrl(photo); } catch { img.classList.add('broken'); }
+    if (photo) imageFallback(b, img, photo).then((ok) => { if (!ok) img.classList.add('broken'); });
   }, true);
 }
 
@@ -210,7 +239,7 @@ export default async function galerie(ctx) {
   }
 }
 
-export async function album(ctx) {
+export function album(ctx) {
   const { el, app, params } = ctx;
   const b = app.backend;
   zuletztGeoeffnet = params.album;
@@ -237,19 +266,27 @@ export async function album(ctx) {
         <button class="photo-thumb" data-index="${i}" aria-label="${[`${p.kind === 'video' ? 'Video' : 'Foto'} ${i + 1}`, photoTitle(p.name)].filter(Boolean).join(': ')}">${thumbImg(b, p, 500)}</button>`)}</div>`);
   }
 
-  // dieselben (zwischengespeicherten) Daten wie die Albumübersicht; fehlt das Album darin, einmal frisch laden
-  try {
-    const data = await app.load('gallery', () => b.listGallery(), render, { maxAge: 15 * 60_000 });
-    if (!data.albums.some((x) => x.id === params.album)) await app.load('gallery', () => b.listGallery(), render, { force: true });
-  } catch (err) {
-    if (!a) setHtml(c, errorBox(err));
-  }
-
+  // Fotos sind antippbar, sobald der zwischengespeicherte Stand steht – nicht erst, wenn das Neuladen im Hintergrund fertig
+  // ist (vorher blieben Tipps so lange ohne Wirkung, E66)
   let closeLightbox = null;
   c.addEventListener('click', (e) => {
+    if (e.target.closest('[data-action=retry]')) { app.refresh(); return; }
+    if (e.target.closest('[data-action=relogin]')) { app.relogin(); return; }
     const t = e.target.closest('[data-index]');
     if (t && a) closeLightbox = openLightbox(b, a, Number(t.dataset.index), info);
   });
+
+  // dieselben (zwischengespeicherten) Daten wie die Albumübersicht; fehlt das Album darin, einmal frisch laden.
+  // Die Ansicht wartet nicht darauf: so ist das Aufräumen sofort angemeldet, und ein schon geöffnetes Vollbild schließt
+  // auch dann, wenn man das Album verlässt, bevor das Neuladen fertig ist.
+  (async () => {
+    try {
+      const data = await app.load('gallery', () => b.listGallery(), render, { maxAge: 15 * 60_000 });
+      if (!data.albums.some((x) => x.id === params.album)) await app.load('gallery', () => b.listGallery(), render, { force: true });
+    } catch (err) {
+      if (!a && ctx.alive()) setHtml(c, errorBox(err));
+    }
+  })();
   return () => closeLightbox?.();
 }
 
@@ -289,16 +326,13 @@ function openLightbox(b, album, start, info) {
     ? (b.videoPlayable(p)
       ? html`<video controls autoplay playsinline preload="metadata" poster="${b.photoUrl(p, 1600)}" src="${b.videoUrl(p)}" data-photo="${p.id}" aria-label="${photoTitle(p.name) || `Video ${index + 1}`}"></video>`
       : videoHinweis(p, navigator.serviceWorker?.controller ? '' : 'Videos laufen erst, wenn die App einmal neu geladen wurde.'))
-    : html`<img src="${b.photoUrl(p, 1600)}" alt="${photoTitle(p.name) || `Foto ${index + 1}`}" referrerpolicy="no-referrer" data-photo="${p.id}">`}
+    : html`<img src="${b.photoUrl(p, 1600)}" alt="${photoTitle(p.name) || `Foto ${index + 1}`}" referrerpolicy="no-referrer" data-photo="${p.id}" data-size="1600">`}
         <button class="lightbox-nav next" data-lb="next" aria-label="Nächstes" ${index === album.photos.length - 1 ? 'disabled' : ''}>${icon('chevronRight')}</button>
       </div>
       <div class="lightbox-caption">${caption}</div>`);
+    // abgelaufene Vorschau: frische Adresse, zuletzt das Original (E66); geht beides nicht, bleibt die Fläche leer
     const img = box.querySelector('img');
-    img?.addEventListener('error', async () => {
-      if (img.dataset.fallback) return;
-      img.dataset.fallback = '1';
-      try { img.src = await b.photoFullUrl(p); } catch { /* bleibt leer */ }
-    });
+    img?.addEventListener('error', () => { imageFallback(b, img, p); });
     const vid = box.querySelector('video');
     vid?.addEventListener('error', () => {
       const code = vid.error?.code;

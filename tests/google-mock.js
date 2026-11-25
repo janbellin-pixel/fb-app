@@ -611,6 +611,129 @@ async function run() {
   check(scrollToAlbum(probeWurzel, 'alb-1') && [...probeWurzel.querySelectorAll('details')].every((d) => d.open) && scrollAufrufe[0]?.block === 'center'
     && !scrollToAlbum(probeWurzel, 'alb-x') && scrollAufrufe.length === 1,
     'Zurück aus einem Album: Karte wird angesteuert, Ordner darüber aufgeklappt, unbekanntes Album stört nicht (E63)');
+
+  // Galerie schneller (E66): abgelaufene Vorschau frisch anfordern statt das Original zu laden
+  const fotoE66 = gal.albums[0].photos[0];
+  const abgelaufen = { ...fotoE66, thumb: 'https://lh3.googleusercontent.com/drive-storage/abgelaufen=s220' };
+  const logE66 = fake.state.log.length;
+  const [frisch500, frisch1600] = (await step('freshPhotoUrl', () => Promise.all([b.freshPhotoUrl(abgelaufen, 500), b.freshPhotoUrl(fotoE66, 1600)]))) || [];
+  const anfragenE66 = fake.state.log.slice(logE66);
+  check(String(frisch500).endsWith('=s500') && String(frisch500).includes(fotoE66.id) && String(frisch1600).endsWith('=s1600')
+    && anfragenE66.length === 1 && anfragenE66[0] === `GET www.googleapis.com/drive/v3/files/${fotoE66.id}`,
+    'abgelaufenes Vorschaubild: nur die neue Adresse abgefragt – eine kleine Anfrage für beide Größen (E66)', JSON.stringify([frisch500, frisch1600, anfragenE66]));
+  check(b.photoUrl(abgelaufen, 300).includes(fotoE66.id) && b.photoUrl(abgelaufen, 300).endsWith('=s300') && fake.state.log.length === logE66 + 1,
+    'danach nimmt auch der nächste Aufbau die frische Adresse, ohne neue Anfrage', b.photoUrl(abgelaufen, 300));
+  const ohneVorschau = fake.addFile({ ...FW, name: 'scan.raw', mimeType: 'application/octet-stream' });
+  const leer = await b.freshPhotoUrl({ id: ohneVorschau.id, name: 'scan.raw', kind: 'image', thumb: '' }, 500).catch((e) => `Fehler ${e.message}`);
+  const { DemoBackend } = await import('../js/backend/demo-backend.js');
+  const demoFrisch = await new DemoBackend().freshPhotoUrl({ id: 'd1', thumb: 'assets/demo/probe.jpg', url: 'assets/demo/probe-gross.jpg' });
+  check(leer === '' && demoFrisch === 'assets/demo/probe.jpg', 'ohne Vorschaubild bei Drive: leer (dann folgt das Original); Demo: dieselbe Adresse', JSON.stringify([leer, demoFrisch]));
+  const { imageFallback } = await import('../js/views/galerie.js');
+  const rufe = [];
+  const bStub = {
+    freshPhotoUrl: async (p, size) => { rufe.push(`frisch ${size}`); return p.ohneFrisch ? '' : `${location.origin}/vorschau/${p.id}-neu=s${size}`; },
+    photoFullUrl: async (p) => { rufe.push('original'); if (p.kaputt) throw new Error('weg'); return `blob:${location.origin}/original-${p.id}`; },
+  };
+  const probeBild = (src) => ({ dataset: { size: '500' }, src, isConnected: true });
+  const i1 = probeBild(`${location.origin}/vorschau/p1-alt=s500`);
+  const w1 = [await imageFallback(bStub, i1, { id: 'p1', kind: 'image' })];
+  const src1 = i1.src;
+  w1.push(await imageFallback(bStub, i1, { id: 'p1', kind: 'image' })); // auch die frische Adresse lädt nicht → Original
+  const src2 = i1.src;
+  w1.push(await imageFallback(bStub, i1, { id: 'p1', kind: 'image' })); // auch das Original lädt nicht → aufgeben
+  check(w1.join() === 'true,true,false' && src1.endsWith('/vorschau/p1-neu=s500') && src2.includes('original-p1') && rufe.join() === 'frisch 500,original',
+    'Vorschaubild lädt nicht: erst frische Adresse, dann das Original, dann aufgeben (E66)', JSON.stringify([w1, src1, src2, rufe]));
+  rufe.length = 0;
+  const i2 = probeBild('');
+  const w2 = await imageFallback(bStub, i2, { id: 'p2', kind: 'image', ohneFrisch: true });
+  const i3 = probeBild(`${location.origin}/vorschau/p3-alt=s500`);
+  const w3 = await imageFallback(bStub, i3, { id: 'p3', kind: 'video', ohneFrisch: true });
+  const i4 = probeBild(`${location.origin}/vorschau/p4-alt=s500`);
+  const w4 = await imageFallback(bStub, i4, { id: 'p4', kind: 'image', ohneFrisch: true, kaputt: true });
+  const i5 = probeBild(`${location.origin}/vorschau/p5-neu=s500`);
+  const w5 = await imageFallback(bStub, i5, { id: 'p5', kind: 'image' });
+  check(w2 && i2.src.includes('original-p2') && w3 === false && w4 === false && w5 && i5.src.includes('original-p5')
+    && rufe.join() === 'frisch 500,original,frisch 500,frisch 500,original,frisch 500,original',
+    'ohne frische Vorschau oder mit derselben Adresse gleich das Original; bei Videos nie das ganze Video; scheitert alles: aufgeben', JSON.stringify([w2, w3, w4, w5, rufe]));
+
+  // Album (E66): Fotos öffnen sich schon, während im Hintergrund noch geladen wird; Verlassen schließt ein offenes Vollbild
+  const { album } = await import('../js/views/galerie.js');
+  const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  const probeAlbum = { id: 'alb-probe', title: '2026-05 Probe', path: [], photos: [{ id: 'q1', name: 'Bild 1.jpg', kind: 'image' }, { id: 'q2', name: 'Bild 2.jpg', kind: 'image' }] };
+  const probeDaten = { albums: [probeAlbum], folderUrl: '' };
+  let ladenFertig = null;
+  const albumEl = document.createElement('div');
+  document.body.append(albumEl);
+  const aufraeumen = await Promise.race([
+    album({
+      el: albumEl, params: { album: probeAlbum.id }, alive: () => true,
+      app: {
+        backend: { photoUrl: () => PIXEL, freshPhotoUrl: async () => '', photoFullUrl: async () => PIXEL, videoPlayable: () => false, videoUrl: () => '' },
+        load: (key, fetcher, onData) => { onData(probeDaten, { cached: true, stale: true }); return new Promise((r) => { ladenFertig = () => r(probeDaten); }); },
+        refresh() {}, relogin() {},
+      },
+    }),
+    new Promise((r) => { setTimeout(() => r('wartet auf das Laden'), 1500); }),
+  ]);
+  albumEl.querySelector('[data-index="1"]')?.click();
+  const vollbild = document.querySelector('.lightbox');
+  const vollbildText = vollbild?.textContent || '';
+  if (typeof aufraeumen === 'function') aufraeumen();
+  check(typeof aufraeumen === 'function' && ladenFertig && vollbild && vollbildText.includes('2 / 2') && !document.querySelector('.lightbox') && !document.body.classList.contains('lightbox-open'),
+    'Album: Fotos öffnen sich, während im Hintergrund noch geladen wird; Verlassen schließt das Vollbild (E66)', JSON.stringify([typeof aufraeumen === 'function' ? 'Aufräumen' : aufraeumen, !!vollbild, vollbildText.slice(0, 60)]));
+  document.querySelector('.lightbox')?.remove();
+  document.body.classList.remove('lightbox-open');
+  ladenFertig?.();
+  albumEl.remove();
+
+  // Gleiche Daten von zwei Seiten zugleich (Startseite und Galerie, E66): ein Abruf, beide bekommen das Ergebnis
+  const store = await import('../js/lib/store.js');
+  await store.kv.set('test:doppelt', { t: 0, v: ['alt'] });
+  let abrufe = 0;
+  const langsam = () => { abrufe++; return new Promise((r) => { setTimeout(() => r(['neu']), 120); }); };
+  const gesehen = [[], []];
+  const [d1, d2] = await Promise.all([
+    store.cachedLoad('test:doppelt', langsam, (v) => gesehen[0].push(v[0])),
+    store.cachedLoad('test:doppelt', langsam, (v) => gesehen[1].push(v[0])),
+  ]);
+  const abrufeGeteilt = abrufe;
+  const eigen = await store.cachedLoad('test:doppelt', async () => { abrufe++; return ['eigen']; }, () => {}, { force: true });
+  const gespeichert = (await store.kv.get('test:doppelt'))?.v?.[0];
+  let abrufe2 = 0;
+  const langsam2 = () => { abrufe2++; return new Promise((r) => { setTimeout(() => r(['x']), 80); }); };
+  const ersterLauf = store.cachedLoad('test:doppelt2', langsam2, () => {});
+  await new Promise((r) => { setTimeout(r, 20); });
+  await Promise.all([ersterLauf, store.cachedLoad('test:doppelt2', langsam2, () => {}, { force: true })]);
+  await store.kv.del('test:doppelt');
+  await store.kv.del('test:doppelt2');
+  check(abrufeGeteilt === 1 && d1?.[0] === 'neu' && d2?.[0] === 'neu' && gesehen.every((g) => g.join() === 'alt,neu') && abrufe === 2 && eigen?.[0] === 'eigen' && gespeichert === 'eigen' && abrufe2 === 2,
+    'gleiche Daten von zwei Seiten zugleich: ein Abruf, beide sehen erst den gespeicherten, dann den neuen Stand; „force“ holt selbst (E66)',
+    JSON.stringify([abrufeGeteilt, abrufe, abrufe2, gesehen, d1, d2, eigen, gespeichert]));
+
+  // Große Ordner (E66): Seiten à 1000, kompaktes JSON, mehr als 20 Seiten (vorher endete die Suche still nach 20 × 200 Einträgen)
+  const fetchVorE66 = window.fetch;
+  const seitenUrls = [];
+  window.fetch = (input, init) => {
+    const u = new URL(String(input?.url || input));
+    if (u.searchParams.get('q') !== 'seitenprobe') return fetchVorE66(input, init);
+    seitenUrls.push(u);
+    const n = Number(u.searchParams.get('pageToken') || 0) + 1;
+    return Promise.resolve(new Response(JSON.stringify({ files: [{ id: `s${n}`, name: `Seite ${n}` }], ...(n < 30 ? { nextPageToken: String(n) } : {}) }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+  };
+  const seiten = await step('listFiles (30 Seiten)', () => drive.listFiles('seitenprobe'));
+  const galUrls = [];
+  window.fetch = (input, init) => { galUrls.push(String(input?.url || input)); return fetchVorE66(input, init); };
+  const galSchlank = await step('listGallery (schlanke Felder)', () => b.listGallery());
+  window.fetch = fetchVorE66;
+  check(seiten?.length === 30 && seitenUrls.length === 30 && seitenUrls.every((u) => u.searchParams.get('pageSize') === '1000' && u.searchParams.get('prettyPrint') === 'false'),
+    'Dateisuche: Seiten à 1000 Einträge, kompaktes JSON, auch mehr als 20 Seiten (E66)', JSON.stringify([seiten?.length, seitenUrls[0]?.search]));
+  const listenUrls = galUrls.map((u) => decodeURIComponent(u)).filter((u) => u.includes('/drive/v3/files?'));
+  const allePhotos = galSchlank?.albums.flatMap((a) => a.photos) || [];
+  const vidE66 = allePhotos.find((p) => p.kind === 'video');
+  const bildE66 = allePhotos.find((p) => p.kind === 'image');
+  check(listenUrls.length > 0 && listenUrls.every((u) => !u.includes('webViewLink') && !u.includes('width')) && vidE66?.webViewLink?.includes(vidE66.id)
+    && bildE66 && !('webViewLink' in bildE66) && !('width' in bildE66) && bildE66.taken,
+    'Galerie lädt nur, was sie zeigt: kein Link und keine Maße je Foto; Videos behalten „In Drive öffnen“', JSON.stringify([listenUrls.length, vidE66?.webViewLink, bildE66]));
   check(fake.state.writes.length === wGal, 'Galerie lesen schreibt nichts');
 
   /* ---------------------------------------------------------------- Liedermappe */

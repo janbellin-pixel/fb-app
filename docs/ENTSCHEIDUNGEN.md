@@ -584,3 +584,21 @@ Format je Eintrag: **Kontext** (Ausgangslage, Anforderung) · **Entscheidung** �
 - **Kontext:** Seit E40 zeigte die Mitgliederliste standardmäßig nur, wer die App schon genutzt hat (eigene Sichtbarkeits-Datei), mit zwei Knöpfen zum Umschalten auf alle Konten des Google-Verzeichnisses und einem Hinweis „… weitere haben die App noch nicht genutzt – alle zeigen“. Darunter standen die Gruppen-Knöpfe (Alle, Aktivitas, Altherrenschaft …).
 - **Entscheidung:** Die beiden Knöpfe und der Hinweis entfallen. Die Liste zeigt immer nur App-Nutzer, man selbst zählt immer (`appNutzerListe()` in `js/views/mitglieder.js`); die Gruppen-Knöpfe mit ihren Zahlen bleiben und zählen nur App-Nutzer. Die gemerkte Wahl `fb.nurAppNutzer` liest die App nicht mehr. Das Backend liefert weiter alle Konten mit `appNutzer` – die Zuordnung im Adressverzeichnis und die Einladung in die App (E58) brauchen sie.
 - **Folgen:** Konten ohne App-Nutzung erscheinen nicht in der Mitgliederliste; erreichbar bleiben sie über das Adressverzeichnis und die Geburtstage, dort mit „In die App einladen“ (E58). Ersetzt den Umschalter aus E40. Mitglieder-Anleitung und PDF angepasst, Test in `google-mock.js`.
+
+## E66 · Galerie schneller laden
+*2026-11-25 – Anlass: Die Galerie war zeitweise langsam. Gefragt war, ob Vorschaubilder helfen, die laufend angelegt und aktualisiert werden.*
+
+- **Kontext:** Die Galerie listet rund 14.000 Dateien in 359 Alben (E59–E62). Die App zeigt zuerst den zwischengespeicherten Stand und lädt nach 15 Minuten im Hintergrund neu. Vorschaubilder erzeugt Drive selbst (`thumbnailLink`); deren Adressen gelten aber nur einige Stunden. Ursachen der Langsamkeit, nach Gewicht:
+  - War der gespeicherte Stand älter, schlug jedes sichtbare Vorschaubild fehl, und die App lud dafür das Original herunter – bei einem Album Dutzende Megabyte.
+  - Im Album wirkten Tipps auf Fotos erst, wenn das Neuladen im Hintergrund fertig war.
+  - Die Liste kam in Seiten à 200 Einträgen: 81 Anfragen in 18 Runden nacheinander; nach 20 Seiten je Suche brach sie still ab.
+  - Startseite und Galerie luden die ganze Liste gleichzeitig zweimal.
+
+  Eigene Vorschaubild-Dateien würden nicht helfen: Vorschauen gibt es bei Drive schon, langsam war der Umgang mit abgelaufenen Adressen.
+- **Entscheidung:**
+  - Schlägt ein Vorschaubild fehl, fragt die App nur die frische Adresse dieser Datei ab (`freshPhotoUrl()` in beiden Backends, je Foto höchstens eine Anfrage in 30 Minuten; `photoUrl()` nimmt sie danach auch). Das Original lädt nur noch, wenn Drive keine Vorschau hat oder auch die frische nicht lädt, bei Videos nie (`imageFallback()` in `js/views/galerie.js`, auch für Startseite und Vollbild).
+  - Die Albumansicht nimmt Tipps an, sobald der gespeicherte Stand steht, und lädt im Hintergrund weiter; ihre Aufräumfunktion gilt sofort, ein offenes Vollbild schließt beim Verlassen.
+  - `listFiles()` holt Seiten à 1000 Einträge (Höchstwert der API) mit kompaktem JSON (`prettyPrint=false`), bis zu 100 Seiten je Suche: 27 Anfragen in 5 Runden. Kleinere Bündel als 25 Ordner je Abfrage bringen dann nichts mehr (nachgerechnet: 5 Runden so oder so).
+  - `cachedLoad()` teilt laufende Abrufe je Schlüssel: Wer dieselben Daten anfordert, während sie geladen werden, wartet mit. `force` startet weiter einen eigenen Abruf, damit eine eigene Änderung nicht von einem älteren Abruf überholt wird.
+  - Die Galerie lädt nur Felder, die sie zeigt: kein `webViewLink` je Foto (bei Videos aus der ID gebildet), keine Bildmaße, keine Änderungszeit.
+- **Folgen:** Keine neuen Scopes, keine CSP-Änderung, nur Lesezugriffe. Ein veralteter Stand kostet je sichtbarem Foto eine kleine Anfrage statt eines Originals. Geprüft im Google-Nachbau und mit neuen Tests in `google-mock.js`; mit echtem Konto ist die Wirkung noch nicht gemessen. Nicht umgesetzt, weil erst nötig, wenn es weiter hakt: Vorschaubilder auf dem Gerät behalten (Service Worker) und ein Inhaltsverzeichnis der Galerie per Skript (siehe ENTWICKLUNG, offene Punkte).

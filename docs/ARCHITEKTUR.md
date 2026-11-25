@@ -153,6 +153,7 @@ Jeder Termin enthält den Link `…/#/termin/<ID>`. Auf **Android** öffnet ein 
 - Bei jeder Veröffentlichung setzt GitHub Actions eine neue Versionskennung, und die App meldet „Neue Version verfügbar“.
 - Lokal (localhost) lädt der Service Worker immer frisch vom Netz.
 - Videos der Galerie (E62): Der Player lädt `_video/<id>?size=…`; der Service Worker holt die Daten mit dem Anmelde-Token (per Nachricht aus der App, nie in der Adresse) und dem angeforderten Bereich von der Drive-API und reicht sie als Strom durch – ohne Zwischenspeicher, ohne CSP-Änderung.
+- Galerie (E66): Vorschaubilder kommen von Drive (`thumbnailLink`, gilt nur einige Stunden). Ist die Adresse im gespeicherten Stand abgelaufen, holt die App nur die frische Adresse dieser Datei, nicht das Original. Gleichzeitige Abrufe derselben Daten (Startseite und Galerie) teilen sich eine Anfrage; Drive-Listen kommen in Seiten à 1000 Einträgen mit kompaktem JSON.
 
 ## Store-Apps (optional, später)
 
@@ -162,7 +163,7 @@ Die PWA lässt sich ohne Codeänderung in Store-Pakete verpacken, z. B. mit [PWA
 
 ## Tests
 
-- `tests/google-mock.html` (lokal öffnen: `http://localhost:8080/tests/google-mock.html`) spielt Einrichtung und alle Backend-Funktionen gegen einen Nachbau der Google-APIs durch (127 Prüfungen, inkl. Einwilligungen, Fälschungsversuchen, Empfängerwechsel, Sammeltabelle und Adressabgleich). Der Nachbau kennt Dateieigentümer und die Regeln von `drive.file` und zählt jeden Schreibzugriff auf fremde oder gemeinsame Daten. Der Test versucht gezielt, Termine, Tabellen, Zeitungen, Galerie-Ordner und fremde Profile/Beiträge zu ändern, und verlangt, dass jeder Versuch blockiert wird, **bevor** etwas gesendet wird. Am Ende muss die Zahl der unerlaubten Schreibzugriffe 0 sein.
+- `tests/google-mock.html` (lokal öffnen: `http://localhost:8080/tests/google-mock.html`) spielt Einrichtung und alle Backend-Funktionen gegen einen Nachbau der Google-APIs durch (451 Prüfungen, inkl. Einwilligungen, Fälschungsversuchen, Empfängerwechsel, Sammeltabelle und Adressabgleich). Der Nachbau kennt Dateieigentümer und die Regeln von `drive.file` und zählt jeden Schreibzugriff auf fremde oder gemeinsame Daten. Der Test versucht gezielt, Termine, Tabellen, Zeitungen, Galerie-Ordner und fremde Profile/Beiträge zu ändern, und verlangt, dass jeder Versuch blockiert wird, **bevor** etwas gesendet wird. Am Ende muss die Zahl der unerlaubten Schreibzugriffe 0 sein.
 - `tests/app-mock.html` (über `http://127.0.0.1:8080/tests/app-mock.html` öffnen) startet die komplette App im Google-Modus gegen den Nachbau, mit Inhalten eines zweiten Mitglieds. Unter `window.__fake.state.violations` stehen unerlaubte Schreibzugriffe; die Liste muss leer bleiben.
 - Demo-Modus: alle Seiten mit Beispieldaten.
 

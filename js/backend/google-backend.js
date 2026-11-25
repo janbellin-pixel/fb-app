@@ -49,7 +49,10 @@ const SCOPE_CHAT_MEMBERS = 'https://www.googleapis.com/auth/chat.memberships';
 const CHAT_NAMES = 'fb.chatNamen'; // Namen selbst angelegter Unterhaltungen (falls das Verzeichnis fehlt)
 const APP_FOLDER = 'Frankonia-Brunonia App – meine Beiträge und Profil';
 const OWN_FIELDS = 'id,name,description,createdTime,modifiedTime,appProperties,ownedByMe,owners(emailAddress,displayName,photoLink)';
-const GALLERY_FIELDS = 'id,name,mimeType,size,thumbnailLink,webViewLink,createdTime,modifiedTime,imageMediaMetadata(width,height,time),videoMediaMetadata(width,height,durationMillis),parents';
+// Galerie: nur Felder, die die App zeigt – ohne webViewLink (bei Videos aus der ID gebildet), Bildmaße und Änderungszeit (E66)
+const GALLERY_FIELDS = 'id,name,mimeType,size,thumbnailLink,createdTime,imageMediaMetadata(time),videoMediaMetadata(durationMillis),parents';
+/** So lange gilt eine frisch nachgeladene Vorschau-Adresse (Drive: „einige Stunden“, E66) */
+const THUMB_TTL = 30 * 60_000;
 const TABLE_FIELDS = 'id,name,ownedByMe,appProperties,owners(emailAddress,displayName,photoLink)';
 const CONSENT_FILE = 'Datenschutz-Einwilligung (Mitglieder-App).json';
 const VISIBILITY_FILE = 'Sichtbarkeit (Mitglieder-App).json';
@@ -1407,22 +1410,21 @@ export class GoogleBackend {
     const { files, folders } = await this.listFolderTree(folder, {
       depth: 3, filter: "(mimeType contains 'image/' or mimeType contains 'video/')", fields: GALLERY_FIELDS, orderBy: 'name',
     });
-    // Videos (E62): Vorschaubild von Drive, Dauer aus den Metadaten, Größe für die Wiedergabe über den Service Worker
+    // Videos (E62): Vorschaubild von Drive, Dauer aus den Metadaten, Größe für die Wiedergabe über den Service Worker.
+    // Nur, was die App zeigt (E66): Der Stand wird zwischengespeichert und bei jedem Neuladen verglichen.
     const toPhoto = (f) => {
       const video = String(f.mimeType || '').startsWith('video/');
-      const meta = (video ? f.videoMediaMetadata : f.imageMediaMetadata) || {};
       return {
         id: f.id,
         name: f.name,
         kind: video ? 'video' : 'image',
         mime: f.mimeType || '',
         size: Number(f.size) || 0,
-        duration: video ? Math.round((Number(meta.durationMillis) || 0) / 1000) : 0,
+        duration: video ? Math.round((Number(f.videoMediaMetadata?.durationMillis) || 0) / 1000) : 0,
         thumb: f.thumbnailLink || '',
-        width: meta.width || 0,
-        height: meta.height || 0,
         taken: exifToIso(f.imageMediaMetadata?.time) || f.createdTime || '',
-        webViewLink: f.webViewLink || '',
+        // „In Drive öffnen“ gibt es nur bei Videos – der Link entsteht aus der ID, statt für 14.000 Fotos mitgeladen zu werden
+        ...(video ? { webViewLink: `https://drive.google.com/file/d/${encodeURIComponent(f.id)}/view` } : {}),
       };
     };
     const byFolder = new Map();
@@ -1436,7 +1438,7 @@ export class GoogleBackend {
     for (const s of folders) {
       const list = byFolder.get(s.id) || [];
       // path = übergeordnete Ordner (z. B. ["2023"]), title = Name des Albums selbst
-      if (list.length) albums.push({ id: s.id, title: s.name, path: s.path.slice(0, -1), photos: list.map(toPhoto), modified: s.modifiedTime });
+      if (list.length) albums.push({ id: s.id, title: s.name, path: s.path.slice(0, -1), photos: list.map(toPhoto) });
     }
     // neueste Alben zuerst – nach dem Datum im Ordnernamen oder dem Jahresordner (E59), Sammlungen ohne Datum zuletzt
     return { albums: sortAlbums(albums), folderUrl: `https://drive.google.com/drive/folders/${folder}` };
@@ -1448,9 +1450,36 @@ export class GoogleBackend {
     return id ? `https://drive.google.com/drive/folders/${id}` : '';
   }
 
+  /** Vorschaubild in Wunschgröße; eine frisch nachgeladene Adresse (E66) hat Vorrang vor der aus der Liste */
   photoUrl(photo, size = 600) {
-    if (!photo.thumb) return '';
-    return /=s\d+(-c)?$/.test(photo.thumb) ? photo.thumb.replace(/=s\d+(-c)?$/, `=s${size}`) : `${photo.thumb}=s${size}`;
+    const thumb = this.freshThumb(photo.id) || photo.thumb;
+    if (!thumb) return '';
+    return /=s\d+(-c)?$/.test(thumb) ? thumb.replace(/=s\d+(-c)?$/, `=s${size}`) : `${thumb}=s${size}`;
+  }
+
+  /** Frisch nachgeladene Vorschau-Adresse eines Fotos, solange sie gilt – sonst '' */
+  freshThumb(id) {
+    const hit = this.memo.get(`thumb:${id}`);
+    return hit?.url && Date.now() - hit.t < THUMB_TTL ? hit.url : '';
+  }
+
+  /**
+   * Vorschaubild neu anfordern (E66): Die Vorschau-Adressen von Drive gelten nur einige Stunden – im zwischengespeicherten
+   * Stand der Galerie sind sie dann abgelaufen. Statt des Originals (mehrere MB) fragt die App nur die neue Adresse dieser
+   * Datei ab: eine kleine Anfrage, je Foto höchstens eine in 30 Minuten (gleichzeitige Aufrufe teilen sie sich). Danach
+   * nimmt auch photoUrl() die neue Adresse. '' = Drive hat (noch) kein Vorschaubild.
+   */
+  async freshPhotoUrl(photo, size = 600) {
+    const key = `thumb:${photo.id}`;
+    let hit = this.memo.get(key);
+    if (!hit || Date.now() - hit.t >= THUMB_TTL) {
+      const entry = { t: Date.now(), url: '' };
+      entry.p = drive.getFile(photo.id, 'thumbnailLink').then((f) => { entry.url = f.thumbnailLink || ''; return entry.url; });
+      entry.p.catch(() => { if (this.memo.get(key) === entry) this.memo.delete(key); });
+      this.memo.set(key, entry);
+      hit = entry;
+    }
+    return (await hit.p) ? this.photoUrl(photo, size) : '';
   }
 
   async photoFullUrl(photo) {

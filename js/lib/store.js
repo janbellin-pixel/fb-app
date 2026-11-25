@@ -67,6 +67,28 @@ export const local = {
   },
 };
 
+/** Abrufe, die gerade laufen – je Schlüssel einer (E66) */
+const inflight = new Map();
+
+/**
+ * Neu laden und speichern. Läuft für den Schlüssel schon ein Abruf (z. B. die Startseite lädt die Galerie, und man tippt
+ * währenddessen auf „Galerie“), wartet der zweite Aufruf darauf, statt alles ein zweites Mal zu holen (E66).
+ * `force` startet immer einen eigenen Abruf – etwa nach einer eigenen Änderung, die ein älterer Abruf noch nicht kennt.
+ */
+function refetch(key, fetcher, force) {
+  const running = inflight.get(key);
+  if (running && !force) return running;
+  const p = (async () => {
+    const v = await fetcher();
+    await kv.set(key, { t: Date.now(), v });
+    return v;
+  })();
+  inflight.set(key, p);
+  const done = () => { if (inflight.get(key) === p) inflight.delete(key); };
+  p.then(done, done);
+  return p;
+}
+
 /**
  * Daten laden mit Zwischenspeicher („stale while revalidate“):
  * zeigt sofort den letzten Stand und lädt im Hintergrund neu.
@@ -78,8 +100,7 @@ export async function cachedLoad(key, fetcher, onData, { maxAge = 60_000, force 
   if (cached) onData(cached.v, { cached: true, stale: !fresh, time: cached.t });
   if (fresh) return cached.v;
   try {
-    const v = await fetcher();
-    await kv.set(key, { t: Date.now(), v });
+    const v = await refetch(key, fetcher, force);
     if (!cached || JSON.stringify(cached.v) !== JSON.stringify(v)) onData(v, { cached: false, stale: false, time: Date.now() });
     return v;
   } catch (e) {
