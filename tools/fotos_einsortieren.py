@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fotos aus dem Upload-Ordner in die Galerie einsortieren – Werkzeug für Verantwortliche (E59, E60).
+"""Fotos aus dem Upload-Ordner in die Galerie einsortieren – Werkzeug für Verantwortliche (E59, E60, E67).
 
 Läuft auf dem eigenen Rechner gegen die im Explorer eingebundene geteilte Ablage (Google Drive für Desktop).
 Die App selbst schreibt nie in die Galerie; dieses Skript ist der Weg vom Upload-Ordner in die Zeitachse
@@ -7,25 +7,35 @@ Die App selbst schreibt nie in die Galerie; dieses Skript ist der Weg vom Upload
 
 Schritte:
   plan     Dateien einer Quelle (Unterordner des Upload-Ordners) nach Tag gruppieren – Datum aus dem Dateinamen,
-           sonst aus EXIF – Termine aus dem Kalender (ICS) zuordnen, je Gruppe einen Kontaktbogen (20 Vorschaubilder)
-           erzeugen und einen Plan als CSV schreiben. Spalte „ziel“ = Album relativ zur Chronik („2026/2026-06-20
-           133. Stiftungsfest“; mit „/“ davor relativ zur Galerie, etwa „/Dia-Scans/Magazin 01“), „Semester“ = kein
-           eigenes Album (Vorgabe ohne eindeutigen Termin), leer = bleibt liegen.
+           sonst aus EXIF (auch HEIC vom iPhone) bzw. bei Videos aus MOV/MP4 – Termine aus dem Kalender (ICS)
+           zuordnen, je Gruppe einen Kontaktbogen (20 Vorschaubilder) erzeugen und einen Plan als CSV schreiben.
+           Spalte „ziel“ = Album relativ zur Chronik („2026/2026-06-19 133. Stiftungsfest“; mit „/“ davor relativ zur
+           Galerie, etwa „/Dia-Scans/Magazin 01“), „Semester“ = kein eigenes Album (Vorgabe ohne eindeutigen Termin),
+           leer = bleibt liegen. Ein Termin bekommt ein vorhandenes Album gleichen Titels aus seinem Jahr, sonst eines mit
+           seinem ersten Tag – so landen alle Tage eines Stiftungsfests im selben Album. Gruppen ganz ohne Aufnahmedatum
+           (nur die Änderungszeit der Datei, etwa der Zeitpunkt des Uploads) bleiben ohne Ziel (E67).
            --je-ordner (E61): jeder Ordner mit Bildern ist eine Gruppe (Datum aus drei EXIF-Stichproben, passend zum
            Semesterordner; Titel aus dem Ordnernamen); Unterordner ab --mindestalbum Bildern werden eigene Alben
            „Titel – Unterordner“, kleinere gehen im Album darüber auf und ihre Dateien bekommen den Unterordner als
            Vorsilbe (die App zeigt sie als Bildunterschrift). Spalten „ordner“, „titel“, „vorsilbe“.
-  auswahl  Den Plan auf ein Foto je Motiv eindampfen (Serien gleicher Motive, es bleibt das schärfste Bild; --ohne-doppelte
+  auswahl  Den Plan auf ein Foto je Motiv eindampfen (Serien gleicher Motive, es bleibt das schärfste Bild; exakte Kopien –
+           etwa zweimal hochgeladen als „IMG_0758 (1).HEIC“ – entfallen vorab, auch bei Videos, E67; --ohne-doppelte
            behält alles), Gesperrte (sperrliste.txt) ausnehmen, Alben unter der Mindestgröße ins Semester-Album legen
-           (Vorsilbe = Titel des Ordners); Videos bleiben bei ihrem Album (die App spielt sie ab, E62). Schreibt
-           auswahl.csv und Bögen zum Sichten (sichtung_*.jpg: alles, was in die Galerie käme; serien_*.jpg: was entfällt).
+           (Vorsilbe = Titel des Ordners; ein Album, das es in der Galerie schon gibt, nimmt auch wenige Fotos auf, E67);
+           Videos bleiben bei ihrem Album (die App spielt sie ab, E62). HEIC-Fotos bekommen „.jpg“ als neuen Namen
+           (--heic-behalten: nicht). Schreibt auswahl.csv und Bögen zum Sichten (sichtung_*.jpg: alles, was in die
+           Galerie käme; serien_*.jpg: was entfällt).
   move     auswahl.csv ausführen: Fotos in die Zielalben verschieben (innerhalb derselben Ablage, Drive lädt nichts neu
            hoch), Doppelte und Gesperrte nach „Archiv/Nicht in der Galerie/<Quelle>/…“, Protokoll schreiben (auch in den
-           Archiv-Ordner), leere Quellordner entfernen. Nichts wird gelöscht.
-  undo     Ein Protokoll rückwärts ausführen.
+           Archiv-Ordner), leere Quellordner entfernen. HEIC-Fotos kommen als JPEG in die Galerie (EXIF und Farbprofil
+           bleiben), das Original nach „…/<Quelle>/HEIC-Originale“ (E67). Nichts wird gelöscht.
+  undo     Ein Protokoll rückwärts ausführen (aus HEIC erzeugte JPEGs kommen in den Papierkorb der Ablage).
 
 Einstellungen in tools/fotos_einsortieren.lokal.json (nicht im Repository, Vorlage: fotos_einsortieren.beispiel.json):
   upload, galerie, archiv (Ordner), ics (Kalender-Adresse oder Datei), chronik (Name des Zeitachsen-Ordners).
+
+Voraussetzung: Pillow. Für Vorschaubilder von HEIC-Fotos (iPhone) zusätzlich pillow-heif („pip install pillow-heif“);
+ohne liest das Skript bei HEIC nur das Datum, die Bögen zeigen „kein Bild“ und Serien gleicher Motive werden nicht erkannt.
 
 Beispiele:
   python tools/fotos_einsortieren.py plan --quelle "Fotos Bahl unsortiert" --ausgabe C:/Temp/bahl
@@ -36,6 +46,7 @@ Beispiele:
 import argparse
 import csv
 import datetime as dt
+import hashlib
 import io
 import json
 import os
@@ -50,9 +61,19 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
 
+try:  # HEIC/HEIF (iPhone) als Bild öffnen, wenn pillow-heif installiert ist; das Datum geht auch ohne (E67)
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+    HEIF_LESBAR = True
+except ImportError:
+    HEIF_LESBAR = False
+
 HIER = Path(__file__).resolve().parent
 BILD = {'.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp', '.gif', '.tif', '.tiff', '.bmp'}
+HEIF = {'.heic', '.heif'}
 VIDEO = {'.mp4', '.mov', '.m4v', '.avi', '.3gp', '.mkv', '.wmv', '.mpg', '.mpeg', '.webm'}
+# angehängte Nummer einer Kopie: „IMG_0758 (1).HEIC“
+KOPIE = re.compile(r'\s\(\d+\)(?=\.[^.]+$)')
 # Datum (und Uhrzeit) im Dateinamen, z. B. 20230123_014446.jpg, IMG-20230525-WA0012.jpg, WhatsApp Image 2024-06-15 at 19.20.33.jpeg
 NAME_MUSTER = [
     re.compile(r'(?<!\d)(20\d\d|19\d\d)(\d\d)(\d\d)[_-](\d\d)(\d\d)(\d\d)(?!\d)'),
@@ -100,16 +121,153 @@ def datum_aus_name(name):
     return None, ''
 
 
+def boxen(f, start, ende):
+    """Boxen einer ISO-BMFF-/QuickTime-Datei (HEIC, MOV, MP4) zwischen start und ende: (Typ, Inhaltsanfang, Ende)"""
+    i = start
+    while i + 8 <= ende:
+        f.seek(i)
+        kopf = f.read(16)
+        if len(kopf) < 8:
+            return
+        groesse, typ = struct.unpack('>I4s', kopf[:8])
+        k = 8
+        if groesse == 1:
+            if len(kopf) < 16:
+                return
+            groesse, k = struct.unpack('>Q', kopf[8:16])[0], 16
+        elif groesse == 0:
+            groesse = ende - i
+        if groesse < k:
+            return
+        yield typ.decode('latin-1'), i + k, min(i + groesse, ende)
+        i += groesse
+
+
+def heif_exif(pfad):
+    """EXIF einer HEIC-/HEIF-Datei ohne Bilddekoder (iPhone-Fotos, E67): Eintrag „Exif“ aus „iinf“, Lage in der Datei
+    aus „iloc“. Gibt ein PIL-Exif oder None zurück"""
+    with open(pfad, 'rb') as f:
+        ende = os.fstat(f.fileno()).st_size
+        meta = next(((s, e) for t, s, e in boxen(f, 0, ende) if t == 'meta'), None)
+        if not meta:
+            return None
+        f.seek(meta[0])
+        daten = f.read(min(meta[1] - meta[0], 1 << 22))
+        puffer = io.BytesIO(daten)
+        exif_id, orte = None, {}
+        for t, s, e in boxen(puffer, 4, len(daten)):  # „meta“ ist eine FullBox: erst 4 Byte Version und Flags
+            if t == 'iinf':
+                for t2, s2, _ in boxen(puffer, s + 4 + (2 if daten[s] == 0 else 4), e):
+                    v = daten[s2]
+                    if t2 != 'infe' or v not in (2, 3):
+                        continue
+                    breite = 2 if v == 2 else 4
+                    typ = daten[s2 + 4 + breite + 2:s2 + 4 + breite + 6]
+                    if typ == b'Exif':
+                        exif_id = int.from_bytes(daten[s2 + 4:s2 + 4 + breite], 'big')
+            elif t == 'iloc':
+                r = io.BytesIO(daten[s:e])
+                v = r.read(4)[0]
+                a, b = r.read(2)
+                off_sz, len_sz, base_sz, idx_sz = a >> 4, a & 15, b >> 4, (b & 15 if v in (1, 2) else 0)
+
+                def lies(n):
+                    return int.from_bytes(r.read(n), 'big') if n else 0
+                for _ in range(lies(2 if v < 2 else 4)):
+                    iid = lies(2 if v < 2 else 4)
+                    methode = lies(2) & 15 if v in (1, 2) else 0
+                    lies(2)  # data_reference_index
+                    basis = lies(base_sz)
+                    teile = []
+                    for _ in range(lies(2)):
+                        lies(idx_sz)
+                        teile.append((basis + lies(off_sz), lies(len_sz)))
+                    orte[iid] = (methode, teile)
+        if exif_id not in orte or orte[exif_id][0] != 0:  # nur Daten an fester Stelle in der Datei
+            return None
+        roh = b''
+        for o, n in orte[exif_id][1]:
+            f.seek(o)
+            roh += f.read(n)
+    if len(roh) < 4:
+        return None
+    ex = Image.Exif()
+    ex.load(b'Exif\x00\x00' + roh[4 + int.from_bytes(roh[:4], 'big'):])  # vorn steht der Abstand bis zum TIFF-Kopf
+    return ex
+
+
 def exif_datum(pfad):
+    ex = None
     try:
         with Image.open(pfad) as im:
             ex = im.getexif()
-            d = ex.get_ifd(0x8769).get(36867) or ex.get(306)
-            if d:
-                return dt.datetime.strptime(str(d)[:19], '%Y:%m:%d %H:%M:%S'), 'exif'
+    except Exception:
+        if os.path.splitext(pfad)[1].lower() in HEIF:
+            try:
+                ex = heif_exif(pfad)
+            except Exception:
+                ex = None
+    try:
+        d = ex and (ex.get_ifd(0x8769).get(36867) or ex.get(306))
+        if d:
+            return dt.datetime.strptime(str(d)[:19], '%Y:%m:%d %H:%M:%S'), 'exif'
     except Exception:
         pass
     return None, ''
+
+
+def video_datum(pfad):
+    """Aufnahmezeit eines Videos (MOV/MP4, E67): Apples „com.apple.quicktime.creationdate“ (Ortszeit der Aufnahme),
+    sonst die Erstellzeit aus „mvhd“ (UTC, in die Zeitzone dieses Rechners umgerechnet)"""
+    try:
+        with open(pfad, 'rb') as f:
+            ende = os.fstat(f.fileno()).st_size
+            moov = next(((s, e) for t, s, e in boxen(f, 0, ende) if t == 'moov'), None)
+            if not moov or moov[1] - moov[0] > 1 << 26:
+                return None, ''
+            f.seek(moov[0])
+            daten = f.read(moov[1] - moov[0])
+    except OSError:
+        return None, ''
+    puffer = io.BytesIO(daten)
+    erstellt = None
+    try:
+        for t, s, e in boxen(puffer, 0, len(daten)):
+            if t == 'mvhd':
+                sek = int.from_bytes(daten[s + 4:s + (12 if daten[s] == 1 else 8)], 'big')
+                if sek:
+                    erstellt = (dt.datetime(1904, 1, 1, tzinfo=dt.timezone.utc) + dt.timedelta(seconds=sek)).astimezone().replace(tzinfo=None)
+            elif t == 'meta':  # QuickTime-Metadaten: Schlüssel in „keys“, Werte in „ilst“ (Typ = Nummer des Schlüssels)
+                schluessel, werte = [], {}
+                for t2, s2, e2 in boxen(puffer, s, e):
+                    if t2 == 'keys':
+                        q = s2 + 8
+                        for _ in range(int.from_bytes(daten[s2 + 4:s2 + 8], 'big')):
+                            g = int.from_bytes(daten[q:q + 4], 'big')
+                            if g < 8:
+                                break
+                            schluessel.append(daten[q + 8:q + g].decode('utf-8', 'replace'))
+                            q += g
+                    elif t2 == 'ilst':
+                        for t3, s3, e3 in boxen(puffer, s2, e2):
+                            for t4, s4, e4 in boxen(puffer, s3, e3):
+                                if t4 == 'data':
+                                    werte[int.from_bytes(t3.encode('latin-1'), 'big')] = daten[s4 + 8:e4]
+                for i, k in enumerate(schluessel, 1):
+                    if k == 'com.apple.quicktime.creationdate' and i in werte:
+                        return dt.datetime.strptime(werte[i].decode('utf-8', 'replace')[:19], '%Y-%m-%dT%H:%M:%S'), 'video'
+    except (ValueError, OverflowError, OSError, IndexError):
+        pass
+    return (erstellt, 'video') if erstellt else (None, '')
+
+
+def inhalt(pfad):
+    """Prüfsumme des Dateiinhalts – für exakte Kopien (E67)"""
+    h = hashlib.sha1()
+    with open(pfad, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    return h.hexdigest()
 
 
 def dateien_sammeln(quelle):
@@ -125,6 +283,8 @@ def dateien_sammeln(quelle):
             zeit, woher = datum_aus_name(f)
             if not zeit and ext in BILD:
                 zeit, woher = exif_datum(p)
+            if not zeit and ext in VIDEO:
+                zeit, woher = video_datum(p)
             if not zeit:
                 zeit, woher = dt.datetime.fromtimestamp(os.path.getmtime(p)), 'mtime'
             out.append({'pfad': p, 'name': f, 'zeit': zeit, 'woher': woher, 'typ': 'video' if ext in VIDEO else 'bild'})
@@ -289,6 +449,54 @@ def titel_bereinigen(s):
 PLAN_SPALTEN = ['id', 'tag', 'wochentag', 'bilder', 'videos', 'von', 'bis', 'termine', 'ziel', 'hinweis', 'ordner', 'titel', 'vorsilbe']
 
 
+def alben_im_jahr(chronik, jahr):
+    """(Datum, Titel, Ordnername) der Alben mit Datum im Jahresordner der Chronik"""
+    try:
+        namen = sorted(os.listdir(os.path.join(chronik, str(jahr))))
+    except OSError:
+        return []
+    out = []
+    for name in namen:
+        m = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(.+)$', name)
+        if not m or not os.path.isdir(os.path.join(chronik, str(jahr), name)):
+            continue
+        try:
+            out.append((dt.date.fromisoformat(m.group(1)), m.group(2).strip(), name))
+        except ValueError:
+            continue
+    return out
+
+
+def gleicher_titel(a, b):
+    """„Stiftungsfest“ passt zu „133. Stiftungsfest“, „130. Stiftungsfest“ zu „130. Stiftungsfest FrBr - 118. …“"""
+    a, b = a.lower().strip(), b.lower().strip()
+    return a == b or (min(len(a), len(b)) >= 5 and (a in b or b in a))
+
+
+def album_fuer(chronik, termin, titel):
+    """Album eines Termins (E67): ein vorhandenes Album mit passendem Titel im Jahresordner, dessen Datum höchstens drei
+    Tage neben dem Termin liegt, sonst „<Jahr>/<erster Tag des Termins> <Titel>“ – alle Tage eines mehrtägigen Termins
+    landen so im selben Album, und Nachträge kommen zu den Fotos, die schon da sind"""
+    von, bis = termin['von'], termin['bis']
+    for tag, t, name in alben_im_jahr(chronik, von.year):
+        if gleicher_titel(t, titel) and von - dt.timedelta(days=3) <= tag <= bis + dt.timedelta(days=3):
+            return f'{von.year}/{name}'
+    return f'{von.year}/{von.isoformat()} {titel}'
+
+
+def album_am_tag(chronik, tag):
+    """Ohne eindeutigen Termin: das vorhandene Album vom selben oder vorigen Tag (mehrtägige Feste), wenn es genau eines gibt (E67)"""
+    treffer = [name for t, _, name in alben_im_jahr(chronik, tag.year) if t <= tag <= t + dt.timedelta(days=1)]
+    return f'{tag.year}/{treffer[0]}' if len(treffer) == 1 else ''
+
+
+def heif_hinweis(namen):
+    n = sum(1 for x in namen if os.path.splitext(x)[1].lower() in HEIF)
+    if n and not HEIF_LESBAR:
+        print(f'Hinweis: {n} HEIC-Dateien (iPhone) ohne Vorschau – das Datum wird gelesen, aber die Bögen zeigen „kein Bild“ und '
+              'Serien gleicher Motive werden nicht erkannt. Abhilfe: pip install pillow-heif')
+
+
 def plan_schreiben(ablage, plan, listen):
     with open(ablage / 'plan.csv', 'w', newline='', encoding='utf-8-sig') as f:
         w = csv.DictWriter(f, fieldnames=PLAN_SPALTEN, delimiter=';', extrasaction='ignore')
@@ -311,6 +519,8 @@ def cmd_plan(args, cfg):
         dateien = dateien[:args.max]
     print(f'{len(dateien)} Dateien, Datum aus: ' + ', '.join(f'{k}={v}' for k, v in sorted(
         ((w, sum(1 for e in dateien if e['woher'] == w)) for w in {e['woher'] for e in dateien}), key=lambda x: -x[1])))
+    heif_hinweis(e['name'] for e in dateien)
+    chronik = os.path.join(cfg['galerie'], cfg['chronik'])
     gruppen = gruppen_bilden(dateien)
     plan = []
     listen = {}
@@ -322,13 +532,25 @@ def cmd_plan(args, cfg):
         kandidaten = termine_zu_tag(termine, tag)
         feste = [t for t in kandidaten if not t['serie']]
         eindeutig = len(feste) == 1
+        am_tag = '' if eindeutig else album_am_tag(chronik, tag)
+        if eindeutig:
+            ziel, hinweis = album_fuer(chronik, feste[0], titel_bereinigen(feste[0]['titel'])), ''
+        elif am_tag:
+            ziel, hinweis = am_tag, 'kein eindeutiger Termin, aber ein Album vom selben oder vorigen Tag: prüfen'
+        else:
+            ziel, hinweis = SEMESTER, 'kein eindeutiger Termin: Titel eintragen oder im Semester-Album lassen'
+        # Ohne Aufnahmedatum zählt nur die Änderungszeit – bei Uploads meist der Tag des Hochladens: nicht raten (E67)
+        ohne_datum = sum(1 for e in liste if e['woher'] == 'mtime')
+        if ohne_datum == len(liste):
+            ziel, hinweis = '', 'kein Aufnahmedatum (nur die Änderungszeit der Datei, etwa der Upload): Album eintragen oder liegen lassen'
+        elif ohne_datum:
+            hinweis = '; '.join(x for x in (hinweis, f'{ohne_datum} Dateien ohne Aufnahmedatum (Tag = Änderungszeit)') if x)
         plan.append({
             'id': gid, 'tag': tag.isoformat(), 'wochentag': ('Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So')[tag.weekday()],
             'bilder': sum(1 for e in liste if e['typ'] == 'bild'), 'videos': sum(1 for e in liste if e['typ'] == 'video'),
             'von': min(e['zeit'] for e in liste).strftime('%H:%M'), 'bis': max(e['zeit'] for e in liste).strftime('%H:%M'),
             'termine': ' | '.join((('(Serie) ' if t['serie'] else '') + t['titel']) for t in kandidaten),
-            'ziel': f'{tag.year}/{tag.isoformat()} {titel_bereinigen(feste[0]["titel"])}' if eindeutig else SEMESTER,
-            'hinweis': '' if eindeutig else 'kein eindeutiger Termin: Titel eintragen oder im Semester-Album lassen',
+            'ziel': ziel, 'hinweis': hinweis,
         })
         listen[gid] = [e['pfad'] for e in liste]
         if args.ohne_boegen:
@@ -563,7 +785,7 @@ ARCHIV_ORDNER = {'doppelt': 'Doppelte', 'video': 'Videos', 'gesperrt': 'Aussorti
 def dhash(im):
     """64-Bit-Differenzhash: Graustufen 9×8, je Bit „linker Nachbar heller als rechter“ – unempfindlich gegen Größe und Qualität"""
     g = im.convert('L').resize((9, 8), Image.Resampling.LANCZOS)
-    px = list(g.getdata())
+    px = list(g.tobytes())  # ein Byte je Bildpunkt (statt getdata, das Pillow 14 entfernt)
     h = 0
     for r in range(8):
         for c in range(8):
@@ -583,17 +805,19 @@ def schaerfe(im):
 
 def serien_bilden(bilder):
     """Serien gleicher Motive in einer Tagesgruppe: zeitlich sortiert; ein Bild kommt zu einer Serie, wenn es deren ERSTEM
-    Bild nach MOTIV_REGELN ähnelt – so entstehen keine Ketten über allmählich wechselnde Bilder"""
+    Bild nach MOTIV_REGELN ähnelt – so entstehen keine Ketten über allmählich wechselnde Bilder. Ohne Aufnahmezeit (nur die
+    Änderungszeit, etwa der Upload) gilt nur die Regel ohne Zeitfenster; Bilder aus behalten.txt bilden immer eine eigene Serie (E67)"""
     serien = []  # [erstes Bild, Zeit des letzten Bildes, Mitglieder]
     for e in sorted(bilder, key=lambda x: (x['zeit'], x['name'])):
         treffer = None
-        if e['hash'] is not None:
+        if e['hash'] is not None and not e.get('behalten'):
             for s in reversed(serien):
-                if s[0]['hash'] is None:
+                if s[0]['hash'] is None or s[0].get('behalten'):
                     continue
                 d = abstand(s[0]['hash'], e['hash'])
                 sek = (e['zeit'] - s[1]).total_seconds()
-                if any(d <= dm and (sm is None or sek <= sm) for dm, sm in MOTIV_REGELN):
+                zeit_gilt = not (e.get('ohne_zeit') or s[0].get('ohne_zeit'))
+                if any(d <= dm and (sm is None or (zeit_gilt and sek <= sm)) for dm, sm in MOTIV_REGELN):
                     treffer = s
                     break
         if treffer is None:
@@ -671,6 +895,7 @@ def cmd_auswahl(args, cfg):
     with open(plan_pfad, encoding='utf-8-sig', newline='') as f:
         plan = list(csv.DictReader(f, delimiter=';'))
     gesperrt = sperrliste_lesen(Path(args.sperrliste) if args.sperrliste else ablage / 'sperrliste.txt')
+    behalten = sperrliste_lesen(ablage / 'behalten.txt')  # gleiches Format: Fotos, die nie als Mehrfachaufnahme entfallen (E67)
     cache_pfad = ablage / 'hashes.json'
     cache = json.loads(cache_pfad.read_text(encoding='utf-8')) if cache_pfad.exists() else {}
     vorschauen = {}
@@ -692,8 +917,14 @@ def cmd_auswahl(args, cfg):
                  'titel': z.get('titel', '').strip(), 'vorsilbe': z.get('vorsilbe', '').strip(),
                  'typ': 'video' if os.path.splitext(name)[1].lower() in VIDEO else 'bild', 'motiv': '', 'serie': 1, 'album': '', 'nr': ''}
             c = cache.get(p)
+            # ohne Vorschau gemerkt (etwa HEIC vor pillow-heif): neu lesen
+            # (oder aus einer älteren Fassung ohne „ohne_zeit“)
+            if c is not None and e['typ'] == 'bild' and not args.ohne_doppelte and (c.get('hash') is None or 'ohne_zeit' not in c):
+                c = None
             if c is None:
                 zeit, _ = datum_aus_name(name)
+                if not zeit and e['typ'] == 'video' and not args.ohne_doppelte:
+                    zeit, _ = video_datum(p)
                 if args.ohne_doppelte or e['typ'] == 'video':
                     c = {'zeit': (zeit or dt.datetime.combine(tag or dt.date(1900, 1, 1), dt.time(12))).isoformat(timespec='seconds'), 'hash': None, 'schaerfe': 0.0}
                 else:
@@ -701,17 +932,42 @@ def cmd_auswahl(args, cfg):
                         zeit, _ = exif_datum(p)
                     if not zeit:
                         zeit = dt.datetime.fromtimestamp(os.path.getmtime(p))
+                        ohne_zeit = True
+                    else:
+                        ohne_zeit = False
                     im = bild(e)
                     c = cache[p] = {'zeit': zeit.isoformat(timespec='seconds'), 'hash': dhash(im) if im is not None else None,
-                                    'schaerfe': schaerfe(im) if im is not None else 0.0}
-            e.update(zeit=dt.datetime.fromisoformat(c['zeit']), hash=c['hash'], schaerfe=c['schaerfe'])
+                                    'schaerfe': schaerfe(im) if im is not None else 0.0, 'ohne_zeit': ohne_zeit}
+            e.update(zeit=dt.datetime.fromisoformat(c['zeit']), hash=c['hash'], schaerfe=c['schaerfe'],
+                     ohne_zeit=c.get('ohne_zeit', False), behalten=name.lower() in behalten)
             eintraege.append(e)
     cache_pfad.write_text(json.dumps(cache), encoding='utf-8')
     print(f'{len(eintraege)} Dateien gelesen ({time.time() - t0:.0f} s)')
+    heif_hinweis(e['name'] for e in eintraege if e['typ'] == 'bild' and not args.ohne_doppelte)
+
+    # Exakte Kopien (gleicher Inhalt, etwa zweimal hochgeladen: „IMG_0758 (1).HEIC“): es bleibt eine Datei, möglichst die ohne
+    # angehängte Nummer – auch bei Videos. Verglichen wird nur, was gleich groß ist (E67)
+    kopie_von = {}
+    if not args.ohne_doppelte:
+        je_groesse = defaultdict(list)
+        for e in eintraege:
+            je_groesse[os.path.getsize(e['pfad'])].append(e)
+        for liste in (x for x in je_groesse.values() if len(x) > 1):
+            je_inhalt = defaultdict(list)
+            for e in liste:
+                je_inhalt[inhalt(e['pfad'])].append(e)
+            for gleiche in je_inhalt.values():
+                gleiche.sort(key=lambda e: (bool(KOPIE.search(e['name'])), e['name']))
+                for e in gleiche[1:]:
+                    kopie_von[e['pfad']] = gleiche[0]
+        if kopie_von:
+            print(f'{len(kopie_von)} exakte Kopien (gleicher Inhalt wie eine andere Datei) entfallen')
 
     # Serien gleicher Motive je Tagesgruppe; es bleibt das typischste und davon das schärfste Bild. Videos bleiben immer (E62)
     je_gruppe = defaultdict(list)
     for e in eintraege:
+        if e['pfad'] in kopie_von:
+            continue
         if e['typ'] == 'bild' and not args.ohne_doppelte:
             je_gruppe[e['gid']].append(e)
         else:
@@ -721,6 +977,10 @@ def cmd_auswahl(args, cfg):
             bestes = bestes_der_serie(serie)
             for e in serie:
                 e.update(motiv=f'{gid}-{k:02d}', serie=len(serie), status='bleibt' if e is bestes else 'doppelt')
+    for e in eintraege:  # Kopien teilen das Motiv ihres Originals (Sperrliste wirkt auf beide) und kommen zu den Doppelten
+        if e['pfad'] in kopie_von:
+            original = kopie_von[e['pfad']]
+            e.update(motiv=original['motiv'], serie=original['serie'], status='doppelt')
 
     # Sperrliste: genannte Dateien samt ihrer Serie
     sperren = {e['motiv'] for e in eintraege if e['name'].lower() in gesperrt and e['motiv']}
@@ -735,10 +995,19 @@ def cmd_auswahl(args, cfg):
         if e['status'] == 'bleibt' and e['typ'] == 'bild':
             bleibt_je_ziel[e['ziel']] += 1
 
+    chronik = os.path.join(cfg['galerie'], cfg['chronik'])
+    vorhanden = {}
+
+    def schon_da(ziel):
+        """Album gibt es in der Galerie schon – dann nimmt es auch wenige neue Fotos auf (E67)"""
+        if ziel not in vorhanden:
+            vorhanden[ziel] = os.path.isdir(os.path.join(chronik, *[titel_bereinigen(t) for t in ziel.split('/')]))
+        return vorhanden[ziel]
+
     def eigenes_album(ziel):
         if not ziel or ziel.lower() == SEMESTER.lower():
             return False
-        if ziel.startswith('/'):
+        if ziel.startswith('/') or schon_da(ziel):
             return True
         mindest = args.mindestalbum
         if any(w.lower() in ziel.lower() for w in STETS_EIGEN):
@@ -771,6 +1040,9 @@ def cmd_auswahl(args, cfg):
         if e['album'] and e['album'] != e['ziel']:
             vs = ' – '.join(x for x in (e['titel'] or titel_aus_ziel(e['ziel']), e['vorsilbe']) if x)
         e['neuer_name'] = f'{vs} {e["name"]}' if vs and not e['name'].lower().startswith(vs.lower()) else e['name']
+        # HEIC kommt als JPEG in die Galerie (Umwandlung beim Verschieben, E67); Doppelte und Gesperrte bleiben, wie sie sind
+        if e['status'] == 'bleibt' and not args.heic_behalten and os.path.splitext(e['neuer_name'])[1].lower() in HEIF:
+            e['neuer_name'] = os.path.splitext(e['neuer_name'])[0] + '.jpg'
 
     # Reihenfolge Album, Zeit; laufende Nummer für alles, was in die Galerie kommt
     eintraege.sort(key=lambda e: (e['album'] or '~', e['zeit'], e['name']))
@@ -843,23 +1115,54 @@ def cmd_auswahl(args, cfg):
 # ---------------------------------------------------------------- move / undo
 
 def protokoll_schreiben(pfad, zeilen):
+    """Zeilen (zeit, von, nach, art) anhängen; art „umgewandelt“ = „nach“ ist ein neu erzeugtes JPEG aus „von“ (E67)"""
     neu = not pfad.exists()
     with open(pfad, 'a', newline='', encoding='utf-8-sig') as f:
         w = csv.writer(f, delimiter=';')
         if neu:
-            w.writerow(['zeit', 'von', 'nach'])
+            w.writerow(['zeit', 'von', 'nach', 'art'])
         w.writerows(zeilen)
 
 
-def verschieben(von, nach):
-    """Innerhalb der Ablage umbenennen; bei Namensgleichheit „ (2)“, „ (3)“ … anhängen. Gibt den tatsächlichen Zielpfad zurück"""
-    os.makedirs(os.path.dirname(nach), exist_ok=True)
+def frei(nach):
+    """Freier Dateiname: bei Namensgleichheit „ (2)“, „ (3)“ … anhängen"""
     stamm, ext = os.path.splitext(nach)
     k = 1
     while os.path.exists(nach):
         k += 1
         nach = f'{stamm} ({k}){ext}'
+    return nach
+
+
+def verschieben(von, nach):
+    """Innerhalb der Ablage umbenennen; bei Namensgleichheit „ (2)“, „ (3)“ … anhängen. Gibt den tatsächlichen Zielpfad zurück"""
+    os.makedirs(os.path.dirname(nach), exist_ok=True)
+    nach = frei(nach)
     os.rename(von, nach)
+    return nach
+
+
+def ist_umwandlung(von, nach):
+    return os.path.splitext(von)[1].lower() in HEIF and os.path.splitext(nach)[1].lower() not in HEIF
+
+
+def heic_als_jpeg(von, nach):
+    """HEIC/HEIF als JPEG speichern (E67): Browser außer Safari zeigen HEIC nicht an, und Drive erzeugt dafür nicht
+    verlässlich Vorschaubilder. Aufnahmedaten (EXIF) und Farbprofil bleiben; die Drehung steckt nach dem Lesen schon in
+    den Pixeln (pillow-heif setzt die Ausrichtung in den EXIF-Daten auf 1). Gibt den tatsächlichen Zielpfad zurück"""
+    os.makedirs(os.path.dirname(nach), exist_ok=True)
+    nach = frei(nach)
+    with Image.open(von) as im:
+        exif = im.info.get('exif') or b''
+        icc = im.info.get('icc_profile')
+        if exif and im.getexif().get(274, 1) != 1:  # Sicherheitsnetz gegen doppeltes Drehen
+            ex = im.getexif()
+            ex.get_ifd(0x8769)
+            ex.get_ifd(0x8825)
+            ex[274] = 1
+            exif = ex.tobytes()
+        bild = im.convert('RGB')
+    bild.save(nach, 'JPEG', quality=90, exif=exif, **({'icc_profile': icc} if icc else {}))
     return nach
 
 
@@ -902,6 +1205,10 @@ def cmd_move(args, cfg):
             continue
         quellen.add(quellname(z['pfad'], cfg['upload']))
         auftraege[ordner].append((z['pfad'], z.get('neuer_name') or os.path.basename(z['pfad'])))
+    umwandeln = sum(1 for liste in auftraege.values() for von, name in liste if ist_umwandlung(von, name))
+    if umwandeln and not HEIF_LESBAR:
+        sys.exit(f'{umwandeln} HEIC-Fotos sollen als JPEG in die Galerie (E67), dafür fehlt pillow-heif: „pip install pillow-heif“ '
+                 '– oder „auswahl --heic-behalten“ (dann zeigt die App sie womöglich nicht an)')
     n = fehler = 0
     quellordner = set()
     heute = dt.date.today().isoformat()
@@ -913,8 +1220,17 @@ def cmd_move(args, cfg):
                 n += 1
                 continue
             try:
-                nach = verschieben(von, os.path.join(ordner, titel_bereinigen(name) or os.path.basename(von)))
-                zeilen.append([dt.datetime.now().isoformat(timespec='seconds'), von, nach])
+                ziel = os.path.join(ordner, titel_bereinigen(name) or os.path.basename(von))
+                jetzt = dt.datetime.now().isoformat(timespec='seconds')
+                if ist_umwandlung(von, ziel):
+                    # JPEG in die Galerie, das HEIC-Original ins Archiv (nichts wird gelöscht)
+                    nach = heic_als_jpeg(von, ziel)
+                    zeilen.append([jetzt, von, nach, 'umgewandelt'])
+                    original = verschieben(von, os.path.join(cfg['archiv'], 'Nicht in der Galerie', quellname(von, cfg['upload']),
+                                                             'HEIC-Originale', os.path.basename(von)))
+                    zeilen.append([jetzt, von, original, ''])
+                else:
+                    zeilen.append([jetzt, von, verschieben(von, ziel), ''])
                 n += 1
             except OSError as e:
                 fehler += 1
@@ -923,7 +1239,9 @@ def cmd_move(args, cfg):
             protokoll_schreiben(protokoll, zeilen)
             os.makedirs(cfg['archiv'], exist_ok=True)
             protokoll_schreiben(Path(cfg['archiv']) / f'Einsortiert {heute}.csv', zeilen)
-        print(f'→ {ordner}: {len(auftraege[ordner]) if args.probe else len(zeilen)} Dateien')
+        jpeg = sum(1 for von, name in auftraege[ordner] if ist_umwandlung(von, name))
+        print(f'→ {ordner}: {len(auftraege[ordner])} Dateien' + (f', davon {jpeg} HEIC als JPEG' if jpeg else '')
+              + ('' if args.probe else f' ({len(zeilen)} Protokollzeilen)'))
     if not args.probe:
         if n:
             # Auswahl und Sperrliste (mit den Gründen) neben das Protokoll ins Archiv
@@ -955,16 +1273,21 @@ def cmd_move(args, cfg):
 def cmd_undo(args, cfg):
     with open(args.protokoll, encoding='utf-8-sig', newline='') as f:
         zeilen = list(csv.DictReader(f, delimiter=';'))
-    n = 0
+    n = entfernt = 0
     for z in reversed(zeilen):
         try:
+            if (z.get('art') or '') == 'umgewandelt' or ist_umwandlung(z['von'], z['nach']):
+                # erzeugtes JPEG entfernen (Papierkorb der Ablage); das HEIC-Original kommt mit seiner eigenen Zeile zurück (E67)
+                os.remove(z['nach'])
+                entfernt += 1
+                continue
             zurueck = verschieben(z['nach'], z['von'])
             n += 1
             if zurueck != z['von']:
                 print(f'Name war belegt, zurück als: {zurueck}')
         except OSError as e:
             print(f'!! {z["nach"]}: {e}', file=sys.stderr)
-    print(f'{n} Dateien zurückverschoben')
+    print(f'{n} Dateien zurückverschoben' + (f', {entfernt} erzeugte JPEGs entfernt' if entfernt else ''))
 
 
 # ---------------------------------------------------------------- main
@@ -988,6 +1311,7 @@ def main():
     a.add_argument('--sperrliste', help='Datei mit Dateinamen, die samt Serie nicht in die Galerie kommen (Standard: sperrliste.txt neben plan.csv)')
     a.add_argument('--ohne-doppelte', action='store_true', help='keine Serien zusammenlegen, alle Fotos bleiben (liest keine Dateien)')
     a.add_argument('--ohne-boegen', action='store_true', help='keine Bögen erzeugen')
+    a.add_argument('--heic-behalten', action='store_true', help='HEIC-Fotos nicht in JPEG umwandeln (Standard: als JPEG in die Galerie, E67)')
     m = sub.add_parser('move', help='auswahl.csv ausführen')
     m.add_argument('--plan', required=True)
     m.add_argument('--probe', action='store_true', help='nur zeigen, nichts verschieben')
