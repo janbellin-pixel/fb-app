@@ -983,6 +983,20 @@ async function run() {
     'nur für das Konto des Push-Skripts lesbar – nicht für Gruppe, Domain oder Admins', JSON.stringify(pPerms));
   await step('saveMyPush (Themen geändert)', () => b.saveMyPush({ ...abo, themen: ['termine', 'chat', 'wetter'] }));
   check(pushFiles().length === 1 && pushDaten(pushFiles()[0]).themen.join() === 'termine,chat', 'Änderung in derselben Datei; Chat-Thema (E51) gilt, unbekannte Themen fallen weg');
+  await step('saveMyPush (Zeitungen)', () => b.saveMyPush({ ...abo, themen: ['news', 'bundesbote', 'dszeitung'] }));
+  check(pushDaten(pushFiles()[0]).themen.join() === 'news,bundesbote,dszeitung', 'Themen Bundesbote (E68) und DS-Zeitung (E57) bleiben in der Datei');
+  const pu = await import('../js/lib/push.js');
+  check(pu.vorgewaehlteThemen(pu.THEMEN).join() === 'news,forum,termine,bundesbote,dszeitung,chat', 'beim Einschalten vorgewählt: auch Bundesbote und DS-Zeitung, Gruppen und Räume nicht (E68)');
+  const alleIds = pu.THEMEN.map((t) => t.id);
+  check(pu.dazuThemen({ themen: ['news', 'chat'] }, pu.THEMEN).join() === 'bundesbote,dszeitung', 'Gerät von vor E68: Bundesbote und DS-Zeitung kommen einmal dazu, andere abgewählte Themen nicht');
+  check(pu.dazuThemen({ themen: ['news', 'dszeitung'] }, pu.THEMEN).join() === 'bundesbote', 'schon gewählte DS-Zeitung nicht doppelt');
+  check(pu.dazuThemen({ themen: ['news'], bekannt: alleIds }, pu.THEMEN).length === 0, 'abgewählt bleibt abgewählt (alle Themen bekannt)');
+  check(pu.dazuThemen({ themen: [], bekannt: alleIds.filter((t) => t !== 'dszeitung') }, pu.THEMEN).join() === 'dszeitung', 'später sichtbares Thema (z. B. Ordner der DS-Zeitung neu eingetragen) kommt einmal dazu');
+  const bbOrdner = config.zeitungOrdnerId;
+  check(pu.moeglicheThemen().some((t) => t.id === 'bundesbote'), 'Bundesbote wählbar, wenn sein Ordner eingetragen ist');
+  config.zeitungOrdnerId = '';
+  check(!pu.moeglicheThemen().some((t) => t.id === 'bundesbote') && pu.moeglicheThemen({ demo: true }).some((t) => t.id === 'bundesbote'), 'ohne Ordner kein Thema Bundesbote (in der Demo schon)');
+  config.zeitungOrdnerId = bbOrdner;
   await step('saveMyPush (Gerätespeicher gelöscht: neue Kennung, gleiche Push-Adresse)', () => b.saveMyPush({ ...abo, geraet: 'geraet1neu' }));
   check(pushFiles().length === 1, 'gleiche Push-Adresse: keine zweite Datei');
   const apple = { ...abo, geraet: 'tablet', endpoint: 'https://web.push.apple.com/QXYZ' };
@@ -1647,6 +1661,56 @@ async function run() {
   check(forumA.posts.find((p) => p.id === tidA)?.anhaenge?.[0]?.id === docx?.id && !fake.state.files.get(docx.id)?.trashed, 'Textänderung lässt die Anhänge stehen');
   await step('deleteThread mit Anhang', () => b.deleteThread(tidA));
   check(fake.state.files.get(docx.id)?.trashed === true, 'gelöschtes Thema: eigener Anhang im Papierkorb');
+
+  section('Neue Ausgaben von Bundesbote und DS-Zeitung (E68)');
+  const au = await import('../js/lib/ausgaben.js');
+  const { toHtmlString: zuText } = await import('../js/html.js');
+  const jahr = new Date().getFullYear();
+  const auNeu = au.neueAusgaben([{ id: 'a', year: jahr }, { id: 'b', year: jahr - 1 }, { id: 'c', year: jahr - 2 }, { id: 'd', year: 0 }, { id: 'e', year: jahr }], ['e']);
+  check(auNeu.map((i) => i.id).join() === 'a,b,d', 'neu: nicht gelesen, aus diesem oder dem letzten Jahr oder ohne Jahr – ein nachgereichtes Archiv nicht', JSON.stringify(auNeu));
+  const auKey = 'fb.ausgaben.ausgaben-test@beispiel.de';
+  localStorage.removeItem(auKey);
+  const auApp = { user: { email: 'ausgaben-test@beispiel.de' }, mode: 'google' };
+  const punkte = document.createElement('div');
+  punkte.innerHTML = [au.punkt('bundesbote'), au.punkt('ds'), au.punkt('mehr')].map(zuText).join('');
+  document.body.append(punkte);
+  const sieht = (q) => !punkte.querySelector(`[data-dot=${q}]`).classList.contains('hidden');
+  au.initAusgaben(auApp);
+  const bb = (id, year = jahr) => ({ id, year, quelle: 'bundesbote' });
+  au.geladen('bundesbote', [bb('x1'), bb('x0', jahr - 1)]);
+  check(au.anzahl().bundesbote === 0 && !sieht('bundesbote') && !sieht('mehr'), 'erstes Laden: was schon da ist, gilt als gelesen – kein Punkt');
+  au.geladen('bundesbote', [bb('x2'), bb('x1'), bb('x0', jahr - 1), bb('alt', 1999)]);
+  check(au.anzahl().bundesbote === 1 && au.istNeu(bb('x2')) && !au.istNeu(bb('alt')) && sieht('bundesbote') && sieht('mehr') && !sieht('ds'),
+    'neue Ausgabe: Punkt am Bundesboten und an „Mehr“, nicht an der DS-Zeitung; nachgereichte Ausgabe von 1999 nicht neu', JSON.stringify(au.anzahl()));
+  au.gelesen('bundesbote', 'x2');
+  check(au.anzahl().bundesbote === 0 && !sieht('bundesbote') && !sieht('mehr'), 'geöffnet → gelesen, Punkt weg');
+  au.initAusgaben(auApp); // wie ein Neustart der App
+  au.geladen('bundesbote', [bb('x3'), bb('x2'), bb('x1'), bb('x0', jahr - 1)]);
+  check(au.anzahl().bundesbote === 1 && au.istNeu(bb('x3')) && !au.istNeu(bb('x2')), 'nach einem Neustart: Gelesenes bleibt gelesen (nur auf dem Gerät), Neues ist neu');
+  check(JSON.parse(localStorage.getItem(auKey)).bundesbote.gelesen.includes('x2'), 'gemerkt im Gerätespeicher je Konto');
+  au.gelesen('ds', 'd9'); // z. B. aus einer Push-Mitteilung geöffnet, bevor die Liste je geladen war
+  au.geladen('ds', [{ id: 'd9', year: jahr, quelle: 'ds' }, { id: 'd8', year: jahr, quelle: 'ds' }]);
+  check(au.anzahl().ds === 0 && !sieht('ds'), 'zuerst geöffnet, dann die Liste geladen: nichts neu');
+  const dsOrdnerAu = config.dsZeitungOrdnerId;
+  au.geladen('ds', [{ id: 'd10', year: jahr, quelle: 'ds' }, { id: 'd9', year: jahr, quelle: 'ds' }, { id: 'd8', year: jahr, quelle: 'ds' }]);
+  check(au.anzahl().ds === 1 && sieht('ds') && au.anzahl().mehr === 2, 'neue DS-Zeitung: Punkt an der DS-Zeitung, „Mehr“ zählt beide');
+  config.dsZeitungOrdnerId = '';
+  check(au.anzahl().ds === 0, 'ohne Ordner der DS-Zeitung: kein Punkt');
+  config.dsZeitungOrdnerId = dsOrdnerAu;
+  const gruppenAu = config.gruppen;
+  config.gruppen = { adressen: { gaeste: 'gaeste@beispiel.de' }, ohne: { zeitung: ['gaeste'] } };
+  gr.setMeineGruppen(me.email, ['gaeste']);
+  check(au.anzahl().bundesbote === 0 && au.anzahl().ds === 1, 'Bereich für die eigene Gruppe ausgeblendet (E41): dort kein Punkt');
+  gr.setMeineGruppen(me.email, []);
+  config.gruppen = gruppenAu;
+  localStorage.removeItem('fb.ausgaben.ausgaben-demo@beispiel.de');
+  au.initAusgaben({ user: { email: 'ausgaben-demo@beispiel.de' }, mode: 'demo' });
+  au.geladen('ds', [{ id: 'n', year: jahr, quelle: 'ds' }, { id: 'm', year: jahr, quelle: 'ds' }]);
+  check(au.anzahl().ds === 1 && au.istNeu({ id: 'n', quelle: 'ds' }), 'Demo: die neueste Ausgabe bleibt neu, damit man den Punkt sieht');
+  au.initAusgaben(null);
+  punkte.remove();
+  localStorage.removeItem(auKey);
+  localStorage.removeItem('fb.ausgaben.ausgaben-demo@beispiel.de');
 
   section('Gesamtbilanz');
   const ownWrites = fake.state.writes.filter((w) => w.own).length;

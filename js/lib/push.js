@@ -1,5 +1,6 @@
 // Push-Mitteilungen (E50) – nur, wenn das Mitglied sie auf einem Gerät einschaltet (Mehr › Einstellungen).
-// Dann kommt auch bei geschlossener App eine Mitteilung bei neuen News, Forumsbeiträgen und Terminen.
+// Dann kommt auch bei geschlossener App eine Mitteilung bei neuen News, Forumsbeiträgen, Terminen und Ausgaben von
+// Bundesbote und DS-Zeitung (E57, E68).
 // Verschickt werden sie von apps-script/Push.gs im Konto config.push.konto. Die App meldet dafür das Gerät an:
 // Push-Adresse des Browsers mit Schlüsseln und Themen als eigene Datei im eigenen Drive (fbTyp=push), lesbar nur
 // für dieses Konto. Chat: Nachrichten, die jemand aus der App schickt, meldet das Skript über die Chat-Hinweise des
@@ -8,7 +9,7 @@
 // Ein/aus und Themen merkt sich das Gerät je Konto (localStorage); maßgeblich für das Skript ist die Datei.
 import { config, hasDsZeitung } from '../config.js';
 import { local } from './store.js';
-import { isIos, isStandalone } from '../ui.js';
+import { isIos, isStandalone, toast } from '../ui.js';
 import { gesperrt } from './gruppen.js';
 import { geraetInfo } from './datenschutz.js';
 
@@ -16,18 +17,33 @@ export const THEMEN = [
   { id: 'news', label: 'News', sub: 'Neue Beiträge der Redaktion', bereich: 'news' },
   { id: 'forum', label: 'Forum', sub: 'Neue Themen und Antworten', bereich: 'forum' },
   { id: 'termine', label: 'Termine', sub: 'Neu eingetragene Termine', bereich: 'termine' },
+  // Zeitungen (E57, E68): eine neue Ausgabe im Ordner – die DS-Zeitung z. B. von DsZeitung.gs abgelegt; vorgewählt
+  { id: 'bundesbote', label: 'Bundesbote', sub: 'Neue Ausgabe des Bundesboten', bereich: 'zeitung' },
+  { id: 'dszeitung', label: 'DS-Zeitung', sub: 'Neue Ausgabe der DS-Zeitung', bereich: 'dsZeitung' },
   // Chat (E51): nur, was jemand aus der Mitglieder-App schickt – die Mitteilung nennt weder Inhalt noch Absender
   { id: 'chat', label: 'Direktnachrichten und Bierjungen', sub: 'Aus der Mitglieder-App an dich geschickt', bereich: 'chat' },
   { id: 'chatgruppen', label: 'Gruppen und Räume', sub: 'Aus der Mitglieder-App in deine Gruppen und Räume geschickt', bereich: 'chat', vorgewaehlt: false },
-  // DS-Zeitung (E57): eine neue Ausgabe im Ordner – z. B. von DsZeitung.gs abgelegt; eigenes Thema, nicht vorgewählt
-  { id: 'dszeitung', label: 'DS-Zeitung', sub: 'Neue Ausgabe im Ordner der DS-Zeitung', bereich: 'dsZeitung', vorgewaehlt: false },
 ];
 /** Vorwahl beim Einschalten: alles außer Gruppen und Räumen (die können laut werden) */
 export const vorgewaehlteThemen = (themen) => themen.filter((t) => t.vorgewaehlt !== false).map((t) => t.id);
 
+// Themen, die es vor E68 gab: Geräte ohne gemerkte Themenliste („bekannt“) kannten genau diese. Die DS-Zeitung fehlt mit
+// Absicht – sie war bis dahin nicht vorgewählt und kommt (wie der Bundesbote) einmal dazu.
+const FRUEHER_BEKANNT = ['news', 'forum', 'termine', 'chat', 'chatgruppen'];
+
+/**
+ * Vorgewählte Themen, die dieses Gerät noch nicht kannte (neu in der App oder für das Mitglied neu sichtbar), einmal
+ * dazunehmen (E68) – abwählen geht danach wie immer; abgewählte Themen kommen nicht wieder, weil jede Anmeldung alle
+ * sichtbaren Themen als bekannt merkt.
+ */
+export const dazuThemen = (stand, moegliche) => {
+  const bekannt = Array.isArray(stand.bekannt) ? stand.bekannt : FRUEHER_BEKANNT;
+  return moegliche.filter((t) => t.vorgewaehlt !== false && !bekannt.includes(t.id) && !stand.themen.includes(t.id)).map((t) => t.id);
+};
+
 const KEY = (email) => `fb.push.${String(email || '').toLowerCase()}`;
 
-/** Stand auf diesem Gerät: { an, geraet, themen, endpoint, schluessel, konto, neu } */
+/** Stand auf diesem Gerät: { an, geraet, themen, bekannt, endpoint, schluessel, konto, neu } */
 export const pushStand = (email) => ({ an: false, themen: [], ...(local.get(KEY(email), null) || {}) });
 const merken = (email, stand) => local.set(KEY(email), stand);
 
@@ -41,7 +57,8 @@ export const pushNurInstalliert = () => isIos() && !isStandalone();
 /** Themen, die das Mitglied in der App überhaupt sieht (Gruppen, E41; Forum oder Chat aus; kein Kalender) */
 export const moeglicheThemen = ({ demo = false } = {}) => THEMEN.filter((t) => !gesperrt(t.bereich)
   && (t.id !== 'forum' || config.forum?.aktiv !== false) && (t.id !== 'termine' || !!config.kalenderId)
-  && (t.bereich !== 'chat' || config.chat?.aktiv !== false) && (t.id !== 'dszeitung' || demo || hasDsZeitung()));
+  && (t.bereich !== 'chat' || config.chat?.aktiv !== false) && (t.id !== 'dszeitung' || demo || hasDsZeitung())
+  && (t.id !== 'bundesbote' || demo || !!String(config.zeitungOrdnerId || '').trim()));
 
 /** Kommt dieses Thema auf diesem Gerät schon per Push? (Dann zeigt die App dieselbe Mitteilung nicht noch einmal) */
 export const pushThemaAn = (email, thema) => {
@@ -80,10 +97,13 @@ async function abonnieren(stand) {
   return { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth };
 }
 
+/** Alle Themen, die das Mitglied jetzt sehen kann, gelten als bekannt (bei jeder Anmeldung – es hat die Liste vor sich) */
+const bekanntNach = (stand) => [...new Set([...(Array.isArray(stand.bekannt) ? stand.bekannt : FRUEHER_BEKANNT), ...moeglicheThemen().map((t) => t.id)])];
+
 async function anmelden(app, stand, themen) {
   const abo = await abonnieren(stand);
   await app.backend.saveMyPush({ geraet: stand.geraet, ...abo, themen, name: geraetInfo() });
-  const neu = { an: true, geraet: stand.geraet, themen, endpoint: abo.endpoint, schluessel: config.push.schluessel, konto: config.push.konto };
+  const neu = { an: true, geraet: stand.geraet, themen, bekannt: bekanntNach(stand), endpoint: abo.endpoint, schluessel: config.push.schluessel, konto: config.push.konto };
   merken(app.user.email, neu);
   return neu;
 }
@@ -137,7 +157,8 @@ export async function pushAusschalten(app) {
 
 /**
  * Beim Start (angemeldet, eingeschaltet): neue Push-Adresse, neuer Schlüssel oder neues Konto des Skripts,
- * inzwischen ausgeblendete Themen → Datei nachziehen. Ist die Erlaubnis weg, abmelden.
+ * inzwischen ausgeblendete Themen → Datei nachziehen; neue vorgewählte Themen einmal dazunehmen (E68) und das sagen.
+ * Ist die Erlaubnis weg, abmelden.
  */
 export async function pushAbgleichen(app) {
   if (app.mode !== 'google' || !pushUnterstuetzt()) return;
@@ -148,13 +169,21 @@ export async function pushAbgleichen(app) {
     await pushAusschalten(app).catch((e) => console.warn('Push nicht abgemeldet', e));
     return;
   }
-  const themen = stand.themen.filter((t) => moeglicheThemen().some((x) => x.id === t));
+  const moegliche = moeglicheThemen();
+  const themen = stand.themen.filter((t) => moegliche.some((x) => x.id === t));
+  // nicht während der Datenschutz-Abfrage – dann beim nächsten Start
+  const dazu = app.consentPending ? [] : dazuThemen({ ...stand, themen }, moegliche);
   try {
     const reg = await registrierung();
     const sub = await reg.pushManager.getSubscription();
     if (sub && sub.endpoint === stand.endpoint && stand.schluessel === config.push.schluessel && stand.konto === config.push.konto
-      && themen.length === stand.themen.length) return;
-    await anmelden(app, stand, themen);
+      && themen.length === stand.themen.length && !dazu.length) return;
+    await anmelden(app, stand, [...themen, ...dazu]);
+    if (dazu.length) {
+      const namen = moegliche.filter((t) => dazu.includes(t.id)).map((t) => t.label).join(' und ');
+      toast(`Neu bei den Push-Mitteilungen: ${namen}. Abwählen kannst du das unter Mehr › Einstellungen.`,
+        { type: 'info', action: 'Einstellungen', onAction: () => app.navigate('#/einstellungen'), timeout: 12000 });
+    }
   } catch (e) {
     // z. B. Safari: neu anmelden geht nur nach einem Tipp – die Einstellungen bitten darum
     merken(email, { ...stand, neu: true });

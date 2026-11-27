@@ -7,6 +7,7 @@ import { hasSongbook, hasDsZeitung, extraLinks } from '../config.js';
 import { ICON_NAMES } from '../icons.js';
 import { albumInfo, imageFallback } from './galerie.js';
 import { isNewNews } from '../lib/hinweise.js';
+import * as ausgaben from '../lib/ausgaben.js';
 import { gesperrt, linkGesperrt } from '../lib/gruppen.js';
 import { memberForAddress } from '../lib/einladung.js';
 
@@ -27,7 +28,7 @@ export default async function home(ctx) {
   const zeig = (bereich) => !gesperrt(bereich);
   const songs = (app.mode === 'demo' || hasSongbook()) && zeig('lieder');
   const dsZeitung = (app.mode === 'demo' || hasDsZeitung()) && zeig('dsZeitung');
-  const tile = (bereich, href, ic, label) => (zeig(bereich) ? html`<a class="tile" href="${href}">${icon(ic)}${label}</a>` : '');
+  const tile = (bereich, href, ic, label, extra = '') => (zeig(bereich) ? html`<a class="tile" href="${href}">${icon(ic)}${label}${extra}</a>` : '');
 
   setHtml(el, html`
     <section class="home-hero">
@@ -58,8 +59,8 @@ export default async function home(ctx) {
           ${tile('chat', '#/chat', 'chat', 'Chat')}
           ${tile('mitglieder', '#/mitglieder', 'users', 'Mitglieder')}
           ${tile('adressen', '#/adressen', 'book', 'Adressen')}
-          ${tile('zeitung', '#/zeitung', 'paper', 'Bundesbote')}
-          ${dsZeitung ? html`<a class="tile" href="#/ds-zeitung">${icon('newspaper')}DS-Zeitung</a>` : ''}
+          ${tile('zeitung', '#/zeitung', 'paper', 'Bundesbote', ausgaben.punkt('bundesbote'))}
+          ${dsZeitung ? html`<a class="tile" href="#/ds-zeitung">${icon('newspaper')}DS-Zeitung${ausgaben.punkt('ds')}</a>` : ''}
           ${songs ? html`<a class="tile" href="#/lieder">${icon('music')}Lieder&shy;mappe</a>` : ''}
           ${tile('galerie', '#/galerie', 'image', 'Galerie')}
           ${tile('forum', '#/forum', 'forum', 'Forum')}
@@ -75,6 +76,7 @@ export default async function home(ctx) {
         <div id="h-forum">${skeletonList(2)}</div>` : ''}
       </aside>
     </div>`);
+  ausgaben.refreshDots(); // Punkte an Bundesbote und DS-Zeitung im Schnellzugriff (E68)
 
   const q = (id) => el.querySelector(id);
   let members = new Map();
@@ -194,11 +196,12 @@ export default async function home(ctx) {
         : html`<div class="card">${emptyState('news', 'Noch keine Neuigkeiten')}</div>`);
     }, { maxAge: 5 * 60_000 }).catch(failed('#h-news', 'News nicht verfügbar')),
     zeig('zeitung') && app.load('issues', () => b.listIssues(), (issues) => {
+      ausgaben.geladen('bundesbote', issues);
       const latest = issues[0];
       setHtml(q('#h-zeitung'), latest
         ? html`<a class="card card-pad row" href="#/zeitung/${encodeURIComponent(latest.id)}" style="align-items:center;gap:1rem">
             <div class="issue" style="width:5.25rem;flex:none">${issueCover(latest, latest.thumbnail)}</div>
-            <div class="grow"><div class="small muted">Neueste Ausgabe</div><div style="font-weight:700;font-size:1.0625rem">${latest.title}</div><div class="small muted">${latest.ausgabe}</div>
+            <div class="grow"><div class="small muted">Neueste Ausgabe${ausgaben.istNeu(latest) ? html` <span class="badge badge-new">Neu</span>` : ''}</div><div style="font-weight:700;font-size:1.0625rem">${latest.title}</div><div class="small muted">${latest.ausgabe}</div>
             <span class="btn btn-sm btn-primary" style="margin-top:.625rem">${icon('paper', 'icon-sm')}Jetzt lesen</span></div>
           </a>`
         : html`<div class="card">${emptyState('paper', 'Noch keine Ausgaben')}</div>`);

@@ -6,6 +6,10 @@ import { kv } from '../lib/store.js';
 import { config } from '../config.js';
 import { issueCover } from './parts.js';
 import { openReader, openPdf, closePdf, drawPart, isSpread } from './reader.js';
+import * as ausgaben from '../lib/ausgaben.js';
+
+/** „Neu“ an einer Ausgabe, die auf diesem Gerät noch nicht geöffnet wurde (E68) */
+const neuBadge = (issue) => (ausgaben.istNeu(issue) ? html`<span class="badge badge-new">Neu</span>` : '');
 
 /** Texte, Route und Ordner je Zeitung (quelle wie in ZEITUNGEN, backend/common.js) */
 const ZEITUNG = {
@@ -62,12 +66,12 @@ async function archiv(ctx, z) {
       <div class="card issue-feature">
         <a class="issue" href="#/${z.route}/${encodeURIComponent(latest.id)}">${issueCover(latest, covers[0])}</a>
         <div>
-          <span class="badge badge-green">Neueste Ausgabe</span>
+          <div class="row wrap" style="gap:.375rem"><span class="badge badge-green">Neueste Ausgabe</span>${neuBadge(latest)}</div>
           <h2 style="margin-top:.625rem">${latest.title}</h2>
           <p class="muted">${[latest.ausgabe, latest.date ? `erschienen ${fDateShort(latest.date)}` : '', formatSize(latest.size)].filter(Boolean).join(' · ')}</p>
           <div class="row wrap">
             <a class="btn btn-primary btn-lg" href="#/${z.route}/${encodeURIComponent(latest.id)}">${icon(z.icon, 'icon-sm')}Jetzt lesen</a>
-            <a class="btn btn-lg" href="${b.issueOpenUrl(latest)}" target="_blank" rel="noopener">${icon('download', 'icon-sm')}PDF</a>
+            <a class="btn btn-lg" href="${b.issueOpenUrl(latest)}" target="_blank" rel="noopener" data-gelesen="${latest.id}">${icon('download', 'icon-sm')}PDF</a>
           </div>
         </div>
       </div>
@@ -77,7 +81,7 @@ async function archiv(ctx, z) {
           <a class="issue" href="#/${z.route}/${encodeURIComponent(i.id)}">
             ${issueCover(i, covers[k + 1])}
             <span class="title">${i.title}</span>
-            <span class="sub">${i.ausgabe || (i.date ? fDateShort(i.date) : '')}</span>
+            <span class="sub">${neuBadge(i)}${ausgaben.istNeu(i) ? ' ' : ''}${i.ausgabe || (i.date ? fDateShort(i.date) : '')}</span>
           </a>`)}</div>` : ''}
       ${app.isAdmin() ? html`<p class="small muted" style="margin-top:1.375rem">${icon('info', 'icon-sm')} ${z.hinweis}</p>` : ''}`);
   }
@@ -100,6 +104,7 @@ async function archiv(ctx, z) {
   try {
     await app.load(z.key, () => b.listIssues(z.quelle), (list) => {
       issues = list;
+      ausgaben.geladen(z.quelle, list);
       if (!ctx.alive()) return;
       if (!issues.length) {
         setHtml(c, html`<div class="card">${emptyState(z.icon, 'Noch keine Ausgaben', z.leer)}</div>`);
@@ -114,6 +119,9 @@ async function archiv(ctx, z) {
   el.addEventListener('click', (e) => {
     if (e.target.closest('[data-action=retry]')) app.refresh();
     if (e.target.closest('[data-action=relogin]')) app.relogin();
+    // PDF außerhalb der App geöffnet: zählt als gelesen (E68)
+    const pdf = e.target.closest('[data-gelesen]');
+    if (pdf) ausgaben.gelesen(z.quelle, pdf.dataset.gelesen);
   });
 }
 
@@ -139,7 +147,7 @@ async function leser(ctx, z) {
     async find() {
       // zuerst die zwischengespeicherte Liste (klappt auch offline), sonst frisch laden
       let list = null;
-      await app.load(z.key, () => b.listIssues(z.quelle), (l) => { list = l; }, { maxAge: 15 * 60_000 }).catch((e) => { if (!list) throw e; });
+      await app.load(z.key, () => b.listIssues(z.quelle), (l) => { list = l; ausgaben.geladen(z.quelle, l); }, { maxAge: 15 * 60_000 }).catch((e) => { if (!list) throw e; });
       const issue = list.find((i) => i.id === params.id) || (await b.listIssues(z.quelle)).find((i) => i.id === params.id);
       if (!issue) throw Object.assign(new Error('Diese Ausgabe wurde nicht gefunden.'), { status: 404 });
       return issue;
@@ -147,7 +155,10 @@ async function leser(ctx, z) {
     title: (issue) => [issue.title, issue.ausgabe].filter(Boolean).join(' · '),
     openUrl: (issue) => b.issueOpenUrl(issue),
     load: (issue, onProgress) => b.loadIssue(issue, onProgress),
-    // Titelseite für das Archiv merken
-    onOpen: (issue, src) => { kv.get(coverKey(issue)).then((hit) => { if (!hit) renderCover(src.pdf, issue).catch(() => {}); }); },
+    // gelesen (E68) und Titelseite für das Archiv merken
+    onOpen: (issue, src) => {
+      ausgaben.gelesen(z.quelle, issue.id);
+      kv.get(coverKey(issue)).then((hit) => { if (!hit) renderCover(src.pdf, issue).catch(() => {}); });
+    },
   });
 }

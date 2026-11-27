@@ -13,8 +13,10 @@
  *       dir einen angehängt!“, Name laut Google-Konto des Absenders). Die App des Absenders legt dafür in seinem
  *       Drive eine Hinweis-Datei ab (je Empfänger und Art nur der Zeitpunkt der letzten Nachricht, eine Stunde lang),
  *       lesbar nur für dieses Konto. Was direkt in Google Chat geschrieben wird, meldet weiter die App „Google Chat“,
- *     • eine neue DS-Zeitung (E57): eine neue PDF im Ordner der DS-Zeitung oder einem Jahresordner darin, z. B. von
- *       DsZeitung.gs abgelegt – eigenes Thema „DS-Zeitung“, in der App je Gerät wählbar.
+ *     • ein neuer Bundesbote (E68) oder eine neue DS-Zeitung (E57): eine neue PDF im Ordner der Zeitung oder einem
+ *       Jahresordner darin (bis zwei Ebenen tief wie in der App), die DS-Zeitung z. B. von DsZeitung.gs abgelegt –
+ *       je ein eigenes Thema, in der App je Gerät wählbar. Nachgereichte alte Ausgaben (Jahr im Dateinamen vor dem
+ *       Vorjahr) meldet es nicht.
  *
  *   Das Skript LIEST nur: die private Konfiguration der App, den Kalender, die News-Tabelle, Forum- und
  *   News-Dateien, die Push-Anmeldungen und die Chat-Hinweise, die Mitglieder mit diesem Konto geteilt haben. Es
@@ -56,7 +58,7 @@ const EINSTELLUNGEN = {
   chatMinuten: 1,
 };
 
-const THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen', 'dszeitung'];
+const THEMEN = ['news', 'forum', 'termine', 'chat', 'chatgruppen', 'bundesbote', 'dszeitung'];
 // Chat-Hinweise (E51): Arten, wie die App sie in die Hinweis-Datei schreibt, und die Mitteilungen dazu (ohne Absender)
 const CHAT_ARTEN = ['direkt', 'gruppe', 'bierjunge'];
 const CHAT_TEXTE = {
@@ -124,7 +126,8 @@ function pushSenden() {
       quelle('News', function () { return appNews_(cfg, seit); });
       quelle('Forum', function () { return forum_(cfg, seit); });
       quelle('Termine', function () { return termine_(cfg, seit, jetzt); });
-      quelle('DS-Zeitung', function () { return dsZeitung_(cfg, seit); });
+      quelle('Bundesbote', function () { return bundesbote_(cfg, seit, jetzt); });
+      quelle('DS-Zeitung', function () { return dsZeitung_(cfg, seit, jetzt); });
     }
     const frisch = neues.filter(function (x) { return !stand.gesendet[kennung_(x.schluessel)]; });
 
@@ -245,6 +248,8 @@ function diagnose() {
     const cfg = konfiguration_();
     if (cfg.konto !== ich) zeilen.push('ACHTUNG: In der App steht als Push-Konto „' + (cfg.konto || '–') + '“ – Geräte und Chat-Hinweise sind mit jenem Konto geteilt, nicht mit diesem.');
     if (schluessel && cfg.schluessel !== schluessel.oeffentlich) zeilen.push('ACHTUNG: Der Schlüssel in der App passt nicht zu diesem Skript („schluesselZeigen“ ausführen, in der App eintragen).');
+    const ordner = function (id) { return id ? 'Ordner eingetragen' : 'kein Ordner – keine Mitteilungen'; };
+    zeilen.push('Zeitungen: Bundesbote ' + ordner(cfg.bbOrdner) + ', DS-Zeitung ' + ordner(cfg.dsOrdner));
   } catch (e) {
     zeilen.push('Konfiguration nicht lesbar: ' + e);
   }
@@ -303,6 +308,7 @@ function konfiguration_() {
     // News aus der App zählen nur von Admins und Redaktion (wie in der App)
     autoren: liste(c.admins).concat(liste(c.redaktion)),
     forum: !(c.forum && c.forum.aktiv === false),
+    bbOrdner: String(c.zeitungOrdnerId || '').trim(),
     dsOrdner: String(c.dsZeitungOrdnerId || '').trim(),
     konto: String((c.push && c.push.konto) || '').trim().toLowerCase(),
     schluessel: String((c.push && c.push.schluessel) || '').trim(),
@@ -447,17 +453,64 @@ function termine_(cfg, seit, jetzt) {
   return raus;
 }
 
-/** Neue DS-Zeitung (E57): PDFs, die seit „seit“ im Ordner der DS-Zeitung oder einem Unterordner (Jahresordner) angelegt wurden */
-function dsZeitung_(cfg, seit) {
-  if (!cfg.dsOrdner) return [];
-  const eltern = [cfg.dsOrdner].concat(ordnerListe_("'" + cfg.dsOrdner + "' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false")
-    .map(function (f) { return f.id; }));
-  const q = '(' + eltern.map(function (id) { return "'" + id + "' in parents"; }).join(' or ') + ") and mimeType = 'application/pdf'"
-    + " and createdTime > '" + seit.toISOString() + "' and trashed = false";
-  return ordnerListe_(q).map(function (f) {
+/** Neuer Bundesbote (E68): legt die Redaktion von Hand ab – wer ihn hochgeladen hat (Inhaber laut Google), bekommt keine Mitteilung */
+function bundesbote_(cfg, seit, jetzt) {
+  return ausgaben_(cfg.bbOrdner, seit, jetzt).map(function (f) {
     const name = String(f.name || '').replace(/\.pdf$/i, '');
-    return { schluessel: 'dszeitung:' + f.id, thema: 'dszeitung', titel: 'Neue DS-Zeitung', text: kurz_(name, 90) || 'Neue Ausgabe in der Mitglieder-App', url: '#/ds-zeitung', autor: '' };
+    return { schluessel: 'bundesbote:' + f.id, thema: 'bundesbote', titel: 'Neuer Bundesbote', text: kurz_(name, 90) || 'Neue Ausgabe in der Mitglieder-App',
+      url: '#/zeitung/' + encodeURIComponent(f.id), autor: String((f.owners && f.owners[0] && f.owners[0].emailAddress) || '').toLowerCase() };
   });
+}
+
+/** Neue DS-Zeitung (E57): legt meist DsZeitung.gs ab – darum ohne Autor (auch das Konto, in dem es läuft, bekommt sie) */
+function dsZeitung_(cfg, seit, jetzt) {
+  return ausgaben_(cfg.dsOrdner, seit, jetzt).map(function (f) {
+    const name = String(f.name || '').replace(/\.pdf$/i, '');
+    return { schluessel: 'dszeitung:' + f.id, thema: 'dszeitung', titel: 'Neue DS-Zeitung', text: kurz_(name, 90) || 'Neue Ausgabe in der Mitglieder-App',
+      url: '#/ds-zeitung/' + encodeURIComponent(f.id), autor: '' };
+  });
+}
+
+/**
+ * PDFs, die seit „seit“ im Ordner einer Zeitung oder in Unterordnern bis zwei Ebenen tief (Jahresordner, „Archiv/2003“ –
+ * wie in der App) angelegt wurden; nur lesend, auch in geteilten Ablagen. Nachgereichte alte Ausgaben (Jahr im Dateinamen
+ * vor dem Vorjahr, etwa beim Hochladen des Archivs) zählen nicht als neu.
+ */
+function ausgaben_(ordner, seit, jetzt) {
+  if (!ordner) return [];
+  const inOrdnern = function (ids, rest) {
+    const raus = [];
+    teile_(ids, 40).forEach(function (t) {
+      const q = '(' + t.map(function (id) { return "'" + id + "' in parents"; }).join(' or ') + ') and ' + rest;
+      ordnerListe_(q).forEach(function (f) { raus.push(f); });
+    });
+    return raus;
+  };
+  const ORDNER = "mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+  const ids = function (liste) { return liste.map(function (f) { return f.id; }); };
+  const ebene1 = ids(inOrdnern([ordner], ORDNER));
+  const ebene2 = ebene1.length ? ids(inOrdnern(ebene1, ORDNER)) : [];
+  const gefunden = {};
+  inOrdnern([ordner].concat(ebene1, ebene2), "mimeType = 'application/pdf' and createdTime > '" + seit.toISOString() + "' and trashed = false")
+    .forEach(function (f) { gefunden[f.id] = f; });
+  const vorjahr = jetzt.getFullYear() - 1;
+  return Object.keys(gefunden).map(function (k) { return gefunden[k]; }).filter(function (f) {
+    const jahr = jahrImNamen_(f.name);
+    return !jahr || jahr >= vorjahr;
+  });
+}
+
+/** Erste Jahreszahl (1900–2099) im Dateinamen, sonst 0 – „2026-2 Titel.pdf“ → 2026, „DS-Zeitung Nr. 116.pdf“ → 0 */
+function jahrImNamen_(name) {
+  const m = /(?:^|[^0-9])((?:19|20)[0-9]{2})(?![0-9])/.exec(String(name || ''));
+  return m ? Number(m[1]) : 0;
+}
+
+/** Liste in Stücke zu höchstens n Einträgen (lange Abfragen aufteilen) */
+function teile_(liste, n) {
+  const raus = [];
+  for (let i = 0; i < liste.length; i += n) raus.push(liste.slice(i, i + n));
+  return raus;
 }
 
 /** Dateien zu einer Ordner-Abfrage – auch in einer geteilten Ablage (lesend) */
@@ -465,7 +518,7 @@ function ordnerListe_(q) {
   const raus = [];
   let seite;
   do {
-    const a = Drive.Files.list({ q: q, fields: 'nextPageToken, files(id, name, createdTime)', pageSize: 100, pageToken: seite,
+    const a = Drive.Files.list({ q: q, fields: 'nextPageToken, files(id, name, createdTime, owners(emailAddress))', pageSize: 100, pageToken: seite,
       corpora: 'allDrives', includeItemsFromAllDrives: true, supportsAllDrives: true });
     (a.files || []).forEach(function (f) { raus.push(f); });
     seite = a.nextPageToken;
@@ -577,7 +630,8 @@ function sammel_(liste) {
   if (zahl('news')) teile.push(zahl('news') + ' News');
   if (zahl('forum')) teile.push(zahl('forum') + (zahl('forum') === 1 ? ' Forumsbeitrag' : ' Forumsbeiträge'));
   if (zahl('termine')) teile.push(zahl('termine') + (zahl('termine') === 1 ? ' neuer Termin' : ' neue Termine'));
-  if (zahl('dszeitung')) teile.push(zahl('dszeitung') + ' DS-Zeitung');
+  if (zahl('bundesbote')) teile.push(zahl('bundesbote') + (zahl('bundesbote') === 1 ? ' Bundesbote' : ' Bundesboten'));
+  if (zahl('dszeitung')) teile.push(zahl('dszeitung') + (zahl('dszeitung') === 1 ? ' DS-Zeitung' : ' DS-Zeitungen'));
   return { title: 'Neues in der Mitglieder-App', body: teile.join(', '), url: '#/', tag: 'sammel' };
 }
 

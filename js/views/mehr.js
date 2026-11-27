@@ -6,6 +6,7 @@ import { config, appBaseUrl, hasOverride, clearOverride, isGoogleConfigured, has
 import { ICON_NAMES } from '../icons.js';
 import * as hinweise from '../lib/hinweise.js';
 import * as push from '../lib/push.js';
+import { punkt, refreshDots } from '../lib/ausgaben.js';
 import * as auth from '../auth.js';
 import { schriftAuswahl, bindSchriftAuswahl } from '../lib/schrift.js';
 import { darstellungAuswahl, bindDarstellungAuswahl } from '../lib/darstellung.js';
@@ -43,8 +44,8 @@ export default async function mehr(ctx) {
       <div class="card menu-list">
         ${zeig('news') ? menuItem('#/news', 'news', html`Neuigkeiten<span class="menu-badge hidden" data-badge="news"></span>`, 'Aus dem Bundesleben') : ''}
         ${zeig('forum') ? menuItem('#/forum', 'forum', 'Forum', 'Diskussionen und Fragen') : ''}
-        ${zeig('zeitung') ? menuItem('#/zeitung', 'paper', 'Bundesbote', 'Alle Ausgaben zum Blättern') : ''}
-        ${(app.mode === 'demo' || hasDsZeitung()) && zeig('dsZeitung') ? menuItem('#/ds-zeitung', 'newspaper', 'DS-Zeitung', 'Zeitung der Deutschen Sängerschaft') : ''}
+        ${zeig('zeitung') ? menuItem('#/zeitung', 'paper', html`Bundesbote${punkt('bundesbote')}`, 'Alle Ausgaben zum Blättern') : ''}
+        ${(app.mode === 'demo' || hasDsZeitung()) && zeig('dsZeitung') ? menuItem('#/ds-zeitung', 'newspaper', html`DS-Zeitung${punkt('ds')}`, 'Zeitung der Deutschen Sängerschaft') : ''}
         ${(app.mode === 'demo' || hasSongbook()) && zeig('lieder') ? menuItem('#/lieder', 'music', 'Liedermappe', 'Noten und Texte zum Mitsingen') : ''}
         ${zeig('galerie') ? menuItem('#/galerie', 'image', 'Galerie', 'Fotos aus dem Bundesleben') : ''}
         ${zeig('adressen') ? menuItem('#/adressen', 'book', 'Adressverzeichnis', 'Nachschlagen und anrufen') : ''}
@@ -63,6 +64,7 @@ export default async function mehr(ctx) {
   bindSchriftAuswahl(el.querySelector('#schrift-box'));
   bindDarstellungAuswahl(el.querySelector('#schrift-box'));
   hinweise.refreshBadges();
+  refreshDots();
   el.addEventListener('click', async (e) => {
     if (!e.target.closest('[data-action=logout]')) return;
     if (app.mode === 'demo') return app.endDemo();

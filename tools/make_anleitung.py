@@ -503,7 +503,7 @@ def page_overview(c, sample, kontakt, crest, skyline):
     # Gut zu wissen
     tips = [
         ("text", f"{b('Schrift zu klein?')} Mehr › Schriftgröße. {b('Lieber dunkel?')} Mehr › Darstellung. {b('Vorlesen?')} Lautsprecher oben im Bundesboten. {b('Anhängen?')} In News und Forum: PDF, Bilder, Office."),
-        ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“, Themen wählbar (auch DS-Zeitung). iPhone: vorher auf den Home-Bildschirm legen."),
+        ("tablet", f"{b('Mitteilungen bei Neuem:')} Mehr › Einstellungen › „Push einschalten“ (iPhone: erst auf den Home-Bildschirm). {b('Grüner Punkt')} an einer Zeitung: neue Ausgabe."),
         ("users", f"{b('Profil ausfüllen:')} Mehr › Mein Profil – dort auch Adressänderungen melden. {b('Liedermappe:')} Liednummer eintippen und Enter."),
         ("shield", f"{b('Keine Sorge:')} Kaputt machen kann man nichts, Gemeinsames zeigt die App nur an."),
         ("share", f"{b('iPhone:')} Kalender-Links öffnen Safari – dort einmal anmelden."),

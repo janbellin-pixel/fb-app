@@ -27,6 +27,7 @@ const CORE = [
   './js/google/people.js',
   './js/google/sheets.js',
   './js/lib/adressabgleich.js',
+  './js/lib/ausgaben.js',
   './js/lib/darstellung.js',
   './js/lib/datenschutz.js',
   './js/lib/dates.js',

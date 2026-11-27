@@ -501,11 +501,54 @@ await step('DS-Zeitung', async () => {
   pushSenden();
   const m = await verschickt(start);
   const ulla = m.filter((x) => x.url.includes('ulla')).map((x) => x.nachricht);
-  check(m.length === 1 && ulla.length === 1 && ulla[0].title === 'Neue DS-Zeitung' && ulla[0].body === '2026-2 DS-Zeitung' && ulla[0].url === '#/ds-zeitung' && ulla[0].tag === 'dszeitung:ds-neu',
-    'Ulla: „Neue DS-Zeitung“ mit dem Namen der Ausgabe – die alte Ausgabe nicht, Anna (ohne das Thema) nichts', JSON.stringify(m.map((x) => [x.url, x.nachricht])));
+  check(m.length === 1 && ulla.length === 1 && ulla[0].title === 'Neue DS-Zeitung' && ulla[0].body === '2026-2 DS-Zeitung' && ulla[0].url === '#/ds-zeitung/ds-neu' && ulla[0].tag === 'dszeitung:ds-neu',
+    'Ulla: „Neue DS-Zeitung“ mit dem Namen der Ausgabe, Link direkt zur Ausgabe – die alte Ausgabe nicht, Anna (ohne das Thema) nichts', JSON.stringify(m.map((x) => [x.url, x.nachricht])));
   pushSenden();
   check(welt.anfragen.length === start + 1, 'nächster Durchlauf: nicht noch einmal');
   check(sammel_([{ thema: 'news' }, { thema: 'dszeitung' }]).body === '1 News, 1 DS-Zeitung', 'Sammeltext nennt die DS-Zeitung');
+});
+
+await step('Bundesbote', async () => {
+  section('Bundesbote (E68): neue Ausgabe im Ordner → eigenes Thema, nichts Eigenes, kein nachgereichtes Archiv');
+  welt.konfiguration.zeitungOrdnerId = 'bb-ordner';
+  await anmelden('Vera', 'vera@beispiel.de', ['bundesbote', 'dszeitung'], 'https://fcm.googleapis.com/fcm/send/vera');
+  await anmelden('Redaktion', 'redaktion@beispiel.de', ['bundesbote'], 'https://fcm.googleapis.com/fcm/send/redaktion');
+  pushSenden(); // Bestätigungen
+  const redaktion = [{ emailAddress: 'redaktion@beispiel.de', displayName: 'Redaktion Beispiel' }];
+  const alt = iso(Date.now() - 30 * 86400000);
+  const jetzt = iso(Date.now());
+  const neu = new Date().getFullYear();
+  const ordner = (id, name, eltern) => welt.dateien.push({ id, name, mimeType: 'application/vnd.google-apps.folder', parents: [eltern], createdTime: alt, modifiedTime: alt, owners: redaktion, properties: {}, domain: true });
+  const pdf = (id, name, eltern, zeit) => welt.dateien.push({ id, name, mimeType: 'application/pdf', parents: [eltern], createdTime: zeit, modifiedTime: zeit, owners: redaktion, properties: {}, domain: true });
+  // Ordner: Bundesbote › Jahrgänge › <Jahr> (zwei Ebenen wie in der App) und Bundesbote › Archiv › 2003
+  ordner('bb-jg', 'Jahrgänge', 'bb-ordner');
+  ordner('bb-jg-neu', String(neu), 'bb-jg');
+  ordner('bb-archiv', 'Archiv', 'bb-ordner');
+  ordner('bb-2003', '2003', 'bb-archiv');
+  pdf('bb-neu', `${neu}-3 Sommerausgabe.pdf`, 'bb-ordner', jetzt);
+  pdf('bb-tief', `${neu}-1 Winterausgabe.pdf`, 'bb-jg-neu', jetzt);
+  pdf('bb-alt', `${neu}-2 Frühjahr.pdf`, 'bb-jg-neu', alt); // schon länger da
+  pdf('bb-2003-1', '2003-1 Ausgabe.pdf', 'bb-2003', jetzt); // Archiv gerade nachgereicht
+  pdf('bb-fremd', `${neu}-9 Anderswo.pdf`, 'irgendwo', jetzt); // anderer Ordner
+  const start = welt.anfragen.length;
+  pushSenden();
+  const m = await verschickt(start);
+  const vera = m.filter((x) => x.url.includes('vera')).map((x) => x.nachricht);
+  const tags = vera.map((n) => n.tag).sort().join();
+  const sommer = vera.find((n) => n.tag === 'bundesbote:bb-neu');
+  check(vera.length === 2 && tags === 'bundesbote:bb-neu,bundesbote:bb-tief' && sommer?.title === 'Neuer Bundesbote' && sommer.body === `${neu}-3 Sommerausgabe` && sommer.url === '#/zeitung/bb-neu',
+    'Vera: „Neuer Bundesbote“ mit Namen und Link zur Ausgabe – auch aus dem Jahresordner zwei Ebenen tief; die ältere Ausgabe, das nachgereichte Archiv von 2003 und fremde Ordner nicht', JSON.stringify(vera));
+  check(!m.some((x) => x.url.includes('redaktion')), 'die Redaktion, die ihn hochgeladen hat, bekommt keine Mitteilung', JSON.stringify(m.map((x) => x.url)));
+  check(!m.some((x) => x.url.includes('ulla')), 'Ulla (nur DS-Zeitung) bekommt nichts');
+  pushSenden();
+  check(welt.anfragen.length === start + m.length, 'nächster Durchlauf: nicht noch einmal');
+  check(sammel_([{ thema: 'bundesbote' }, { thema: 'bundesbote' }, { thema: 'dszeitung' }, { thema: 'dszeitung' }]).body === '2 Bundesboten, 2 DS-Zeitungen'
+    && sammel_([{ thema: 'bundesbote' }]).body === '1 Bundesbote', 'Sammeltext nennt Bundesboten und DS-Zeitungen (Mehrzahl)');
+  check(jahrImNamen_('2026-2 Titel.pdf') === 2026 && jahrImNamen_('DS-Zeitung 26.11.2025.pdf') === 2025 && jahrImNamen_('DS-Zeitung Nr. 116.pdf') === 0
+    && jahrImNamen_('DS-Zeitung 202412.pdf') === 0 && jahrImNamen_('Bundesbote 1/1998') === 1998, 'Jahr im Dateinamen (ohne Jahr: gilt als neu)');
+  check(teile_([1, 2, 3, 4, 5], 2).map((t) => t.join('')).join('|') === '12|34|5', 'lange Ordnerlisten in Stücken abfragen');
+  const d = diagnose().join('\n');
+  check(/Zeitungen: Bundesbote Ordner eingetragen, DS-Zeitung Ordner eingetragen/.test(d), 'diagnose nennt die Ordner der Zeitungen', d);
 });
 
 const failed = results.filter((r) => !r.ok);

@@ -1309,6 +1309,14 @@ body.login-open .view { animation: none; }
 .tab-badge { position: absolute; top: .3125rem; left: calc(50% + .4375rem); min-width: 1.125rem; height: 1.125rem; padding: 0 .3125rem; border-radius: 999px; background: var(--green); color: #0f1f00; font-size: .6875rem; font-weight: 800; line-height: 1.125rem; text-align: center; letter-spacing: 0; }
 .badge-new { background: var(--green); border-color: var(--green); color: #0f1f00; }
 .nav-badge, .menu-badge { display: inline-block; min-width: 1.125rem; height: 1.125rem; margin-left: .375rem; padding: 0 .3125rem; border-radius: 999px; background: var(--green); color: #0f1f00; font-size: .6875rem; font-weight: 800; line-height: 1.125rem; text-align: center; vertical-align: .0625rem; }
+/* Neue Ausgaben von Bundesbote und DS-Zeitung (E68): kleiner Punkt am Menüpunkt, bis die Ausgabe geöffnet wurde */
+.neu-punkt { display: inline-block; flex: none; width: .5625rem; height: .5625rem; margin-left: .375rem; border-radius: 50%; background: var(--green); vertical-align: .125rem; }
+.tabbar .neu-punkt { position: absolute; top: .4375rem; left: calc(50% + .5625rem); margin: 0; box-shadow: 0 0 0 .125rem var(--black); }
+.tabbar .tab-badge:not(.hidden) ~ .neu-punkt { display: none; } /* die Zahl der News geht vor */
+.tile { position: relative; }
+.tile .neu-punkt { position: absolute; top: .5rem; right: .5rem; margin: 0; }
+.topbar-user { position: relative; }
+.topbar-user .neu-punkt { display: none; } /* am Handy zeigt der Tab „Mehr“ den Punkt */
 
 /* Navigation: Textleiste oben nur am Computer mit Maus und genug Breite.
    Handys, Phablets und Tablets (Touch) behalten die große Tab-Leiste unten – in jeder Ausrichtung. */
@@ -1316,6 +1324,8 @@ body.login-open .view { animation: none; }
   .topnav { display: flex; }
   .tabbar { display: none; }
   .footer { padding-bottom: 0; }
+  /* „Mehr“ ist hier das Profilbild: Punkt für eine neue DS-Zeitung (der Bundesbote hat seinen Punkt in der Leiste) */
+  .topbar-user .neu-punkt { display: block; position: absolute; top: .0625rem; right: .0625rem; margin: 0; box-shadow: 0 0 0 .125rem var(--bg); }
 }
 
 /* ---------- Dialoge & Meldungen ---------- */

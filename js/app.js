@@ -9,6 +9,7 @@ import { watchKeyboard } from './lib/tastatur.js';
 import { gesperrt, ladeGemerkteGruppen, setMeineGruppen, meineGruppen } from './lib/gruppen.js';
 import { loadPrivateConfig, clearPrivateConfigCache } from './lib/konfiguration.js';
 import { startDarstellung } from './lib/darstellung.js';
+import { startAusgaben, punkt, refreshDots, pruefen as ausgabenPruefen } from './lib/ausgaben.js';
 
 export const APP_VERSION = '1.0.0';
 
@@ -139,6 +140,9 @@ const app = {
     document.body.classList.toggle('consent-gate', !!(this.consentPending && this.user && match.route.path === 'datenschutz'));
     $$('.topnav a').forEach((a) => a.classList.toggle('active', a.dataset.nav === match.route.nav && !!this.user));
     $$('.tabbar a').forEach((a) => a.classList.toggle('active', a.dataset.tab === match.route.tab));
+    // Punkte für neue Ausgaben (E68); prüft frisch höchstens alle 15 Minuten, nicht während der Datenschutz-Abfrage
+    refreshDots();
+    ausgabenPruefen();
   },
 };
 window.fbApp = app; // zur Fehlersuche in der Konsole
@@ -262,6 +266,8 @@ async function boot() {
   auth.setUnauthorizedHandler(onUnauthorized);
   renderShell();
   applyGruppen();
+  // Neue Ausgaben von Bundesbote und DS-Zeitung (E68): Punkte an den Menüpunkten – vor dem ersten Seitenaufbau
+  if (app.user) startAusgaben(app);
   startRouter(app);
   if (app.user) initGruppen();
   watchConnection();
@@ -376,9 +382,9 @@ function renderShell() {
         </a>
         ${loggedIn ? html`
           <nav class="topnav" aria-label="Hauptnavigation">
-            ${NAV.map((n) => html`<a href="#/${n.path}" data-nav="${n.id}">${n.label}${n.id === 'chat' || n.id === 'news' ? html`<span class="nav-badge hidden" data-badge="${n.id}"></span>` : ''}</a>`)}
+            ${NAV.map((n) => html`<a href="#/${n.path}" data-nav="${n.id}">${n.label}${n.id === 'chat' || n.id === 'news' ? html`<span class="nav-badge hidden" data-badge="${n.id}"></span>` : ''}${n.id === 'zeitung' ? punkt('bundesbote') : ''}</a>`)}
           </nav>
-          <a class="topbar-user" href="#/mehr" aria-label="Mein Bereich und Einstellungen">${avatar(app.user, 36)}</a>` : ''}
+          <a class="topbar-user" href="#/mehr" aria-label="Mein Bereich und Einstellungen">${avatar(app.user, 36)}${punkt('ds')}</a>` : ''}
       </div>
     </header>
     ${app.mode === 'demo' ? html`<div class="demo-bar">Demo-Modus · erfundene Beispieldaten <a href="#" data-action="end-demo">Beenden</a></div>` : ''}
@@ -390,7 +396,7 @@ function renderShell() {
       <div class="footer-ground">${config.appName} · Mitglieder-App ${APP_VERSION} · <a href="#/datenschutz">Datenschutz</a>${loggedIn ? html` · <a href="#/einstellungen">Einstellungen</a>` : ''}</div>
     </footer>
     ${loggedIn ? html`<nav class="tabbar" aria-label="Navigation">
-      ${TABS.map((t) => html`<a href="#/${t.path}" data-tab="${t.id}">${icon(t.icon)}<span>${t.label}</span>${t.id === 'chat' || t.id === 'mehr' ? html`<span class="tab-badge hidden" data-badge="${t.id === 'chat' ? 'chat' : 'news'}"></span>` : ''}</a>`)}
+      ${TABS.map((t) => html`<a href="#/${t.path}" data-tab="${t.id}">${icon(t.icon)}<span>${t.label}</span>${t.id === 'chat' || t.id === 'mehr' ? html`<span class="tab-badge hidden" data-badge="${t.id === 'chat' ? 'chat' : 'news'}"></span>` : ''}${t.id === 'mehr' ? punkt('mehr') : ''}</a>`)}
     </nav>` : ''}
   `);
   root.addEventListener('click', (e) => {
